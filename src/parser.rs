@@ -34,6 +34,10 @@ impl Parser {
 
         let mut commands: Vec<Command> = Vec::new();
         for group in groups {
+            if group.is_empty() {
+                break;
+            }
+
             let mut command = Command::new(&group[0]);
             command.args(&group[1..]);
             commands.push(command);
