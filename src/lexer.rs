@@ -112,13 +112,33 @@ impl Lexer {
                 self.enqueue_token(Token::Separator(Separator::SingleQuote));
                 self.next_char();
 
-                // Enqueue a token for the string content.
-                let string_content = self.next_while(|c| c != &'\'');
-                self.enqueue_token(Token::Literal(Literal::String(string_content)));
+                let mut string_content = String::new();
+                loop {
+                    match self.peek_char() {
+                        Some('\\') => {
+                            self.next_char(); // Skip peeked char.
 
-                // Enqueue the token for the last delimiter.
-                self.enqueue_token(Token::Separator(Separator::SingleQuote));
-                self.next_char();
+                            // Add escaped token to the string.
+                            match self.peek_char() {
+                                Some('\'') => string_content.push(self.next_char().unwrap()),
+                                _ => (),
+                            }
+                        }
+                        Some('\'') => {
+                            // Enqueue a token for the string content.
+                            self.enqueue_token(Token::Literal(Literal::String(string_content)));
+
+                            // Enqueue the token for the last delimiter.
+                            self.enqueue_token(Token::Separator(Separator::SingleQuote));
+                            self.next_char();
+                            break;
+                        }
+                        Some(_) => {
+                            string_content.push(self.next_char().unwrap());
+                        }
+                        None => break,
+                    }
+                }
 
                 // Return the first delimiter.
                 // The other tokens will be returned in subsequent calls.
@@ -203,6 +223,18 @@ mod tests {
             vec![
                 Token::Separator(Separator::SingleQuote),
                 Token::Literal(Literal::String(String::from("This is a string"))),
+                Token::Separator(Separator::SingleQuote),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_strings_with_escaped_chars() {
+        assert_eq!(
+            tokens("'It\\'s a string'"),
+            vec![
+                Token::Separator(Separator::SingleQuote),
+                Token::Literal(Literal::String(String::from("It's a string"))),
                 Token::Separator(Separator::SingleQuote),
             ]
         );
