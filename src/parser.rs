@@ -1,20 +1,29 @@
-use crate::lexer::{Literal, Separator, Token};
+use crate::token::{Literal, Separator, Token};
 
+use std::iter::{Iterator, Peekable};
 use std::process::Command;
 
-pub struct Parser {
-    tokens: Vec<Token>,
+pub struct Parser<I>
+where
+    I: Iterator<Item = Token>,
+{
+    lexer: Peekable<I>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+impl<I> Parser<I>
+where
+    I: Iterator<Item = Token>,
+{
+    pub fn new(lexer: I) -> Self {
+        Self {
+            lexer: lexer.peekable(),
+        }
     }
 
     pub fn parse(self) -> Vec<Command> {
         let mut groups: Vec<Vec<String>> = Vec::new();
         let mut group: Vec<String> = Vec::new();
-        for token in self.tokens {
+        for token in self.lexer {
             match token {
                 Token::Separator(Separator::Semicolon) => {
                     groups.push(group);

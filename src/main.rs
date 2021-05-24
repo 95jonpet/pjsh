@@ -1,8 +1,9 @@
 mod lexer;
 mod parser;
 mod shell;
+mod token;
 
-use lexer::{Lexer, Token};
+use lexer::Lexer;
 use parser::Parser;
 use shell::Shell;
 use std::env;
@@ -14,13 +15,9 @@ fn main() {
 
     let shell = Shell::new(args.last());
     for line in shell {
-        let mut lexer = Lexer::new(&line);
-        let mut tokens: Vec<Token> = Vec::new();
-        while let Some(token) = lexer.next_token() {
-            tokens.push(token);
-        }
+        let lexer = Lexer::new(&line);
 
-        let parser = Parser::new(tokens);
+        let parser = Parser::new(lexer.peekable());
         let commands = parser.parse();
 
         for command in commands {

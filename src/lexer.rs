@@ -1,3 +1,4 @@
+use crate::token::{Keyword, Literal, Operator, Separator, Token};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::iter::Peekable;
@@ -5,52 +6,6 @@ use std::rc::Rc;
 use std::vec::IntoIter;
 
 const UNEXPECTED_EOF: &str = "Unexpected EOF";
-
-#[derive(Debug, PartialEq)]
-pub enum Token {
-    Identifier(String),
-    Keyword(Keyword),
-    Separator(Separator),
-    Operator(Operator),
-    Literal(Literal),
-    Comment(String),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Separator {
-    Semicolon,
-    SingleQuote,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Literal {
-    Integer(i64),
-    String(String),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Keyword {
-    Case,
-    Do,
-    Done,
-    Elif,
-    Else,
-    Esac,
-    Fi,
-    For,
-    If,
-    In,
-    Then,
-    Until,
-    While,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Operator {
-    Assign,
-    Equal,
-    Pipe,
-}
 
 pub struct Lexer {
     // shell: Rc<RefCell<Shell>>,
@@ -211,6 +166,13 @@ impl Lexer {
             }
             _ => None,
         }
+    }
+}
+
+impl Iterator for Lexer {
+    type Item = Token;
+    fn next(&mut self) -> Option<<Self as Iterator>::Item> {
+        self.next_token()
     }
 }
 
