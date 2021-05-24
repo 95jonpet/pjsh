@@ -4,7 +4,7 @@ mod shell;
 mod token;
 
 use lexer::Lexer;
-use parser::Parser;
+use parser::{Cmd, Parser, SingleCommand};
 use shell::Shell;
 use std::env;
 use std::process::{Command, Stdio};
@@ -16,12 +16,14 @@ fn main() {
     let shell = Shell::new(args.last());
     for line in shell {
         let lexer = Lexer::new(&line);
+        let mut parser = Parser::new(lexer.peekable());
+        let cmd = parser.get();
 
-        let parser = Parser::new(lexer.peekable());
-        let commands = parser.parse();
-
-        for command in commands {
-            execute_command(command);
+        match cmd {
+            Ok(Cmd::Single(command)) => {
+                command.execute();
+            }
+            _ => (),
         }
     }
 }

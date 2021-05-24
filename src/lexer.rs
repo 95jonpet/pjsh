@@ -116,11 +116,16 @@ impl Lexer {
                 loop {
                     match self.peek_char() {
                         Some('\\') => {
-                            self.next_char(); // Skip peeked char.
+                            self.next_char(); // Skip backslash.
 
                             // Add escaped token to the string.
                             match self.peek_char() {
                                 Some('\'') => string_content.push(self.next_char().unwrap()),
+                                Some(_) => {
+                                    // Non-escapable character.
+                                    string_content.push('\\'); // Add backslash.
+                                    string_content.push(self.next_char().unwrap());
+                                }
                                 _ => (),
                             }
                         }
@@ -235,6 +240,14 @@ mod tests {
             vec![
                 Token::Separator(Separator::SingleQuote),
                 Token::Literal(Literal::String(String::from("It's a string"))),
+                Token::Separator(Separator::SingleQuote),
+            ]
+        );
+        assert_eq!(
+            tokens("'\\n'"), // Should not be escaped.
+            vec![
+                Token::Separator(Separator::SingleQuote),
+                Token::Literal(Literal::String(String::from("\\n"))),
                 Token::Separator(Separator::SingleQuote),
             ]
         );
