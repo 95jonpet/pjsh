@@ -101,7 +101,21 @@ impl Lexer {
             }
             Some('|') => {
                 self.next_char(); // Skip peeked char.
-                Some(Token::Operator(Operator::Pipe))
+                if let Some('|') = self.peek_char() {
+                    self.next_char(); // Skip peeked char.
+                    Some(Token::Operator(Operator::Or))
+                } else {
+                    Some(Token::Operator(Operator::Pipe))
+                }
+            }
+            Some('&') => {
+                self.next_char(); // Skip peeked char.
+                if let Some('&') = self.peek_char() {
+                    self.next_char(); // Skip peeked char.
+                    Some(Token::Operator(Operator::And))
+                } else {
+                    Some(Token::Operator(Operator::Ampersand))
+                }
             }
             Some(';') => {
                 self.next_char(); // Skip peeked char.
@@ -283,6 +297,31 @@ mod tests {
     }
 
     #[test]
+    fn it_identifies_operator_ampersand() {
+        assert_eq!(tokens("&"), vec![Token::Operator(Operator::Ampersand),]);
+        assert_eq!(
+            tokens("code &"),
+            vec![
+                Token::Identifier(String::from("code")),
+                Token::Operator(Operator::Ampersand),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_operator_and() {
+        assert_eq!(tokens("&&"), vec![Token::Operator(Operator::And),]);
+        assert_eq!(
+            tokens("x && y"),
+            vec![
+                Token::Identifier(String::from("x")),
+                Token::Operator(Operator::And),
+                Token::Identifier(String::from("y")),
+            ]
+        );
+    }
+
+    #[test]
     fn it_identifies_operator_assign() {
         assert_eq!(
             tokens("x=1234"),
@@ -328,6 +367,19 @@ mod tests {
                 Token::Identifier(String::from("x")),
                 Token::Operator(Operator::Equal),
                 Token::Literal(Literal::Integer(1234))
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_operator_or() {
+        assert_eq!(tokens("||"), vec![Token::Operator(Operator::Or),]);
+        assert_eq!(
+            tokens("x || y"),
+            vec![
+                Token::Identifier(String::from("x")),
+                Token::Operator(Operator::Or),
+                Token::Identifier(String::from("y")),
             ]
         );
     }

@@ -39,7 +39,10 @@ pub enum Keyword {
 
 #[derive(Debug, PartialEq)]
 pub enum Operator {
+    Ampersand,
+    And,
     Assign,
     Equal,
+    Or,
     Pipe,
 }

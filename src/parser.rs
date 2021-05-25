@@ -1,33 +1,52 @@
-use crate::token::{Literal, Separator, Token};
+use crate::token::Operator;
+use crate::token::{Literal, Token};
 
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::{Iterator, Peekable};
-use std::process::{Command, Output, Stdio};
+use std::process::Stdio;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum FileDescriptor {
     Stdin,
     Stdout,
     Stderr,
+    PipeOut(PipeWriter),
+    PipeIn(PipeReader),
+}
+
+impl PartialEq for FileDescriptor {
+    fn eq(&self, other: &Self) -> bool {
+        self.variant() == other.variant()
+    }
 }
 
 impl FileDescriptor {
-    pub fn get_stdin(self) -> Option<Stdio> {
+    fn variant(&self) -> &str {
+        match *self {
+            FileDescriptor::Stdin => "Stdin",
+            FileDescriptor::Stdout => "Stdout",
+            FileDescriptor::Stderr => "Stderr",
+            FileDescriptor::PipeOut(_) => "PipeOut",
+            FileDescriptor::PipeIn(_) => "PipeIn",
+        }
+    }
+
+    pub fn get_stdin(&mut self) -> Option<Stdio> {
         match self {
             _ => dup_stdin().map(|io| Stdio::from(io)).ok(),
         }
     }
 
-    pub fn get_stdout(self) -> Option<Stdio> {
+    pub fn get_stdout(&mut self) -> Option<Stdio> {
         match self {
             _ => dup_stdout().map(|io| Stdio::from(io)).ok(),
         }
     }
 
-    pub fn get_stderr(self) -> Option<Stdio> {
+    pub fn get_stderr(&mut self) -> Option<Stdio> {
         match self {
             _ => dup_stderr().map(|io| Stdio::from(io)).ok(),
         }
@@ -48,21 +67,9 @@ impl Io {
             stderr: Rc::new(RefCell::new(FileDescriptor::Stderr)),
         }
     }
-
-    fn set_stdin(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
-        self.stdin = fd;
-    }
-
-    fn set_stdout(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
-        self.stdout = fd;
-    }
-
-    fn set_stderr(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
-        self.stderr = fd;
-    }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Cmd {
     Single(SingleCommand),
     Pipeline(Box<Cmd>, Box<Cmd>),
@@ -72,7 +79,7 @@ pub enum Cmd {
     Empty,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct SingleCommand {
     pub cmd: String,
     pub args: Vec<String>,
@@ -93,29 +100,6 @@ impl SingleCommand {
             stderr: io.stderr,
         }
     }
-
-    // pub fn execute(self) -> std::io::Result<Output> {
-    //     let mut command = Command::new(self.cmd);
-    //     command.args(&self.args);
-
-    //     if let Some(stdout) = self.stdout.borrow_mut().get_stdout() {
-    //         command.stdout(stdout);
-    //     }
-
-    //     // if let Some(stdin) = self.stdin.as_ref().borrow().get_stdin() {
-    //     //     command.stdin(Stdio::from(stdin));
-    //     // }
-
-    //     // if let Some(stdout) = self.stdout.as_ref().borrow().get_stdout() {
-    //     //     command.stdout(Stdio::from(stdout));
-    //     // }
-
-    //     // if let Some(stderr) = self.stderr.as_ref().borrow().get_stderr() {
-    //     //     command.stderr(Stdio::from(stderr));
-    //     // }
-
-    //     command.output()
-    // }
 }
 
 pub struct Parser<I>
@@ -136,21 +120,40 @@ where
     }
 
     pub fn get(&mut self) -> Result<Cmd, String> {
-        self.get_and()
+        self.get_and_or_or()
     }
 
-    fn get_and(&mut self) -> Result<Cmd, String> {
-        let node = self.get_pipe()?;
+    fn get_and_or_or(&mut self) -> Result<Cmd, String> {
+        let mut node = self.get_pipe()?;
+        while let Some(Token::Operator(Operator::And)) | Some(Token::Operator(Operator::Or)) =
+            self.lexer.peek()
+        {
+            match self.lexer.next() {
+                Some(Token::Operator(Operator::And)) => {
+                    node = Cmd::And(Box::new(node), Box::new(self.get_pipe()?));
+                }
+                Some(Token::Operator(Operator::Or)) => {
+                    node = Cmd::Or(Box::new(node), Box::new(self.get_pipe()?));
+                }
+                _ => unreachable!(),
+            };
+        }
         Ok(node)
     }
 
     fn get_pipe(&mut self) -> Result<Cmd, String> {
-        let node = self.get_single()?;
+        let mut node = self.get_single()?;
+        while let Some(Token::Operator(Operator::Pipe)) = self.lexer.peek() {
+            self.lexer.next();
+            node = Cmd::Pipeline(Box::new(node), Box::new(self.get_single()?));
+        }
         Ok(node)
     }
 
     fn get_single(&mut self) -> Result<Cmd, String> {
         let mut result: Vec<String> = Vec::new();
+        let io = Io::new();
+
         loop {
             match self.lexer.peek() {
                 Some(Token::Identifier(_)) => {
@@ -163,6 +166,11 @@ where
                         result.push(string);
                     }
                 }
+                Some(Token::Literal(Literal::Integer(_))) => {
+                    if let Some(Token::Literal(Literal::Integer(int))) = self.lexer.next() {
+                        result.push(int.to_string());
+                    }
+                }
                 _ => break,
             }
         }
@@ -171,51 +179,7 @@ where
             unimplemented!("Missing result");
         }
 
-        let cmd = SingleCommand::new(result.remove(0), result, Io::new());
+        let cmd = SingleCommand::new(result.remove(0), result, io);
         Ok(Cmd::Single(cmd))
-    }
-
-    pub fn parse(self) -> Vec<Command> {
-        let mut groups: Vec<Vec<String>> = Vec::new();
-        let mut group: Vec<String> = Vec::new();
-        for token in self.lexer {
-            match token {
-                Token::Separator(Separator::Semicolon) => {
-                    groups.push(group);
-                    group = Vec::new();
-                }
-                _ => {
-                    if let Some(string) = Self::token_to_string(token) {
-                        group.push(string);
-                    }
-                }
-            }
-        }
-
-        if !groups.contains(&group) {
-            groups.push(group);
-        }
-
-        let mut commands: Vec<Command> = Vec::new();
-        for group in groups {
-            if group.is_empty() {
-                break;
-            }
-
-            let mut command = Command::new(&group[0]);
-            command.args(&group[1..]);
-            commands.push(command);
-        }
-
-        commands
-    }
-
-    fn token_to_string(token: Token) -> Option<String> {
-        match token {
-            Token::Identifier(id) => Some(id),
-            Token::Literal(Literal::String(string)) => Some(string),
-            Token::Literal(Literal::Integer(integer)) => Some(integer.to_string()),
-            _ => None,
-        }
     }
 }
