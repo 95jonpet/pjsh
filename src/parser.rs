@@ -1,13 +1,10 @@
 use crate::token::{Literal, Separator, Token};
 
+use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::Stderr;
-use std::io::Stdin;
-use std::io::Stdout;
 use std::iter::{Iterator, Peekable};
-use std::process::Command;
-use std::process::Stdio;
+use std::process::{Command, Output, Stdio};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
@@ -18,15 +15,50 @@ pub enum FileDescriptor {
 }
 
 impl FileDescriptor {
-    pub fn get_stdin(self) -> Stdin {
-        std::io::stdin()
+    pub fn get_stdin(self) -> Option<Stdio> {
+        match self {
+            _ => dup_stdin().map(|io| Stdio::from(io)).ok(),
+        }
     }
 
-    pub fn get_stdout(self) -> Stdout {
-        std::io::stdout()
+    pub fn get_stdout(self) -> Option<Stdio> {
+        match self {
+            _ => dup_stdout().map(|io| Stdio::from(io)).ok(),
+        }
     }
-    pub fn get_stderr(self) -> Stderr {
-        std::io::stderr()
+
+    pub fn get_stderr(self) -> Option<Stdio> {
+        match self {
+            _ => dup_stderr().map(|io| Stdio::from(io)).ok(),
+        }
+    }
+}
+
+pub struct Io {
+    stdin: Rc<RefCell<FileDescriptor>>,
+    stdout: Rc<RefCell<FileDescriptor>>,
+    stderr: Rc<RefCell<FileDescriptor>>,
+}
+
+impl Io {
+    fn new() -> Io {
+        Io {
+            stdin: Rc::new(RefCell::new(FileDescriptor::Stdin)),
+            stdout: Rc::new(RefCell::new(FileDescriptor::Stdout)),
+            stderr: Rc::new(RefCell::new(FileDescriptor::Stderr)),
+        }
+    }
+
+    fn set_stdin(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
+        self.stdin = fd;
+    }
+
+    fn set_stdout(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
+        self.stdout = fd;
+    }
+
+    fn set_stderr(&mut self, fd: Rc<RefCell<FileDescriptor>>) {
+        self.stderr = fd;
     }
 }
 
@@ -51,31 +83,39 @@ pub struct SingleCommand {
 }
 
 impl SingleCommand {
-    fn new(
-        cmd: String,
-        args: Vec<String>,
-        stdin: Rc<RefCell<FileDescriptor>>,
-        stdout: Rc<RefCell<FileDescriptor>>,
-        stderr: Rc<RefCell<FileDescriptor>>,
-    ) -> Self {
+    fn new(cmd: String, args: Vec<String>, io: Io) -> Self {
         Self {
             cmd,
             args,
             env: None,
-            stdin,
-            stdout,
-            stderr,
+            stdin: io.stdin,
+            stdout: io.stdout,
+            stderr: io.stderr,
         }
     }
 
-    pub fn execute(self) {
-        let mut command = Command::new(self.cmd);
-        command.args(self.args);
-        command.stdin(Stdio::inherit());
-        command.stdout(Stdio::inherit());
-        command.stderr(Stdio::inherit());
-        command.output();
-    }
+    // pub fn execute(self) -> std::io::Result<Output> {
+    //     let mut command = Command::new(self.cmd);
+    //     command.args(&self.args);
+
+    //     if let Some(stdout) = self.stdout.borrow_mut().get_stdout() {
+    //         command.stdout(stdout);
+    //     }
+
+    //     // if let Some(stdin) = self.stdin.as_ref().borrow().get_stdin() {
+    //     //     command.stdin(Stdio::from(stdin));
+    //     // }
+
+    //     // if let Some(stdout) = self.stdout.as_ref().borrow().get_stdout() {
+    //     //     command.stdout(Stdio::from(stdout));
+    //     // }
+
+    //     // if let Some(stderr) = self.stderr.as_ref().borrow().get_stderr() {
+    //     //     command.stderr(Stdio::from(stderr));
+    //     // }
+
+    //     command.output()
+    // }
 }
 
 pub struct Parser<I>
@@ -100,12 +140,12 @@ where
     }
 
     fn get_and(&mut self) -> Result<Cmd, String> {
-        let mut node = self.get_pipe()?;
+        let node = self.get_pipe()?;
         Ok(node)
     }
 
     fn get_pipe(&mut self) -> Result<Cmd, String> {
-        let mut node = self.get_single()?;
+        let node = self.get_single()?;
         Ok(node)
     }
 
@@ -131,13 +171,7 @@ where
             unimplemented!("Missing result");
         }
 
-        let cmd = SingleCommand::new(
-            result.remove(0),
-            result,
-            Rc::new(RefCell::new(FileDescriptor::Stdin)),
-            Rc::new(RefCell::new(FileDescriptor::Stdout)),
-            Rc::new(RefCell::new(FileDescriptor::Stderr)),
-        );
+        let cmd = SingleCommand::new(result.remove(0), result, Io::new());
         Ok(Cmd::Single(cmd))
     }
 

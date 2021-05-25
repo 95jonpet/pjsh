@@ -1,10 +1,12 @@
+mod executor;
 mod lexer;
 mod parser;
 mod shell;
 mod token;
 
+use executor::Executor;
 use lexer::Lexer;
-use parser::{Cmd, Parser, SingleCommand};
+use parser::{Cmd, Parser};
 use shell::Shell;
 use std::env;
 use std::process::{Command, Stdio};
@@ -19,29 +21,14 @@ fn main() {
         let mut parser = Parser::new(lexer.peekable());
         let cmd = parser.get();
 
+        let executor = Executor::new();
+
         match cmd {
             Ok(Cmd::Single(command)) => {
-                command.execute();
+                // command.execute();
+                executor.execute_single(command);
             }
             _ => (),
         }
-    }
-}
-
-fn execute_command(mut command: Command) {
-    let maybe_output = command
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .output();
-
-    match maybe_output {
-        Ok(output) if !output.status.success() => {
-            eprintln!(
-                "ERROR: Command failed with status {}.",
-                output.status.code().unwrap()
-            );
-        }
-        Err(error) => eprintln!("ERROR: {}", error),
-        _ => (),
     }
 }
