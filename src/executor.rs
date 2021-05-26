@@ -61,7 +61,6 @@ impl Executor {
             Cmd::Pipeline(left, right) => self.visit_pipe(*left, *right, stdio),
             Cmd::And(left, right) => self.visit_and(*left, *right, stdio),
             Cmd::Or(left, right) => self.visit_or(*left, *right, stdio),
-            cmd @ _ => unimplemented!("Cannot execute command: {:?}", cmd),
         }
     }
 

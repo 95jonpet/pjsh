@@ -1,3 +1,4 @@
+use crate::shell::Shell;
 use crate::token::{Keyword, Literal, Operator, Separator, Token};
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -8,15 +9,16 @@ use std::vec::IntoIter;
 const UNEXPECTED_EOF: &str = "Unexpected EOF";
 
 pub struct Lexer {
-    // shell: Rc<RefCell<Shell>>,
+    #[allow(dead_code)]
+    shell: Rc<RefCell<Shell>>,
     line: Peekable<IntoIter<char>>,
     queued_tokens: VecDeque<Token>,
 }
 
 impl Lexer {
-    pub fn new(line: &str /*, shell: Rc<RefCell<Shell>>*/) -> Self {
+    pub fn new(line: &str, shell: Rc<RefCell<Shell>>) -> Self {
         Self {
-            // shell,
+            shell,
             line: line.chars().collect::<Vec<_>>().into_iter().peekable(),
             queued_tokens: VecDeque::new(),
         }
@@ -416,7 +418,7 @@ mod tests {
     }
 
     fn tokens(input: &str) -> Vec<super::Token> {
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input, Rc::new(RefCell::new(Shell::new(None))));
         let mut tokens: Vec<super::Token> = Vec::new();
 
         while let Some(token) = lexer.next_token() {

@@ -1,3 +1,4 @@
+use crate::shell::Shell;
 use crate::token::Operator;
 use crate::token::{Literal, Token};
 
@@ -36,20 +37,22 @@ impl FileDescriptor {
 
     pub fn get_stdin(&mut self) -> Option<Stdio> {
         match self {
-            _ => dup_stdin().map(|io| Stdio::from(io)).ok(),
+            _ => self.get_stdout(),
         }
     }
 
     pub fn get_stdout(&mut self) -> Option<Stdio> {
         match self {
-            _ => dup_stdout().map(|io| Stdio::from(io)).ok(),
+            FileDescriptor::Stdin => Some(Stdio::from(dup_stdin().unwrap())),
+            FileDescriptor::Stdout => Some(Stdio::from(dup_stdout().unwrap())),
+            FileDescriptor::Stderr => Some(Stdio::from(dup_stderr().unwrap())),
+            FileDescriptor::PipeOut(writer) => Some(Stdio::from(writer.try_clone().unwrap())),
+            FileDescriptor::PipeIn(reader) => Some(Stdio::from(reader.try_clone().unwrap())),
         }
     }
 
     pub fn get_stderr(&mut self) -> Option<Stdio> {
-        match self {
-            _ => dup_stderr().map(|io| Stdio::from(io)).ok(),
-        }
+        self.get_stdout()
     }
 }
 
@@ -76,7 +79,6 @@ pub enum Cmd {
     And(Box<Cmd>, Box<Cmd>),
     Or(Box<Cmd>, Box<Cmd>),
     Not(Box<Cmd>),
-    Empty,
 }
 
 #[derive(Debug)]
@@ -107,15 +109,18 @@ where
     I: Iterator<Item = Token>,
 {
     lexer: Peekable<I>,
+    #[allow(dead_code)]
+    shell: Rc<RefCell<Shell>>,
 }
 
 impl<I> Parser<I>
 where
     I: Iterator<Item = Token>,
 {
-    pub fn new(lexer: I) -> Self {
+    pub fn new(lexer: I, shell: Rc<RefCell<Shell>>) -> Self {
         Self {
             lexer: lexer.peekable(),
+            shell,
         }
     }
 

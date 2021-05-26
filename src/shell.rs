@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
 
-static PS1: &str = "-> ";
+static PS1: &str = "$";
 // static PS2: &str = ">> ";
 
 pub struct Lines {
@@ -30,6 +30,7 @@ impl Iterator for Lines {
 pub struct Shell {
     lines: Lines,
     interactive: bool,
+    #[allow(dead_code)]
     name: String,
     pub vars: HashMap<String, String>,
 }
@@ -54,6 +55,10 @@ impl Shell {
             }
         }
     }
+
+    pub fn is_interactive(&self) -> bool {
+        self.interactive
+    }
 }
 
 impl Iterator for Shell {
@@ -61,7 +66,7 @@ impl Iterator for Shell {
 
     fn next(&mut self) -> Option<String> {
         if self.interactive {
-            print!("[{}] {}", self.name, PS1);
+            print!("{} ", PS1);
             io::stdout().flush().unwrap();
         }
         self.lines.next()
