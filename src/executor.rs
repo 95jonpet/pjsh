@@ -57,11 +57,16 @@ impl Executor {
     fn visit(&self, node: Cmd, stdio: CmdMeta) -> bool {
         match node {
             Cmd::Single(single) => self.visit_single(single, stdio),
+            Cmd::Not(cmd) => self.visit_not(*cmd, stdio),
             Cmd::Pipeline(left, right) => self.visit_pipe(*left, *right, stdio),
             Cmd::And(left, right) => self.visit_and(*left, *right, stdio),
             Cmd::Or(left, right) => self.visit_or(*left, *right, stdio),
-            _ => false,
+            cmd @ _ => unimplemented!("Cannot execute command: {:?}", cmd),
         }
+    }
+
+    fn visit_not(&self, cmd: Cmd, stdio: CmdMeta) -> bool {
+        !self.visit(cmd, stdio)
     }
 
     fn visit_and(&self, left: Cmd, right: Cmd, stdio: CmdMeta) -> bool {

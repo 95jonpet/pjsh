@@ -99,6 +99,10 @@ impl Lexer {
                 self.next_char(); // Skip peeked char.
                 Some(Token::Operator(Operator::Equal))
             }
+            Some('!') => {
+                self.next_char(); // Skip peeked char.
+                Some(Token::Operator(Operator::Bang))
+            }
             Some('|') => {
                 self.next_char(); // Skip peeked char.
                 if let Some('|') = self.peek_char() {
@@ -354,6 +358,18 @@ mod tests {
                 Token::Identifier(String::from("x")),
                 Token::Operator(Operator::Assign),
                 Token::Literal(Literal::String(String::new())),
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_operator_bang() {
+        assert_eq!(tokens("!"), vec![Token::Operator(Operator::Bang)]);
+        assert_eq!(
+            tokens("! true"),
+            vec![
+                Token::Operator(Operator::Bang),
+                Token::Identifier(String::from("true"))
             ]
         );
     }

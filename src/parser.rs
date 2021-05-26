@@ -151,6 +151,11 @@ where
     }
 
     fn get_single(&mut self) -> Result<Cmd, String> {
+        if let Some(Token::Operator(Operator::Bang)) = self.lexer.peek() {
+            self.lexer.next();
+            return Ok(Cmd::Not(Box::new(self.get_single()?)));
+        }
+
         let mut result: Vec<String> = Vec::new();
         let io = Io::new();
 

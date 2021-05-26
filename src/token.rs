@@ -42,6 +42,7 @@ pub enum Operator {
     Ampersand,
     And,
     Assign,
+    Bang,
     Equal,
     Or,
     Pipe,
