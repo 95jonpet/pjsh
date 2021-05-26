@@ -1,3 +1,4 @@
+mod builtins;
 mod executor;
 mod lexer;
 mod parser;
@@ -40,12 +41,4 @@ fn main() {
             break;
         }
     }
-
-    // for line in shell {
-    //     let lexer = Lexer::new(&line);
-    //     let mut parser = Parser::new(lexer.peekable());
-    //     if let Ok(cmd) = parser.get() {
-    //         executor.execute(cmd, false);
-    //     }
-    // }
 }

@@ -1,5 +1,6 @@
 use os_pipe::{pipe, PipeReader, PipeWriter};
 
+use crate::builtins;
 use crate::parser::FileDescriptor;
 use crate::parser::{Cmd, SingleCommand};
 use std::io::Read;
@@ -93,6 +94,7 @@ impl Executor {
     fn visit_single(&self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
+            "cd" => builtins::cd(single.args),
             command => {
                 let mut cmd = Command::new(command);
                 cmd.args(&single.args);
