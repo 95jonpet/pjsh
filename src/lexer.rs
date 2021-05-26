@@ -128,9 +128,7 @@ impl Lexer {
                 Some(Token::Separator(Separator::Semicolon))
             }
             Some('\'') => {
-                // Enqueue the token for the first delimiter.
-                self.enqueue_token(Token::Separator(Separator::SingleQuote));
-                self.next_char();
+                self.next_char(); // Skip delimiter.
 
                 let mut string_content = String::new();
                 loop {
@@ -150,13 +148,8 @@ impl Lexer {
                             }
                         }
                         Some('\'') => {
-                            // Enqueue a token for the string content.
-                            self.enqueue_token(Token::Literal(Literal::String(string_content)));
-
-                            // Enqueue the token for the last delimiter.
-                            self.enqueue_token(Token::Separator(Separator::SingleQuote));
-                            self.next_char();
-                            break;
+                            self.next_char(); // Skip delimiter.
+                            return Some(Token::Literal(Literal::String(string_content)));
                         }
                         Some(_) => {
                             string_content.push(self.next_char().unwrap());
@@ -245,11 +238,9 @@ mod tests {
     fn it_identifies_strings() {
         assert_eq!(
             tokens("'This is a string'"),
-            vec![
-                Token::Separator(Separator::SingleQuote),
-                Token::Literal(Literal::String(String::from("This is a string"))),
-                Token::Separator(Separator::SingleQuote),
-            ]
+            vec![Token::Literal(Literal::String(String::from(
+                "This is a string"
+            ))),]
         );
     }
 
@@ -257,19 +248,13 @@ mod tests {
     fn it_identifies_strings_with_escaped_chars() {
         assert_eq!(
             tokens("'It\\'s a string'"),
-            vec![
-                Token::Separator(Separator::SingleQuote),
-                Token::Literal(Literal::String(String::from("It's a string"))),
-                Token::Separator(Separator::SingleQuote),
-            ]
+            vec![Token::Literal(Literal::String(String::from(
+                "It's a string"
+            ))),]
         );
         assert_eq!(
             tokens("'\\n'"), // Should not be escaped.
-            vec![
-                Token::Separator(Separator::SingleQuote),
-                Token::Literal(Literal::String(String::from("\\n"))),
-                Token::Separator(Separator::SingleQuote),
-            ]
+            vec![Token::Literal(Literal::String(String::from("\\n"))),]
         );
     }
 

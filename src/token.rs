@@ -11,7 +11,6 @@ pub enum Token {
 #[derive(Debug, PartialEq)]
 pub enum Separator {
     Semicolon,
-    SingleQuote,
 }
 
 #[derive(Debug, PartialEq)]

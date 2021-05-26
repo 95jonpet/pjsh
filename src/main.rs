@@ -27,9 +27,6 @@ fn main() {
             let mut parser = Parser::new(lexer, Rc::clone(&shell));
             match parser.get() {
                 Ok(command) => {
-                    #[cfg(debug_assertions)] // Only include when not built with `--release` flag
-                    println!("\u{001b}[34m{:#?}\u{001b}[0m", command);
-
                     executor.execute(command, false);
                 }
                 Err(e) => {
