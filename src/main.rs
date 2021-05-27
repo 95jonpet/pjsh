@@ -10,15 +10,29 @@ use lexer::Lexer;
 use parser::Parser;
 use shell::Shell;
 
+use clap::{crate_name, crate_version, Clap};
 use std::cell::RefCell;
 use std::env;
+use std::path::PathBuf;
 use std::rc::Rc;
 
-fn main() {
-    let mut args = env::args();
-    args.next(); // Skip first argument = path to the executable.
+/// A shell for executing POSIX commands.
+#[derive(Clap, Debug)]
+#[clap(name = crate_name!(), version = crate_version!())]
+struct Cli {
+    /// The command to execute.
+    #[clap(short)]
+    command: Option<String>,
 
-    let shell = Rc::new(RefCell::new(Shell::new(args.last())));
+    /// The path to a script which should be executed.
+    #[clap(parse(from_os_str))]
+    script_file: Option<PathBuf>,
+}
+
+fn main() {
+    let args = Cli::parse();
+
+    let shell = create_shell(args);
     let executor = Executor::new();
 
     loop {
@@ -41,4 +55,14 @@ fn main() {
             break;
         }
     }
+}
+
+fn create_shell(args: Cli) -> Rc<RefCell<Shell>> {
+    let shell = match args {
+        conf if conf.command.is_some() => Shell::from_command(conf.command.unwrap()),
+        conf if conf.script_file.is_some() => Shell::from_file(conf.script_file.unwrap()),
+        _ => Shell::interactive(),
+    };
+
+    Rc::new(RefCell::new(shell))
 }

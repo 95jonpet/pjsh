@@ -403,7 +403,10 @@ mod tests {
     }
 
     fn tokens(input: &str) -> Vec<super::Token> {
-        let mut lexer = Lexer::new(input, Rc::new(RefCell::new(Shell::new(None))));
+        let mut lexer = Lexer::new(
+            input,
+            Rc::new(RefCell::new(Shell::from_command(String::from("")))),
+        );
         let mut tokens: Vec<super::Token> = Vec::new();
 
         while let Some(token) = lexer.next_token() {
