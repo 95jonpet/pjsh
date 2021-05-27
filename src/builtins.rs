@@ -16,3 +16,16 @@ pub fn cd(args: Vec<String>) -> bool {
         }
     }
 }
+
+pub fn exit(args: Vec<String>) -> bool {
+    if args.len() != 1 {
+        eprintln!("ERROR: Invalid argument count.");
+        false
+    } else {
+        if let Some(code) = args.first().map(|arg| arg.parse::<i32>().unwrap()) {
+            std::process::exit(code)
+        }
+
+        false
+    }
+}

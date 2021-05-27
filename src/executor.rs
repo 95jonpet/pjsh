@@ -95,6 +95,7 @@ impl Executor {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
             "cd" => builtins::cd(single.args),
+            "exit" => builtins::exit(single.args),
             command => {
                 let mut cmd = Command::new(command);
                 cmd.args(&single.args);
