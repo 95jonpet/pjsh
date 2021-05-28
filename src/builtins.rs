@@ -18,11 +18,11 @@ pub fn cd(args: Vec<String>) -> bool {
 }
 
 pub fn exit(args: Vec<String>) -> bool {
-    if args.len() != 1 {
-        eprintln!("ERROR: Invalid argument count.");
+    if args.len() > 1 {
+        eprintln!("ERROR: Too many arguments.");
         false
     } else {
-        if let Some(code) = args.first().map(|arg| arg.parse::<i32>().unwrap()) {
+        if let Ok(code) = args.first().map_or(Ok(0), |arg| arg.parse::<i32>()) {
             std::process::exit(code)
         }
 
