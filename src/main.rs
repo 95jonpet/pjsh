@@ -33,7 +33,7 @@ fn main() {
     let args = Cli::parse();
 
     let shell = create_shell(args);
-    let executor = Executor::new();
+    let mut executor = Executor::new();
 
     loop {
         let input = shell.borrow_mut().next();

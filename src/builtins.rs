@@ -1,4 +1,30 @@
-use std::env;
+use std::{collections::HashMap, env};
+
+pub fn alias(aliases: &mut HashMap<String, Vec<String>>, args: Vec<String>) -> bool {
+    if args.len() > 2 {
+        eprintln!("ERROR: Too many arguments.");
+        return false;
+    }
+
+    if let Some(alias_name) = args.first() {
+        if let Some(alias_value) = args.get(1) {
+            aliases
+                .insert(alias_name.to_owned(), vec![alias_value.to_owned()])
+                .is_some()
+        } else {
+            if let Some(alias_value) = aliases.get(alias_name) {
+                println!("alias {}='{:?}'", alias_name, alias_value);
+                true
+            } else {
+                eprintln!("alias {} not found", alias_name);
+                false
+            }
+        }
+    } else {
+        eprintln!("ERROR: missing alias name.");
+        false
+    }
+}
 
 pub fn cd(args: Vec<String>) -> bool {
     if args.is_empty() {
