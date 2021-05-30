@@ -1,5 +1,5 @@
 use crate::shell::Shell;
-use crate::token::{Keyword, Literal, Operator, Separator, Token};
+use crate::token::{Keyword, Operator, Separator, Token};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::iter::Peekable;
@@ -55,15 +55,6 @@ impl Lexer {
         self.queued_tokens.push_back(token)
     }
 
-    /// Skips all whitespace characters.
-    fn skip_whitespace(&mut self) {
-        let mut next = self.peek_char();
-        while next.is_some() && next.unwrap().is_whitespace() {
-            self.next_char();
-            next = self.peek_char();
-        }
-    }
-
     /// Returns a token for a specified keyword.
     ///
     /// Returns `None` if the specified word is not a keyword.
@@ -87,11 +78,13 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Option<Token> {
+        let ifs = String::from(" \t");
+
         if !self.queued_tokens.is_empty() {
             return self.queued_tokens.pop_front();
         }
 
-        self.skip_whitespace();
+        self.next_while(|c| ifs.contains(*c)); // Skip all whitespace.
         match self.peek_char() {
             Some('#') => {
                 let comment = self.next_while(|c| c != &'\n');
@@ -149,7 +142,7 @@ impl Lexer {
                         }
                         Some('\'') => {
                             self.next_char(); // Skip delimiter.
-                            return Some(Token::Literal(Literal::String(string_content)));
+                            return Some(Token::Word(string_content));
                         }
                         Some(_) => {
                             string_content.push(self.next_char().unwrap());
@@ -161,12 +154,6 @@ impl Lexer {
                 // Return the first delimiter.
                 // The other tokens will be returned in subsequent calls.
                 self.queued_tokens.pop_front()
-            }
-            Some(current_char) if current_char.is_digit(10) => {
-                let digits = self.next_while(|c| c.is_digit(10));
-                digits
-                    .parse::<i64>()
-                    .map_or(None, |num| Some(Token::Literal(Literal::Integer(num))))
             }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
                 let word = self.next_while(|c| c.is_ascii_alphanumeric() || c == &'_');
@@ -182,25 +169,25 @@ impl Lexer {
 
                         // Right hand of assignment is none.
                         match self.peek_char() {
-                            Some(next_char) if next_char.is_whitespace() => {
+                            Some(next_char) if ifs.contains(*next_char) => {
                                 self.next_char(); // Skip peeked char.
-                                self.enqueue_token(Token::Literal(Literal::String(String::new())));
+                                self.enqueue_token(Token::Word(String::new()));
                             }
                             Some(';') | None => {
                                 self.next_char(); // Skip peeked char.
-                                self.enqueue_token(Token::Literal(Literal::String(String::new())));
+                                self.enqueue_token(Token::Word(String::new()));
                             }
                             _ => (),
                         }
                     }
                 }
 
-                Some(Token::Identifier(word))
+                Some(Token::Word(word))
             }
             Some(_) => {
                 // Treat unknown lexemes as string literals.
-                let string_content = self.next_while(|c| !c.is_whitespace());
-                Some(Token::Literal(Literal::String(string_content)))
+                let string_content = self.next_while(|c| !ifs.contains(*c));
+                Some(Token::Word(string_content))
             }
             _ => None,
         }
@@ -227,20 +214,10 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_integers() {
-        assert_eq!(tokens("0"), vec![Token::Literal(Literal::Integer(0))]);
-        assert_eq!(tokens("1"), vec![Token::Literal(Literal::Integer(1))]);
-        assert_eq!(tokens("57"), vec![Token::Literal(Literal::Integer(57))]);
-        assert_eq!(tokens("100"), vec![Token::Literal(Literal::Integer(100))]);
-    }
-
-    #[test]
     fn it_identifies_strings() {
         assert_eq!(
             tokens("'This is a string'"),
-            vec![Token::Literal(Literal::String(String::from(
-                "This is a string"
-            ))),]
+            vec![Token::Word(String::from("This is a string")),]
         );
     }
 
@@ -248,13 +225,11 @@ mod tests {
     fn it_identifies_strings_with_escaped_chars() {
         assert_eq!(
             tokens("'It\\'s a string'"),
-            vec![Token::Literal(Literal::String(String::from(
-                "It's a string"
-            ))),]
+            vec![Token::Word(String::from("It's a string")),]
         );
         assert_eq!(
             tokens("'\\n'"), // Should not be escaped.
-            vec![Token::Literal(Literal::String(String::from("\\n"))),]
+            vec![Token::Word(String::from("\\n")),]
         );
     }
 
@@ -267,23 +242,23 @@ mod tests {
     fn it_identifies_identifiers() {
         assert_eq!(
             tokens("lowercase"),
-            vec![Token::Identifier(String::from("lowercase"))]
+            vec![Token::Word(String::from("lowercase"))]
         );
         assert_eq!(
             tokens("UPPERCASE"),
-            vec![Token::Identifier(String::from("UPPERCASE"))]
+            vec![Token::Word(String::from("UPPERCASE"))]
         );
         assert_eq!(
             tokens("MixedCase"),
-            vec![Token::Identifier(String::from("MixedCase"))]
+            vec![Token::Word(String::from("MixedCase"))]
         );
         assert_eq!(
             tokens("with_underscore"),
-            vec![Token::Identifier(String::from("with_underscore"))]
+            vec![Token::Word(String::from("with_underscore"))]
         );
         assert_eq!(
             tokens("number123"),
-            vec![Token::Identifier(String::from("number123"))]
+            vec![Token::Word(String::from("number123"))]
         );
     }
 
@@ -293,7 +268,7 @@ mod tests {
         assert_eq!(
             tokens("code &"),
             vec![
-                Token::Identifier(String::from("code")),
+                Token::Word(String::from("code")),
                 Token::Operator(Operator::Ampersand),
             ]
         );
@@ -305,9 +280,9 @@ mod tests {
         assert_eq!(
             tokens("x && y"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::And),
-                Token::Identifier(String::from("y")),
+                Token::Word(String::from("y")),
             ]
         );
     }
@@ -317,34 +292,34 @@ mod tests {
         assert_eq!(
             tokens("x=1234"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Assign),
-                Token::Literal(Literal::Integer(1234))
+                Token::Word(String::from("1234"))
             ]
         );
         assert_eq!(
             tokens("x= test"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Assign),
-                Token::Literal(Literal::String(String::new())),
-                Token::Identifier(String::from("test")),
+                Token::Word(String::new()),
+                Token::Word(String::from("test")),
             ]
         );
         assert_eq!(
             tokens("x="),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Assign),
-                Token::Literal(Literal::String(String::new())),
+                Token::Word(String::new()),
             ]
         );
         assert_eq!(
             tokens("x=;"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Assign),
-                Token::Literal(Literal::String(String::new())),
+                Token::Word(String::new()),
             ]
         );
     }
@@ -356,7 +331,7 @@ mod tests {
             tokens("! true"),
             vec![
                 Token::Operator(Operator::Bang),
-                Token::Identifier(String::from("true"))
+                Token::Word(String::from("true"))
             ]
         );
     }
@@ -367,9 +342,9 @@ mod tests {
         assert_eq!(
             tokens("x = 1234"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Equal),
-                Token::Literal(Literal::Integer(1234))
+                Token::Word(String::from("1234"))
             ]
         );
     }
@@ -380,9 +355,9 @@ mod tests {
         assert_eq!(
             tokens("x || y"),
             vec![
-                Token::Identifier(String::from("x")),
+                Token::Word(String::from("x")),
                 Token::Operator(Operator::Or),
-                Token::Identifier(String::from("y")),
+                Token::Word(String::from("y")),
             ]
         );
     }
@@ -393,11 +368,11 @@ mod tests {
         assert_eq!(
             tokens("cat file_name | grep value"),
             vec![
-                Token::Identifier(String::from("cat")),
-                Token::Identifier(String::from("file_name")),
+                Token::Word(String::from("cat")),
+                Token::Word(String::from("file_name")),
                 Token::Operator(Operator::Pipe),
-                Token::Identifier(String::from("grep")),
-                Token::Identifier(String::from("value")),
+                Token::Word(String::from("grep")),
+                Token::Word(String::from("value")),
             ]
         );
     }

@@ -1,6 +1,6 @@
 use crate::shell::Shell;
 use crate::token::Operator;
-use crate::token::{Literal, Token};
+use crate::token::Token;
 
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
@@ -166,19 +166,11 @@ where
 
         loop {
             match self.lexer.peek() {
-                Some(Token::Identifier(_)) => {
-                    if let Some(Token::Identifier(id)) = self.lexer.next() {
-                        result.push(id);
-                    }
-                }
-                Some(Token::Literal(Literal::String(_))) => {
-                    if let Some(Token::Literal(Literal::String(string))) = self.lexer.next() {
-                        result.push(string);
-                    }
-                }
-                Some(Token::Literal(Literal::Integer(_))) => {
-                    if let Some(Token::Literal(Literal::Integer(int))) = self.lexer.next() {
-                        result.push(int.to_string());
+                Some(Token::Word(_)) => {
+                    if let Some(Token::Word(word)) = self.lexer.next() {
+                        result.push(word);
+                    } else {
+                        unreachable!()
                     }
                 }
                 _ => break,

@@ -1,22 +1,15 @@
 #[derive(Debug, PartialEq)]
 pub enum Token {
-    Identifier(String),
+    Word(String),
     Keyword(Keyword),
     Separator(Separator),
     Operator(Operator),
-    Literal(Literal),
     Comment(String),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Separator {
     Semicolon,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Literal {
-    Integer(i64),
-    String(String),
 }
 
 #[derive(Debug, PartialEq)]
