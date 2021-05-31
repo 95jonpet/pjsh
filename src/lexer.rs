@@ -85,6 +85,7 @@ impl Lexer {
         }
 
         self.next_while(|c| ifs.contains(*c)); // Skip all whitespace.
+        self.next_while(|c| *c == '\r' || *c == '\n'); // Skip newline characters.
         match self.peek_char() {
             Some('#') => {
                 let comment = self.next_while(|c| c != &'\n');
@@ -239,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_identifiers() {
+    fn it_identifies_words() {
         assert_eq!(
             tokens("lowercase"),
             vec![Token::Word(String::from("lowercase"))]
@@ -260,6 +261,11 @@ mod tests {
             tokens("number123"),
             vec![Token::Word(String::from("number123"))]
         );
+    }
+
+    #[test]
+    fn it_ignores_newline_chars() {
+        assert_eq!(tokens("\r\n"), vec![]);
     }
 
     #[test]
