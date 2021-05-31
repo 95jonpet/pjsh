@@ -1,6 +1,7 @@
 use os_pipe::{pipe, PipeReader, PipeWriter};
 
 use crate::builtins;
+use crate::builtins::alias;
 use crate::parser::FileDescriptor;
 use crate::parser::{Cmd, SingleCommand};
 use std::collections::HashMap;
@@ -113,50 +114,12 @@ impl Executor {
     fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
-            // command if !command.starts_with("\\") && self.aliases.contains_key(command) => {
-            //     if let Some(alias) = self.aliases.get(command) {
-            //         let mut full_command = alias.clone();
-            //         full_command.append(&mut single.args.clone());
-            //         let mut cmd = Command::new(full_command.remove(0));
-            //         cmd.args(full_command);
-
-            //         if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
-            //             cmd.stdin(stdin);
-            //         } else {
-            //             return false;
-            //         }
-            //         if let Some(stdout) = single.stdout.borrow_mut().get_stdout() {
-            //             cmd.stdout(stdout);
-            //         } else {
-            //             return false;
-            //         }
-            //         if let Some(stderr) = single.stdin.borrow_mut().get_stderr() {
-            //             cmd.stderr(stderr);
-            //         } else {
-            //             return false;
-            //         }
-            //         if let Some(env) = single.env {
-            //             cmd.envs(env);
-            //         }
-
-            //         return match cmd.status() {
-            //             Ok(child) => child.success(),
-            //             Err(e) => {
-            //                 eprintln!("pjsh: {}: {}", single.cmd, e);
-            //                 false
-            //             }
-            //         };
-            //     }
-            //     false
-            // }
             "alias" => builtins::alias(&mut self.aliases, single.args),
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),
             command => {
-                // let mut cmd = Command::new(command.strip_prefix("\\").unwrap_or(command));
-                // cmd.args(&single.args);
-
                 let mut cmd = self.resolve_command(String::from(command), single.args);
+                // TODO Move alias builtin resolution to after alias resolution.
 
                 if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
                     cmd.stdin(stdin);
@@ -207,7 +170,7 @@ impl Executor {
         let mut visited = HashSet::new();
 
         while let Some(alias) = self.aliases.get(args.front().unwrap()) {
-            if visited.contains(alias) {
+            if alias.starts_with("\\") || visited.contains(alias) {
                 break;
             }
 
@@ -224,8 +187,11 @@ impl Executor {
             }
         }
 
-        let mut command = Command::new(args.remove(0).unwrap());
+        let mut program = args.remove(0).unwrap();
+        program = String::from(program.strip_prefix("\\").unwrap_or(&program));
+        let mut command = Command::new(program);
         command.args(args);
+        println!("{:?}", command);
         command
     }
 }

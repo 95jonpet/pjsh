@@ -21,8 +21,15 @@ pub fn alias(aliases: &mut HashMap<String, String>, args: Vec<String>) -> bool {
             }
         }
     } else {
-        eprintln!("ERROR: missing alias name.");
-        false
+        let mut strings: Vec<String> = aliases
+            .iter()
+            .map(|(key, value)| format!("alias {}='{}'", key, value))
+            .collect();
+        strings.sort_unstable();
+        for string in strings {
+            println!("{}", string)
+        }
+        true
     }
 }
 
