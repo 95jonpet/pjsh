@@ -6,6 +6,7 @@ use crate::parser::{Cmd, SingleCommand};
 use std::collections::HashMap;
 use std::io::Read;
 use std::process::Command;
+use std::vec;
 
 #[derive(Debug)]
 pub struct CmdMeta {
@@ -49,6 +50,10 @@ impl Executor {
         executor.aliases.insert(
             String::from("ll"),
             vec![String::from("ls"), String::from("-alF")],
+        );
+        executor.aliases.insert(
+            String::from("ls"),
+            vec![String::from("ls"), String::from("--color=auto")],
         );
 
         return executor;
@@ -106,7 +111,7 @@ impl Executor {
     fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
-            command if self.aliases.contains_key(command) => {
+            command if !command.starts_with("\\") && self.aliases.contains_key(command) => {
                 if let Some(alias) = self.aliases.get(command) {
                     let mut full_command = alias.clone();
                     full_command.append(&mut single.args.clone());
@@ -146,7 +151,7 @@ impl Executor {
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),
             command => {
-                let mut cmd = Command::new(command);
+                let mut cmd = Command::new(command.strip_prefix("\\").unwrap_or(command));
                 cmd.args(&single.args);
 
                 if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {

@@ -78,7 +78,7 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Option<Token> {
-        let ifs = String::from(" \t");
+        let ifs = String::from(" \t\n");
 
         if !self.queued_tokens.is_empty() {
             return self.queued_tokens.pop_front();
