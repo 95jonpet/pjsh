@@ -4,9 +4,10 @@ use crate::builtins;
 use crate::parser::FileDescriptor;
 use crate::parser::{Cmd, SingleCommand};
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::io::Read;
 use std::process::Command;
-use std::vec;
 
 #[derive(Debug)]
 pub struct CmdMeta {
@@ -38,7 +39,7 @@ impl CmdMeta {
 }
 
 pub struct Executor {
-    aliases: HashMap<String, Vec<String>>,
+    aliases: HashMap<String, String>,
 }
 
 impl Executor {
@@ -47,14 +48,15 @@ impl Executor {
             aliases: HashMap::new(),
         };
 
-        executor.aliases.insert(
-            String::from("ll"),
-            vec![String::from("ls"), String::from("-alF")],
-        );
-        executor.aliases.insert(
-            String::from("ls"),
-            vec![String::from("ls"), String::from("--color=auto")],
-        );
+        executor
+            .aliases
+            .insert(String::from("ll"), String::from("ls -alF"));
+        executor
+            .aliases
+            .insert(String::from("ls"), String::from("ls --color=auto"));
+        executor
+            .aliases
+            .insert(String::from("grep"), String::from("grep --color=auto"));
 
         return executor;
     }
@@ -111,48 +113,50 @@ impl Executor {
     fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
-            command if !command.starts_with("\\") && self.aliases.contains_key(command) => {
-                if let Some(alias) = self.aliases.get(command) {
-                    let mut full_command = alias.clone();
-                    full_command.append(&mut single.args.clone());
-                    let mut cmd = Command::new(full_command.remove(0));
-                    cmd.args(full_command);
+            // command if !command.starts_with("\\") && self.aliases.contains_key(command) => {
+            //     if let Some(alias) = self.aliases.get(command) {
+            //         let mut full_command = alias.clone();
+            //         full_command.append(&mut single.args.clone());
+            //         let mut cmd = Command::new(full_command.remove(0));
+            //         cmd.args(full_command);
 
-                    if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
-                        cmd.stdin(stdin);
-                    } else {
-                        return false;
-                    }
-                    if let Some(stdout) = single.stdout.borrow_mut().get_stdout() {
-                        cmd.stdout(stdout);
-                    } else {
-                        return false;
-                    }
-                    if let Some(stderr) = single.stdin.borrow_mut().get_stderr() {
-                        cmd.stderr(stderr);
-                    } else {
-                        return false;
-                    }
-                    if let Some(env) = single.env {
-                        cmd.envs(env);
-                    }
+            //         if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
+            //             cmd.stdin(stdin);
+            //         } else {
+            //             return false;
+            //         }
+            //         if let Some(stdout) = single.stdout.borrow_mut().get_stdout() {
+            //             cmd.stdout(stdout);
+            //         } else {
+            //             return false;
+            //         }
+            //         if let Some(stderr) = single.stdin.borrow_mut().get_stderr() {
+            //             cmd.stderr(stderr);
+            //         } else {
+            //             return false;
+            //         }
+            //         if let Some(env) = single.env {
+            //             cmd.envs(env);
+            //         }
 
-                    return match cmd.status() {
-                        Ok(child) => child.success(),
-                        Err(e) => {
-                            eprintln!("pjsh: {}: {}", single.cmd, e);
-                            false
-                        }
-                    };
-                }
-                false
-            }
+            //         return match cmd.status() {
+            //             Ok(child) => child.success(),
+            //             Err(e) => {
+            //                 eprintln!("pjsh: {}: {}", single.cmd, e);
+            //                 false
+            //             }
+            //         };
+            //     }
+            //     false
+            // }
             "alias" => builtins::alias(&mut self.aliases, single.args),
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),
             command => {
-                let mut cmd = Command::new(command.strip_prefix("\\").unwrap_or(command));
-                cmd.args(&single.args);
+                // let mut cmd = Command::new(command.strip_prefix("\\").unwrap_or(command));
+                // cmd.args(&single.args);
+
+                let mut cmd = self.resolve_command(String::from(command), single.args);
 
                 if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
                     cmd.stdin(stdin);
@@ -195,5 +199,33 @@ impl Executor {
                 *single.stdin.borrow_mut() = FileDescriptor::PipeIn(stdin);
             }
         }
+    }
+
+    fn resolve_command(&self, cmd: String, args: Vec<String>) -> Command {
+        let mut args = VecDeque::from(args.clone());
+        args.push_front(cmd); // Args here should contain command + args.
+        let mut visited = HashSet::new();
+
+        while let Some(alias) = self.aliases.get(args.front().unwrap()) {
+            if visited.contains(alias) {
+                break;
+            }
+
+            visited.insert(alias);
+            let mut local: Vec<String> = Vec::new();
+
+            for segment in alias.split_ascii_whitespace() {
+                local.push(String::from(segment));
+            }
+
+            args.remove(0); // Remove the currently unwrapped alias.
+            for segment in local.iter().rev() {
+                args.push_front(segment.clone());
+            }
+        }
+
+        let mut command = Command::new(args.remove(0).unwrap());
+        command.args(args);
+        command
     }
 }

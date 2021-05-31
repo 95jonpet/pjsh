@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-pub fn alias(aliases: &mut HashMap<String, Vec<String>>, args: Vec<String>) -> bool {
+pub fn alias(aliases: &mut HashMap<String, String>, args: Vec<String>) -> bool {
     if args.len() > 2 {
         eprintln!("ERROR: Too many arguments.");
         return false;
@@ -9,7 +9,7 @@ pub fn alias(aliases: &mut HashMap<String, Vec<String>>, args: Vec<String>) -> b
     if let Some(alias_name) = args.first() {
         if let Some(alias_value) = args.get(1) {
             aliases
-                .insert(alias_name.to_owned(), vec![alias_value.to_owned()])
+                .insert(alias_name.to_owned(), alias_value.to_owned())
                 .is_some()
         } else {
             if let Some(alias_value) = aliases.get(alias_name) {
