@@ -13,6 +13,7 @@ pub struct Lexer {
     shell: Rc<RefCell<Shell>>,
     line: Peekable<IntoIter<char>>,
     queued_tokens: VecDeque<Token>,
+    ifs: String,
 }
 
 impl Lexer {
@@ -21,6 +22,7 @@ impl Lexer {
             shell,
             line: line.chars().collect::<Vec<_>>().into_iter().peekable(),
             queued_tokens: VecDeque::new(),
+            ifs: String::from(" \t\n"),
         }
     }
 
@@ -78,7 +80,7 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Option<Token> {
-        let ifs = String::from(" \t\n");
+        let ifs = self.ifs.clone();
 
         if !self.queued_tokens.is_empty() {
             return self.queued_tokens.pop_front();
