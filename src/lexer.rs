@@ -1,7 +1,6 @@
 use crate::shell::Shell;
 use crate::token::{Keyword, Operator, Separator, Token};
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::vec::IntoIter;
@@ -12,7 +11,6 @@ pub struct Lexer {
     #[allow(dead_code)]
     shell: Rc<RefCell<Shell>>,
     line: Peekable<IntoIter<char>>,
-    queued_tokens: VecDeque<Token>,
     ifs: String,
 }
 
@@ -21,7 +19,6 @@ impl Lexer {
         Self {
             shell,
             line: line.chars().collect::<Vec<_>>().into_iter().peekable(),
-            queued_tokens: VecDeque::new(),
             ifs: String::from(" \t\n"),
         }
     }
@@ -52,11 +49,6 @@ impl Lexer {
         result
     }
 
-    /// Enqueues a token that must be returned the next time a token is requested.
-    fn enqueue_token(&mut self, token: Token) {
-        self.queued_tokens.push_back(token)
-    }
-
     /// Returns a token for a specified keyword.
     ///
     /// Returns `None` if the specified word is not a keyword.
@@ -81,10 +73,6 @@ impl Lexer {
 
     pub fn next_token(&mut self) -> Option<Token> {
         let ifs = self.ifs.clone();
-
-        if !self.queued_tokens.is_empty() {
-            return self.queued_tokens.pop_front();
-        }
 
         self.next_while(|c| ifs.contains(*c)); // Skip all whitespace.
         self.next_while(|c| *c == '\r' || *c == '\n'); // Skip newline characters.
@@ -150,13 +138,9 @@ impl Lexer {
                         Some(_) => {
                             string_content.push(self.next_char().unwrap());
                         }
-                        None => break,
+                        None => (),
                     }
                 }
-
-                // Return the first delimiter.
-                // The other tokens will be returned in subsequent calls.
-                self.queued_tokens.pop_front()
             }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
                 let word = self.next_while(|c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.');
@@ -168,28 +152,31 @@ impl Lexer {
                 if let Some(next_char) = self.peek_char() {
                     if next_char == &'=' {
                         self.next_char(); // Skip peeked char.
-                        self.enqueue_token(Token::Operator(Operator::Assign));
-
-                        println!("Peek: {:?}", self.peek_char());
 
                         // Right hand of assignment is none.
-                        match self.peek_char() {
+                        let token = match self.peek_char() {
                             Some(next_char) if ifs.contains(*next_char) => {
                                 self.next_char(); // Skip peeked char.
-                                self.enqueue_token(Token::Word(String::new()));
+                                Token::Assign(word, String::new())
                             }
                             Some('\'') => {
                                 self.next_char();
                                 let string = self.next_while(|c| *c != '\'');
-                                self.enqueue_token(Token::Word(string.to_string()));
                                 self.next_char();
+                                Token::Assign(word, string)
                             }
                             Some(';') | None => {
                                 self.next_char(); // Skip peeked char.
-                                self.enqueue_token(Token::Word(String::new()));
+                                Token::Assign(word, String::new())
                             }
-                            _ => (),
-                        }
+                            _ => {
+                                let value = self.next_while(|c| {
+                                    c.is_ascii_alphanumeric() || c == &'_' || c == &'.'
+                                });
+                                Token::Assign(word, value)
+                            }
+                        };
+                        return Some(token);
                     }
                 }
 
@@ -318,39 +305,25 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_operator_assign() {
+    fn it_identifies_assignments() {
         assert_eq!(
             tokens("x=1234"),
-            vec![
-                Token::Word(String::from("x")),
-                Token::Operator(Operator::Assign),
-                Token::Word(String::from("1234"))
-            ]
+            vec![Token::Assign(String::from("x"), String::from("1234"))]
         );
         assert_eq!(
             tokens("x= test"),
             vec![
-                Token::Word(String::from("x")),
-                Token::Operator(Operator::Assign),
-                Token::Word(String::new()),
+                Token::Assign(String::from("x"), String::new()),
                 Token::Word(String::from("test")),
             ]
         );
         assert_eq!(
             tokens("x="),
-            vec![
-                Token::Word(String::from("x")),
-                Token::Operator(Operator::Assign),
-                Token::Word(String::new()),
-            ]
+            vec![Token::Assign(String::from("x"), String::new()),]
         );
         assert_eq!(
             tokens("x=;"),
-            vec![
-                Token::Word(String::from("x")),
-                Token::Operator(Operator::Assign),
-                Token::Word(String::new()),
-            ]
+            vec![Token::Assign(String::from("x"), String::new()),]
         );
     }
 

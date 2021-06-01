@@ -162,11 +162,11 @@ where
             return Ok(Cmd::Not(Box::new(self.get_single()?)));
         }
 
+        let mut env: HashMap<String, String> = HashMap::new();
         let mut result: Vec<String> = Vec::new();
         let io = Io::new();
 
         loop {
-            println!("{:?}", self.lexer.peek());
             match self.lexer.peek() {
                 Some(Token::Word(_)) => {
                     if let Some(Token::Word(word)) = self.lexer.next() {
@@ -174,6 +174,10 @@ where
                     } else {
                         unreachable!()
                     }
+                }
+                Some(Token::Assign(key, value)) => {
+                    env.insert(key.to_owned(), value.to_owned());
+                    self.lexer.next();
                 }
                 Some(Token::Comment(_)) => {
                     self.lexer.next();
@@ -186,7 +190,8 @@ where
             return Ok(Cmd::NoOp);
         }
 
-        let cmd = SingleCommand::new(result.remove(0), result, io);
+        let mut cmd = SingleCommand::new(result.remove(0), result, io);
+        cmd.env = Some(env);
         Ok(Cmd::Single(cmd))
     }
 }

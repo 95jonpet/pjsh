@@ -50,21 +50,9 @@ pub struct Executor {
 
 impl Executor {
     pub fn new() -> Self {
-        let mut executor = Self {
+        Self {
             aliases: HashMap::new(),
-        };
-
-        // executor
-        //     .aliases
-        //     .insert(String::from("ll"), String::from("ls -alF"));
-        // executor
-        //     .aliases
-        //     .insert(String::from("ls"), String::from("ls --color=auto"));
-        // executor
-        //     .aliases
-        //     .insert(String::from("grep"), String::from("grep --color=auto"));
-
-        return executor;
+        }
     }
 
     pub fn execute(&mut self, ast: Cmd, capture: bool) -> Option<String> {
@@ -142,7 +130,7 @@ impl Executor {
                 }
                 true
             }
-            "alias" => builtins::alias(&mut self.aliases, single.args),
+            "alias" => builtins::alias(&mut self.aliases, single.env, single.args),
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),
             command => {

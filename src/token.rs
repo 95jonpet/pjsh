@@ -4,6 +4,7 @@ pub enum Token {
     Keyword(Keyword),
     Separator(Separator),
     Operator(Operator),
+    Assign(String, String),
     Comment(String),
 }
 
@@ -33,7 +34,6 @@ pub enum Keyword {
 pub enum Operator {
     Ampersand,
     And,
-    Assign,
     Bang,
     Equal,
     Or,
