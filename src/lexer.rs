@@ -159,7 +159,7 @@ impl Lexer {
                 self.queued_tokens.pop_front()
             }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
-                let word = self.next_while(|c| c.is_ascii_alphanumeric() || c == &'_');
+                let word = self.next_while(|c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.');
 
                 if let Some(token) = Self::keyword_token(&word) {
                     return Some(token);
@@ -170,11 +170,19 @@ impl Lexer {
                         self.next_char(); // Skip peeked char.
                         self.enqueue_token(Token::Operator(Operator::Assign));
 
+                        println!("Peek: {:?}", self.peek_char());
+
                         // Right hand of assignment is none.
                         match self.peek_char() {
                             Some(next_char) if ifs.contains(*next_char) => {
                                 self.next_char(); // Skip peeked char.
                                 self.enqueue_token(Token::Word(String::new()));
+                            }
+                            Some('\'') => {
+                                self.next_char();
+                                let string = self.next_while(|c| *c != '\'');
+                                self.enqueue_token(Token::Word(string.to_string()));
+                                self.next_char();
                             }
                             Some(';') | None => {
                                 self.next_char(); // Skip peeked char.
@@ -262,6 +270,20 @@ mod tests {
         assert_eq!(
             tokens("number123"),
             vec![Token::Word(String::from("number123"))]
+        );
+        assert_eq!(
+            tokens("two words"),
+            vec![
+                Token::Word(String::from("two")),
+                Token::Word(String::from("words"))
+            ]
+        );
+        assert_eq!(
+            tokens("cat file.extension"),
+            vec![
+                Token::Word(String::from("cat")),
+                Token::Word(String::from("file.extension"))
+            ]
         );
     }
 

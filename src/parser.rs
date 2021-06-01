@@ -63,7 +63,7 @@ pub struct Io {
 }
 
 impl Io {
-    fn new() -> Io {
+    pub fn new() -> Io {
         Io {
             stdin: Rc::new(RefCell::new(FileDescriptor::Stdin)),
             stdout: Rc::new(RefCell::new(FileDescriptor::Stdout)),
@@ -79,6 +79,7 @@ pub enum Cmd {
     And(Box<Cmd>, Box<Cmd>),
     Or(Box<Cmd>, Box<Cmd>),
     Not(Box<Cmd>),
+    NoOp,
 }
 
 #[derive(Debug)]
@@ -92,7 +93,7 @@ pub struct SingleCommand {
 }
 
 impl SingleCommand {
-    fn new(cmd: String, args: Vec<String>, io: Io) -> Self {
+    pub fn new(cmd: String, args: Vec<String>, io: Io) -> Self {
         Self {
             cmd,
             args,
@@ -165,6 +166,7 @@ where
         let io = Io::new();
 
         loop {
+            println!("{:?}", self.lexer.peek());
             match self.lexer.peek() {
                 Some(Token::Word(_)) => {
                     if let Some(Token::Word(word)) = self.lexer.next() {
@@ -173,12 +175,15 @@ where
                         unreachable!()
                     }
                 }
+                Some(Token::Comment(_)) => {
+                    self.lexer.next();
+                }
                 _ => break,
             }
         }
 
         if result.is_empty() {
-            unimplemented!("Missing result");
+            return Ok(Cmd::NoOp);
         }
 
         let cmd = SingleCommand::new(result.remove(0), result, io);

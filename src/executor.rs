@@ -1,14 +1,19 @@
 use os_pipe::{pipe, PipeReader, PipeWriter};
 
 use crate::builtins;
-use crate::builtins::alias;
+use crate::lexer::Lexer;
 use crate::parser::FileDescriptor;
+use crate::parser::Parser;
 use crate::parser::{Cmd, SingleCommand};
+use crate::shell::Shell;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::Read;
+use std::path::PathBuf;
 use std::process::Command;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct CmdMeta {
@@ -49,15 +54,15 @@ impl Executor {
             aliases: HashMap::new(),
         };
 
-        executor
-            .aliases
-            .insert(String::from("ll"), String::from("ls -alF"));
-        executor
-            .aliases
-            .insert(String::from("ls"), String::from("ls --color=auto"));
-        executor
-            .aliases
-            .insert(String::from("grep"), String::from("grep --color=auto"));
+        // executor
+        //     .aliases
+        //     .insert(String::from("ll"), String::from("ls -alF"));
+        // executor
+        //     .aliases
+        //     .insert(String::from("ls"), String::from("ls --color=auto"));
+        // executor
+        //     .aliases
+        //     .insert(String::from("grep"), String::from("grep --color=auto"));
 
         return executor;
     }
@@ -82,6 +87,7 @@ impl Executor {
             Cmd::Pipeline(left, right) => self.visit_pipe(*left, *right, stdio),
             Cmd::And(left, right) => self.visit_and(*left, *right, stdio),
             Cmd::Or(left, right) => self.visit_or(*left, *right, stdio),
+            Cmd::NoOp => true,
         }
     }
 
@@ -114,6 +120,28 @@ impl Executor {
     fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
+            "." => {
+                let file = single.args.get(0).unwrap();
+                let shell = Rc::new(RefCell::new(Shell::from_file(PathBuf::from(file))));
+                loop {
+                    let input = shell.borrow_mut().next();
+                    if let Some(line) = input {
+                        let lexer = Lexer::new(&line, Rc::clone(&shell));
+                        let mut parser = Parser::new(lexer, Rc::clone(&shell));
+                        match parser.get() {
+                            Ok(command) => {
+                                self.execute(command, false);
+                            }
+                            Err(e) => {
+                                eprintln!("ERROR: {}", e);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                true
+            }
             "alias" => builtins::alias(&mut self.aliases, single.args),
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),
@@ -191,7 +219,6 @@ impl Executor {
         program = String::from(program.strip_prefix("\\").unwrap_or(&program));
         let mut command = Command::new(program);
         command.args(args);
-        println!("{:?}", command);
         command
     }
 }

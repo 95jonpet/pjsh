@@ -7,7 +7,9 @@ mod token;
 
 use executor::Executor;
 use lexer::Lexer;
+use parser::Cmd;
 use parser::Parser;
+use parser::SingleCommand;
 use shell::Shell;
 
 use clap::{crate_name, crate_version, Clap};
@@ -15,6 +17,8 @@ use std::cell::RefCell;
 use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
+
+use crate::parser::Io;
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
@@ -34,6 +38,7 @@ fn main() {
 
     let shell = create_shell(args);
     let mut executor = Executor::new();
+    executor.execute(login_command(), false);
 
     loop {
         let input = shell.borrow_mut().next();
@@ -55,6 +60,25 @@ fn main() {
             break;
         }
     }
+}
+
+fn login_command() -> Cmd {
+    let login_script_path: PathBuf = [env::var("HOME").unwrap().as_str(), ".pjshrc"]
+        .iter()
+        .collect();
+
+    if !login_script_path.is_file() {
+        return Cmd::NoOp;
+    }
+
+    Cmd::Single(SingleCommand::new(
+        ".".to_string(),
+        vec![login_script_path
+            .to_str()
+            .expect("login script path exists")
+            .to_owned()],
+        Io::new(),
+    ))
 }
 
 fn create_shell(args: Cli) -> Rc<RefCell<Shell>> {
