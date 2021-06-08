@@ -250,6 +250,59 @@ mod tests {
         assert_eq!(ast(tokens), Ok(expected_ast));
     }
 
+    #[test]
+    fn it_parses_commands_with_and_logic() {
+        let tokens = vec![
+            Token::Word(String::from("true")),
+            Token::Operator(Operator::And),
+            Token::Word(String::from("false")),
+        ];
+
+        let expected_ast = Cmd::And(
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("true"),
+                vec![],
+                Io::new(),
+                HashMap::new(),
+            ))),
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("false"),
+                vec![],
+                Io::new(),
+                HashMap::new(),
+            ))),
+        );
+
+        assert_eq!(ast(tokens), Ok(expected_ast));
+    }
+
+    #[test]
+    fn it_parses_commands_with_or_logic() {
+        let tokens = vec![
+            Token::Word(String::from("false")),
+            Token::Operator(Operator::Or),
+            Token::Word(String::from("true")),
+        ];
+
+        let expected_ast = Cmd::Or(
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("false"),
+                vec![],
+                Io::new(),
+                HashMap::new(),
+            ))),
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("true"),
+                vec![],
+                Io::new(),
+                HashMap::new(),
+            ))),
+        );
+
+        assert_eq!(ast(tokens), Ok(expected_ast));
+    }
+
+    /// Parses a token iterator and returns an abstract syntax tree.
     fn ast(tokens: Vec<Token>) -> Result<Cmd, String> {
         let shell = Rc::new(RefCell::new(Shell::from_command(String::new())));
         let mut parser = Parser::new(tokens.into_iter(), shell);
