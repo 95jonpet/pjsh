@@ -14,6 +14,7 @@ use shell::Shell;
 
 use clap::{crate_name, crate_version, Clap};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -78,6 +79,7 @@ fn login_command() -> Cmd {
             .expect("login script path exists")
             .to_owned()],
         Io::new(),
+        HashMap::new(),
     ))
 }
 

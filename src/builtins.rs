@@ -2,7 +2,7 @@ use std::{collections::HashMap, env};
 
 pub fn alias(
     aliases: &mut HashMap<String, String>,
-    env: Option<HashMap<String, String>>,
+    env: HashMap<String, String>,
     args: Vec<String>,
 ) -> bool {
     if args.len() > 2 {
@@ -10,10 +10,8 @@ pub fn alias(
         return false;
     }
 
-    if let Some(env) = env {
-        if let Some((key, value)) = env.into_iter().next() {
-            return aliases.insert(key, value).is_some();
-        }
+    if let Some((key, value)) = env.into_iter().next() {
+        return aliases.insert(key, value).is_some();
     }
 
     if let Some(alias_name) = args.first() {

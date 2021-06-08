@@ -72,7 +72,7 @@ impl Io {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Cmd {
     Single(SingleCommand),
     Pipeline(Box<Cmd>, Box<Cmd>),
@@ -82,22 +82,22 @@ pub enum Cmd {
     NoOp,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SingleCommand {
     pub cmd: String,
     pub args: Vec<String>,
-    pub env: Option<HashMap<String, String>>,
+    pub env: HashMap<String, String>,
     pub stdin: Rc<RefCell<FileDescriptor>>,
     pub stdout: Rc<RefCell<FileDescriptor>>,
     pub stderr: Rc<RefCell<FileDescriptor>>,
 }
 
 impl SingleCommand {
-    pub fn new(cmd: String, args: Vec<String>, io: Io) -> Self {
+    pub fn new(cmd: String, args: Vec<String>, io: Io, env: HashMap<String, String>) -> Self {
         Self {
             cmd,
             args,
-            env: None,
+            env: env,
             stdin: io.stdin,
             stdout: io.stdout,
             stderr: io.stderr,
@@ -190,8 +190,69 @@ where
             return Ok(Cmd::NoOp);
         }
 
-        let mut cmd = SingleCommand::new(result.remove(0), result, io);
-        cmd.env = Some(env);
-        Ok(Cmd::Single(cmd))
+        Ok(Cmd::Single(SingleCommand::new(
+            result.remove(0),
+            result,
+            io,
+            env,
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    use super::*;
+
+    #[test]
+    fn it_parses_single_commands() {
+        let tokens = vec![
+            Token::Word(String::from("ls")),
+            Token::Word(String::from("-lah")),
+        ];
+
+        let expected_ast = Cmd::Single(SingleCommand::new(
+            String::from("ls"),
+            vec![String::from("-lah")],
+            Io::new(),
+            HashMap::new(),
+        ));
+
+        assert_eq!(ast(tokens), Ok(expected_ast));
+    }
+
+    #[test]
+    fn it_parses_pipelines() {
+        let tokens = vec![
+            Token::Word(String::from("cat")),
+            Token::Word(String::from("my_file")),
+            Token::Operator(Operator::Pipe),
+            Token::Word(String::from("grep")),
+            Token::Word(String::from("test")),
+        ];
+
+        let expected_ast = Cmd::Pipeline(
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("cat"),
+                vec![String::from("my_file")],
+                Io::new(),
+                HashMap::new(),
+            ))),
+            Box::new(Cmd::Single(SingleCommand::new(
+                String::from("grep"),
+                vec![String::from("test")],
+                Io::new(),
+                HashMap::new(),
+            ))),
+        );
+
+        assert_eq!(ast(tokens), Ok(expected_ast));
+    }
+
+    fn ast(tokens: Vec<Token>) -> Result<Cmd, String> {
+        let shell = Rc::new(RefCell::new(Shell::from_command(String::new())));
+        let mut parser = Parser::new(tokens.into_iter(), shell);
+        parser.get()
     }
 }

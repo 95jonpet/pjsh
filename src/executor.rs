@@ -152,9 +152,8 @@ impl Executor {
                 } else {
                     return false;
                 }
-                if let Some(env) = single.env {
-                    cmd.envs(env);
-                }
+
+                cmd.envs(single.env);
 
                 match cmd.status() {
                     Ok(child) => child.success(),
