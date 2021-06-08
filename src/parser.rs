@@ -35,12 +35,14 @@ impl FileDescriptor {
         }
     }
 
+    /// Returns the [`Stdio`] instance mapped to stdin.
     pub fn get_stdin(&mut self) -> Option<Stdio> {
         match self {
             _ => self.get_stdout(),
         }
     }
 
+    /// Returns the [`Stdio`] instance mapped to stdout.
     pub fn get_stdout(&mut self) -> Option<Stdio> {
         match self {
             FileDescriptor::Stdin => Some(Stdio::from(dup_stdin().unwrap())),
@@ -51,6 +53,7 @@ impl FileDescriptor {
         }
     }
 
+    /// Returns the [`Stdio`] instance mapped to stderr.
     pub fn get_stderr(&mut self) -> Option<Stdio> {
         self.get_stdout()
     }

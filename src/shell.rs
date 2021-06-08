@@ -52,6 +52,7 @@ pub struct Shell {
 }
 
 impl Shell {
+    /// Wraps a command in a [`Shell`] for execution.
     pub fn from_command(command: String) -> Self {
         Self {
             lines: Lines::Single(Some(command)),
@@ -61,6 +62,7 @@ impl Shell {
         }
     }
 
+    /// Instantiates a [`Shell`] for executing a file.
     pub fn from_file(path: PathBuf) -> Self {
         Self {
             lines: Lines::Buffered(Box::new(BufReader::new(fs::File::open(&path).unwrap()))),
@@ -70,6 +72,7 @@ impl Shell {
         }
     }
 
+    /// Instantiates an interactive [`Shell`].
     pub fn interactive() -> Self {
         Self {
             lines: Lines::Buffered(Box::new(BufReader::new(io::stdin()))),
@@ -79,6 +82,7 @@ impl Shell {
         }
     }
 
+    /// Returns true if the shell is interactive.
     pub fn is_interactive(&self) -> bool {
         self.interactive
     }

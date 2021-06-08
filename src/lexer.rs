@@ -33,7 +33,8 @@ impl Lexer {
         self.line.next()
     }
 
-    /// Advances the character iterator while a predicate holds and and returns a string containing all characters that are visited in the process.
+    /// Advances the character iterator while a predicate holds and and returns a string containing
+    /// all characters that are visited in the process.
     fn next_while<P>(&mut self, predicate: P) -> String
     where
         P: Fn(&char) -> bool,
@@ -51,7 +52,11 @@ impl Lexer {
 
     /// Returns a token for a specified keyword.
     ///
-    /// Returns `None` if the specified word is not a keyword.
+    /// # Arguments
+    ///
+    /// * `word` - A word that may or may not be a keyword.
+    ///
+    /// Returns [`None`] if the specified word is not a keyword.
     fn keyword_token(word: &String) -> Option<Token> {
         match word.as_str() {
             "case" => Some(Token::Keyword(Keyword::Case)),
@@ -71,6 +76,7 @@ impl Lexer {
         }
     }
 
+    /// Returns the next token, advancing the character iterator in the process.
     pub fn next_token(&mut self) -> Option<Token> {
         let ifs = self.ifs.clone();
 
