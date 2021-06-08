@@ -1,19 +1,13 @@
 use os_pipe::{pipe, PipeReader, PipeWriter};
 
 use crate::builtins;
-use crate::lexer::Lexer;
 use crate::parser::FileDescriptor;
-use crate::parser::Parser;
 use crate::parser::{Cmd, SingleCommand};
-use crate::shell::Shell;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::Read;
-use std::path::PathBuf;
 use std::process::Command;
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct CmdMeta {
@@ -108,28 +102,7 @@ impl Executor {
     fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut single, stdio);
         match &single.cmd[..] {
-            "." => {
-                let file = single.args.get(0).unwrap();
-                let shell = Rc::new(RefCell::new(Shell::from_file(PathBuf::from(file))));
-                loop {
-                    let input = shell.borrow_mut().next();
-                    if let Some(line) = input {
-                        let lexer = Lexer::new(&line, Rc::clone(&shell));
-                        let mut parser = Parser::new(lexer, Rc::clone(&shell));
-                        match parser.get() {
-                            Ok(command) => {
-                                self.execute(command, false);
-                            }
-                            Err(e) => {
-                                eprintln!("ERROR: {}", e);
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                true
-            }
+            "source" | "." => builtins::source(&single.args, self),
             "alias" => builtins::alias(&mut self.aliases, single.env, single.args),
             "cd" => builtins::cd(single.args),
             "exit" => builtins::exit(single.args),

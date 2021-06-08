@@ -72,12 +72,14 @@ fn login_command() -> Cmd {
         return Cmd::NoOp;
     }
 
+    let login_script_path_string = login_script_path
+        .to_str()
+        .expect("login script path exists")
+        .to_owned();
+
     Cmd::Single(SingleCommand::new(
-        ".".to_string(),
-        vec![login_script_path
-            .to_str()
-            .expect("login script path exists")
-            .to_owned()],
+        String::from("source"),
+        vec![login_script_path_string],
         Io::new(),
         HashMap::new(),
     ))

@@ -1,4 +1,6 @@
-use std::{collections::HashMap, env};
+use std::{cell::RefCell, collections::HashMap, env, path::PathBuf, rc::Rc};
+
+use crate::{executor::Executor, lexer::Lexer, parser::Parser, shell::Shell};
 
 pub fn alias(
     aliases: &mut HashMap<String, String>,
@@ -63,4 +65,28 @@ pub fn exit(args: Vec<String>) -> bool {
 
         false
     }
+}
+
+pub fn source(args: &Vec<String>, executor: &mut Executor) -> bool {
+    let file = args.get(0).unwrap();
+    let shell = Rc::new(RefCell::new(Shell::from_file(PathBuf::from(file))));
+    loop {
+        let input = shell.borrow_mut().next();
+        if let Some(line) = input {
+            let lexer = Lexer::new(&line, Rc::clone(&shell));
+            let mut parser = Parser::new(lexer, Rc::clone(&shell));
+            match parser.get() {
+                Ok(command) => {
+                    executor.execute(command, false);
+                }
+                Err(e) => {
+                    eprintln!("ERROR: {}", e);
+                    return false;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    true
 }
