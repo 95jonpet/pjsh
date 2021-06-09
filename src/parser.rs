@@ -305,6 +305,27 @@ mod tests {
         assert_eq!(ast(tokens), Ok(expected_ast));
     }
 
+    /// Tests that assignments are put in command environment.
+    #[test]
+    fn it_assigns_variables() {
+        let tokens = vec![
+            Token::Assign(String::from("key"), String::from("value")),
+            Token::Word(String::from("echo")),
+            Token::Word(String::from("test")),
+        ];
+
+        let mut expected_env = HashMap::new();
+        expected_env.insert(String::from("key"), String::from("value"));
+        let expected_ast = Cmd::Single(SingleCommand::new(
+            String::from("echo"),
+            vec![String::from("test")],
+            Io::new(),
+            expected_env,
+        ));
+
+        assert_eq!(ast(tokens), Ok(expected_ast));
+    }
+
     /// Parses a token iterator and returns an abstract syntax tree.
     fn ast(tokens: Vec<Token>) -> Result<Cmd, String> {
         let shell = Rc::new(RefCell::new(Shell::from_command(String::new())));

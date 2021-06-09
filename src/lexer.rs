@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn it_identifies_comments() {
         assert_eq!(
-            tokens("#This is a comment."),
+            tokenize("#This is a comment."),
             vec![Token::Comment(String::from("#This is a comment."))]
         );
     }
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn it_identifies_strings() {
         assert_eq!(
-            tokens("'This is a string'"),
+            tokenize("'This is a string'"),
             vec![Token::Word(String::from("This is a string")),]
         );
     }
@@ -228,51 +228,51 @@ mod tests {
     #[test]
     fn it_identifies_strings_with_escaped_chars() {
         assert_eq!(
-            tokens("'It\\'s a string'"),
+            tokenize("'It\\'s a string'"),
             vec![Token::Word(String::from("It's a string")),]
         );
         assert_eq!(
-            tokens("'\\n'"), // Should not be escaped.
+            tokenize("'\\n'"), // Should not be escaped.
             vec![Token::Word(String::from("\\n")),]
         );
     }
 
     #[test]
     fn it_identifies_separator_semicolon() {
-        assert_eq!(tokens(";"), vec![Token::Separator(Separator::Semicolon)]);
+        assert_eq!(tokenize(";"), vec![Token::Separator(Separator::Semicolon)]);
     }
 
     #[test]
     fn it_identifies_words() {
         assert_eq!(
-            tokens("lowercase"),
+            tokenize("lowercase"),
             vec![Token::Word(String::from("lowercase"))]
         );
         assert_eq!(
-            tokens("UPPERCASE"),
+            tokenize("UPPERCASE"),
             vec![Token::Word(String::from("UPPERCASE"))]
         );
         assert_eq!(
-            tokens("MixedCase"),
+            tokenize("MixedCase"),
             vec![Token::Word(String::from("MixedCase"))]
         );
         assert_eq!(
-            tokens("with_underscore"),
+            tokenize("with_underscore"),
             vec![Token::Word(String::from("with_underscore"))]
         );
         assert_eq!(
-            tokens("number123"),
+            tokenize("number123"),
             vec![Token::Word(String::from("number123"))]
         );
         assert_eq!(
-            tokens("two words"),
+            tokenize("two words"),
             vec![
                 Token::Word(String::from("two")),
                 Token::Word(String::from("words"))
             ]
         );
         assert_eq!(
-            tokens("cat file.extension"),
+            tokenize("cat file.extension"),
             vec![
                 Token::Word(String::from("cat")),
                 Token::Word(String::from("file.extension"))
@@ -282,14 +282,14 @@ mod tests {
 
     #[test]
     fn it_ignores_newline_chars() {
-        assert_eq!(tokens("\r\n"), vec![]);
+        assert_eq!(tokenize("\r\n"), vec![]);
     }
 
     #[test]
     fn it_identifies_operator_ampersand() {
-        assert_eq!(tokens("&"), vec![Token::Operator(Operator::Ampersand),]);
+        assert_eq!(tokenize("&"), vec![Token::Operator(Operator::Ampersand),]);
         assert_eq!(
-            tokens("code &"),
+            tokenize("code &"),
             vec![
                 Token::Word(String::from("code")),
                 Token::Operator(Operator::Ampersand),
@@ -299,9 +299,9 @@ mod tests {
 
     #[test]
     fn it_identifies_operator_and() {
-        assert_eq!(tokens("&&"), vec![Token::Operator(Operator::And),]);
+        assert_eq!(tokenize("&&"), vec![Token::Operator(Operator::And),]);
         assert_eq!(
-            tokens("x && y"),
+            tokenize("x && y"),
             vec![
                 Token::Word(String::from("x")),
                 Token::Operator(Operator::And),
@@ -313,31 +313,38 @@ mod tests {
     #[test]
     fn it_identifies_assignments() {
         assert_eq!(
-            tokens("x=1234"),
+            tokenize("x=1234"),
             vec![Token::Assign(String::from("x"), String::from("1234"))]
         );
         assert_eq!(
-            tokens("x= test"),
+            tokenize("x= test"),
             vec![
                 Token::Assign(String::from("x"), String::new()),
                 Token::Word(String::from("test")),
             ]
         );
         assert_eq!(
-            tokens("x="),
+            tokenize("x="),
             vec![Token::Assign(String::from("x"), String::new()),]
         );
         assert_eq!(
-            tokens("x=;"),
+            tokenize("x=;"),
             vec![Token::Assign(String::from("x"), String::new()),]
+        );
+        assert_eq!(
+            tokenize("run_tests --env=production"),
+            vec![
+                Token::Word(String::from("run_tests")),
+                Token::Word(String::from("--env=production")),
+            ]
         );
     }
 
     #[test]
     fn it_identifies_operator_bang() {
-        assert_eq!(tokens("!"), vec![Token::Operator(Operator::Bang)]);
+        assert_eq!(tokenize("!"), vec![Token::Operator(Operator::Bang)]);
         assert_eq!(
-            tokens("! true"),
+            tokenize("! true"),
             vec![
                 Token::Operator(Operator::Bang),
                 Token::Word(String::from("true"))
@@ -347,9 +354,9 @@ mod tests {
 
     #[test]
     fn it_identifies_operator_equal() {
-        assert_eq!(tokens("="), vec![Token::Operator(Operator::Equal)]);
+        assert_eq!(tokenize("="), vec![Token::Operator(Operator::Equal)]);
         assert_eq!(
-            tokens("x = 1234"),
+            tokenize("x = 1234"),
             vec![
                 Token::Word(String::from("x")),
                 Token::Operator(Operator::Equal),
@@ -360,9 +367,9 @@ mod tests {
 
     #[test]
     fn it_identifies_operator_or() {
-        assert_eq!(tokens("||"), vec![Token::Operator(Operator::Or),]);
+        assert_eq!(tokenize("||"), vec![Token::Operator(Operator::Or),]);
         assert_eq!(
-            tokens("x || y"),
+            tokenize("x || y"),
             vec![
                 Token::Word(String::from("x")),
                 Token::Operator(Operator::Or),
@@ -373,9 +380,9 @@ mod tests {
 
     #[test]
     fn it_identifies_operator_pipe() {
-        assert_eq!(tokens("|"), vec![Token::Operator(Operator::Pipe)]);
+        assert_eq!(tokenize("|"), vec![Token::Operator(Operator::Pipe)]);
         assert_eq!(
-            tokens("cat file_name | grep value"),
+            tokenize("cat file_name | grep value"),
             vec![
                 Token::Word(String::from("cat")),
                 Token::Word(String::from("file_name")),
@@ -386,7 +393,8 @@ mod tests {
         );
     }
 
-    fn tokens(input: &str) -> Vec<super::Token> {
+    /// Tokenizes a string using a [`Lexer`].
+    fn tokenize(input: &str) -> Vec<super::Token> {
         let mut lexer = Lexer::new(
             input,
             Rc::new(RefCell::new(Shell::from_command(String::from("")))),

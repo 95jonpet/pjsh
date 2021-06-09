@@ -13,12 +13,6 @@ pub enum Lines {
     Single(Option<String>),
 }
 
-// impl Lines {
-//     pub fn new(buffer: Box<dyn BufRead>) -> Self {
-//         Self { buffer }
-//     }
-// }
-
 impl Iterator for Lines {
     type Item = String;
 
