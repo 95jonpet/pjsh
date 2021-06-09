@@ -1,4 +1,4 @@
-use crate::shell::Shell;
+use crate::shell::{self, Shell};
 use crate::token::{Keyword, Operator, Separator, Token};
 use std::cell::RefCell;
 use std::iter::Peekable;
@@ -31,6 +31,16 @@ impl Lexer {
     /// Advances the character iterator and returns the next value.
     fn next_char(&mut self) -> Option<char> {
         self.line.next()
+    }
+
+    /// Advances the character iterator and returns the next line of input.
+    fn next_line(&mut self) -> Result<(), String> {
+        if let Some(s) = self.shell.borrow_mut().next_prompt(shell::PS2) {
+            self.line = s.chars().collect::<Vec<_>>().into_iter().peekable();
+            Ok(())
+        } else {
+            Err(String::from("expected more input but found one"))
+        }
     }
 
     /// Advances the character iterator while a predicate holds and and returns a string containing

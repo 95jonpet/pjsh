@@ -5,8 +5,11 @@ use std::path::PathBuf;
 
 use clap::crate_name;
 
-static PS1: &str = "$";
-// static PS2: &str = ">> ";
+/// Shell prompt during normal operation.
+pub const PS1: &str = "$ ";
+
+/// Shell prompt when a logical line should be continued.
+pub const PS2: &str = "> ";
 
 pub enum Lines {
     Buffered(Box<dyn BufRead>),
@@ -80,16 +83,21 @@ impl Shell {
     pub fn is_interactive(&self) -> bool {
         self.interactive
     }
+
+    /// Returns the next input from a prompt.
+    pub fn next_prompt(&mut self, prompt: &str) -> Option<String> {
+        if self.is_interactive() {
+            print!("{}", prompt);
+            io::stdout().flush().unwrap();
+        }
+        self.lines.next()
+    }
 }
 
 impl Iterator for Shell {
     type Item = String;
 
     fn next(&mut self) -> Option<String> {
-        if self.interactive {
-            print!("{} ", PS1);
-            io::stdout().flush().unwrap();
-        }
-        self.lines.next()
+        self.next_prompt(PS1)
     }
 }
