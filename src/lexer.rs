@@ -5,8 +5,6 @@ use std::iter::Peekable;
 use std::rc::Rc;
 use std::vec::IntoIter;
 
-const UNEXPECTED_EOF: &str = "Unexpected EOF";
-
 pub struct Lexer {
     #[allow(dead_code)]
     shell: Rc<RefCell<Shell>>,
@@ -33,8 +31,8 @@ impl Lexer {
         self.line.next()
     }
 
-    /// Advances the character iterator and returns the next line of input.
-    fn next_line(&mut self) -> Result<(), String> {
+    /// Advances the character iterator to the next line.
+    fn advance_line(&mut self) -> Result<(), String> {
         if let Some(s) = self.shell.borrow_mut().next_prompt(shell::PS2) {
             self.line = s.chars().collect::<Vec<_>>().into_iter().peekable();
             Ok(())
@@ -45,19 +43,35 @@ impl Lexer {
 
     /// Advances the character iterator while a predicate holds and and returns a string containing
     /// all characters that are visited in the process.
-    fn next_while<P>(&mut self, predicate: P) -> String
+    fn next_while<P>(&mut self, predicate: P, advance_lines: bool) -> Result<String, String>
     where
         P: Fn(&char) -> bool,
     {
         let mut result = String::new();
-        while let Some(character) = self.peek_char() {
-            if !predicate(character) {
-                break;
-            }
 
-            result.push(self.next_char().expect(UNEXPECTED_EOF));
+        loop {
+            match self.peek_char() {
+                Some('\\') => {
+                    self.next_char();
+                    match self.next_char() {
+                        Some('\n') => self.advance_line()?,
+                        Some(c) => result.push(c),
+                        None => (),
+                    }
+                }
+                Some(ch) if predicate(ch) => result.push(self.next_char().unwrap()),
+                None => {
+                    if advance_lines {
+                        self.advance_line()?;
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            }
         }
-        result
+
+        Ok(result)
     }
 
     /// Returns a token for a specified keyword.
@@ -90,12 +104,13 @@ impl Lexer {
     pub fn next_token(&mut self) -> Option<Token> {
         let ifs = self.ifs.clone();
 
-        self.next_while(|c| ifs.contains(*c)); // Skip all whitespace.
-        self.next_while(|c| *c == '\r' || *c == '\n'); // Skip newline characters.
+        self.next_while(|c| ifs.contains(*c), false).unwrap(); // Skip all whitespace.
+        self.next_while(|c| *c == '\r' || *c == '\n', false)
+            .unwrap(); // Skip newline characters.
         match self.peek_char() {
             Some('#') => {
-                let comment = self.next_while(|c| c != &'\n');
-                Some(Token::Comment(comment))
+                let comment = self.next_while(|c| c != &'\n', false);
+                comment.map(|string| Token::Comment(string)).ok()
             }
             Some('=') => {
                 self.next_char(); // Skip peeked char.
@@ -129,37 +144,17 @@ impl Lexer {
             }
             Some('\'') => {
                 self.next_char(); // Skip delimiter.
-
-                let mut string_content = String::new();
-                loop {
-                    match self.peek_char() {
-                        Some('\\') => {
-                            self.next_char(); // Skip backslash.
-
-                            // Add escaped token to the string.
-                            match self.peek_char() {
-                                Some('\'') => string_content.push(self.next_char().unwrap()),
-                                Some(_) => {
-                                    // Non-escapable character.
-                                    string_content.push('\\'); // Add backslash.
-                                    string_content.push(self.next_char().unwrap());
-                                }
-                                _ => (),
-                            }
-                        }
-                        Some('\'') => {
-                            self.next_char(); // Skip delimiter.
-                            return Some(Token::Word(string_content));
-                        }
-                        Some(_) => {
-                            string_content.push(self.next_char().unwrap());
-                        }
-                        None => (),
-                    }
-                }
+                let string_content = self.next_while(|ch| ch != &'\'', true);
+                self.next_char(); // Skip delimiter.
+                Some(Token::Word(string_content.unwrap()))
             }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
-                let word = self.next_while(|c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.');
+                let word = self
+                    .next_while(
+                        |c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.',
+                        false,
+                    )
+                    .unwrap();
 
                 if let Some(token) = Self::keyword_token(&word) {
                     return Some(token);
@@ -177,19 +172,20 @@ impl Lexer {
                             }
                             Some('\'') => {
                                 self.next_char();
-                                let string = self.next_while(|c| *c != '\'');
+                                let string = self.next_while(|c| c != &'\'', true);
                                 self.next_char();
-                                Token::Assign(word, string)
+                                string.map(|value| Token::Assign(word, value)).unwrap()
                             }
                             Some(';') | None => {
                                 self.next_char(); // Skip peeked char.
                                 Token::Assign(word, String::new())
                             }
                             _ => {
-                                let value = self.next_while(|c| {
-                                    c.is_ascii_alphanumeric() || c == &'_' || c == &'.'
-                                });
-                                Token::Assign(word, value)
+                                let value = self.next_while(
+                                    |c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.',
+                                    false,
+                                );
+                                value.map(|v| Token::Assign(word, v)).unwrap()
                             }
                         };
                         return Some(token);
@@ -200,8 +196,8 @@ impl Lexer {
             }
             Some(_) => {
                 // Treat unknown lexemes as string literals.
-                let string_content = self.next_while(|c| !ifs.contains(*c));
-                Some(Token::Word(string_content))
+                let string_content = self.next_while(|c| !ifs.contains(*c), false);
+                string_content.map(|word| Token::Word(word)).ok()
             }
             _ => None,
         }
@@ -236,14 +232,29 @@ mod tests {
     }
 
     #[test]
+    fn it_identifies_strings_spanning_multiple_unix_lines() {
+        assert_eq!(
+            tokenize("'first\nsecond'"),
+            vec![Token::Word(String::from("first\nsecond")),]
+        );
+    }
+
+    #[test]
+    fn it_identifies_strings_spanning_multiple_windows_lines() {
+        assert_eq!(
+            tokenize("ls 'first\r\nsecond'"),
+            vec![
+                Token::Word(String::from("ls")),
+                Token::Word(String::from("first\r\nsecond")),
+            ]
+        );
+    }
+
+    #[test]
     fn it_identifies_strings_with_escaped_chars() {
         assert_eq!(
-            tokenize("'It\\'s a string'"),
+            tokenize(r"'It\'s a string'"),
             vec![Token::Word(String::from("It's a string")),]
-        );
-        assert_eq!(
-            tokenize("'\\n'"), // Should not be escaped.
-            vec![Token::Word(String::from("\\n")),]
         );
     }
 
