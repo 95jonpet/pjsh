@@ -133,16 +133,16 @@ where
     }
 
     fn get_and_or_or(&mut self) -> Result<Cmd, String> {
-        let mut node = self.get_pipe()?;
+        let mut node = self.get_pipeline()?;
         while let Some(Token::Operator(Operator::And)) | Some(Token::Operator(Operator::Or)) =
             self.lexer.peek()
         {
             match self.lexer.next() {
                 Some(Token::Operator(Operator::And)) => {
-                    node = Cmd::And(Box::new(node), Box::new(self.get_pipe()?));
+                    node = Cmd::And(Box::new(node), Box::new(self.get_pipeline()?));
                 }
                 Some(Token::Operator(Operator::Or)) => {
-                    node = Cmd::Or(Box::new(node), Box::new(self.get_pipe()?));
+                    node = Cmd::Or(Box::new(node), Box::new(self.get_pipeline()?));
                 }
                 _ => unreachable!(),
             };
@@ -150,7 +150,7 @@ where
         Ok(node)
     }
 
-    fn get_pipe(&mut self) -> Result<Cmd, String> {
+    fn get_pipeline(&mut self) -> Result<Cmd, String> {
         let mut node = self.get_simple()?;
         while let Some(Token::Operator(Operator::Pipe)) = self.lexer.peek() {
             self.lexer.next();
