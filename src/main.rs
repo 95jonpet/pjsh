@@ -1,4 +1,5 @@
 mod builtins;
+mod builtin_utils;
 mod executor;
 mod lexer;
 mod parser;

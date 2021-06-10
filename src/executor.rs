@@ -1,5 +1,7 @@
 use os_pipe::{pipe, PipeReader, PipeWriter};
 
+use crate::builtin_utils::cd::Cd;
+use crate::builtin_utils::Builtin;
 use crate::builtins;
 use crate::parser::FileDescriptor;
 use crate::parser::{Cmd, SimpleCommand};
@@ -102,9 +104,26 @@ impl Executor {
     fn visit_simple(&mut self, mut simple: SimpleCommand, stdio: CmdMeta) -> bool {
         self.reconcile_io(&mut simple, stdio);
         match &simple.cmd[..] {
-            "source" | "." => builtins::source(&simple.args, self),
             "alias" => builtins::alias(&mut self.aliases, simple.env, simple.args),
-            "cd" => builtins::cd(simple.args),
+            "bg" => unimplemented!(),
+            "cd" => Cd::execute(&simple.args, &self).is_ok(),
+            "command" => unimplemented!(),
+            "false" => unimplemented!(),
+            "fc" => unimplemented!(),
+            "fg" => unimplemented!(),
+            "getopts" => unimplemented!(),
+            "hash" => unimplemented!(),
+            "jobs" => unimplemented!(),
+            "kill" => unimplemented!(),
+            "newgrp" => unimplemented!(),
+            "pwd" => unimplemented!(),
+            "read" => unimplemented!(),
+            "true" => unimplemented!(),
+            "umask" => unimplemented!(),
+            "unalias" => unimplemented!(),
+            "wait" => unimplemented!(),
+
+            "source" | "." => builtins::source(&simple.args, self),
             "exit" => builtins::exit(simple.args),
             command => {
                 let mut cmd = self.resolve_command(String::from(command), simple.args);
