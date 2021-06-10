@@ -2,7 +2,7 @@ use os_pipe::{pipe, PipeReader, PipeWriter};
 
 use crate::builtins;
 use crate::parser::FileDescriptor;
-use crate::parser::{Cmd, SingleCommand};
+use crate::parser::{Cmd, SimpleCommand};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -64,7 +64,7 @@ impl Executor {
 
     fn visit(&mut self, node: Cmd, stdio: CmdMeta) -> bool {
         match node {
-            Cmd::Single(single) => self.visit_single(single, stdio),
+            Cmd::Simple(simple) => self.visit_simple(simple, stdio),
             Cmd::Not(cmd) => self.visit_not(*cmd, stdio),
             Cmd::Pipeline(left, right) => self.visit_pipe(*left, *right, stdio),
             Cmd::And(left, right) => self.visit_and(*left, *right, stdio),
@@ -99,39 +99,39 @@ impl Executor {
         self.visit(right, stdio.new_in(reader))
     }
 
-    fn visit_single(&mut self, mut single: SingleCommand, stdio: CmdMeta) -> bool {
-        self.reconcile_io(&mut single, stdio);
-        match &single.cmd[..] {
-            "source" | "." => builtins::source(&single.args, self),
-            "alias" => builtins::alias(&mut self.aliases, single.env, single.args),
-            "cd" => builtins::cd(single.args),
-            "exit" => builtins::exit(single.args),
+    fn visit_simple(&mut self, mut simple: SimpleCommand, stdio: CmdMeta) -> bool {
+        self.reconcile_io(&mut simple, stdio);
+        match &simple.cmd[..] {
+            "source" | "." => builtins::source(&simple.args, self),
+            "alias" => builtins::alias(&mut self.aliases, simple.env, simple.args),
+            "cd" => builtins::cd(simple.args),
+            "exit" => builtins::exit(simple.args),
             command => {
-                let mut cmd = self.resolve_command(String::from(command), single.args);
+                let mut cmd = self.resolve_command(String::from(command), simple.args);
                 // TODO Move alias builtin resolution to after alias resolution.
 
-                if let Some(stdin) = single.stdin.borrow_mut().get_stdin() {
+                if let Some(stdin) = simple.stdin.borrow_mut().get_stdin() {
                     cmd.stdin(stdin);
                 } else {
                     return false;
                 }
-                if let Some(stdout) = single.stdout.borrow_mut().get_stdout() {
+                if let Some(stdout) = simple.stdout.borrow_mut().get_stdout() {
                     cmd.stdout(stdout);
                 } else {
                     return false;
                 }
-                if let Some(stderr) = single.stdin.borrow_mut().get_stderr() {
+                if let Some(stderr) = simple.stdin.borrow_mut().get_stderr() {
                     cmd.stderr(stderr);
                 } else {
                     return false;
                 }
 
-                cmd.envs(single.env);
+                cmd.envs(simple.env);
 
                 match cmd.status() {
                     Ok(child) => child.success(),
                     Err(e) => {
-                        eprintln!("pjsh: {}: {}", single.cmd, e);
+                        eprintln!("pjsh: {}: {}", simple.cmd, e);
                         false
                     }
                 }
@@ -139,15 +139,15 @@ impl Executor {
         }
     }
 
-    fn reconcile_io(&self, single: &mut SingleCommand, stdio: CmdMeta) {
+    fn reconcile_io(&self, simple: &mut SimpleCommand, stdio: CmdMeta) {
         if let Some(stdout) = stdio.stdout {
-            if *single.stdout.borrow() == FileDescriptor::Stdout {
-                *single.stdout.borrow_mut() = FileDescriptor::PipeOut(stdout);
+            if *simple.stdout.borrow() == FileDescriptor::Stdout {
+                *simple.stdout.borrow_mut() = FileDescriptor::PipeOut(stdout);
             }
         }
         if let Some(stdin) = stdio.stdin {
-            if *single.stdin.borrow() == FileDescriptor::Stdin {
-                *single.stdin.borrow_mut() = FileDescriptor::PipeIn(stdin);
+            if *simple.stdin.borrow() == FileDescriptor::Stdin {
+                *simple.stdin.borrow_mut() = FileDescriptor::PipeIn(stdin);
             }
         }
     }

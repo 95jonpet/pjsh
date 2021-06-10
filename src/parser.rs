@@ -77,7 +77,7 @@ impl Io {
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
-    Single(SingleCommand),
+    Simple(SimpleCommand),
     Pipeline(Box<Cmd>, Box<Cmd>),
     And(Box<Cmd>, Box<Cmd>),
     Or(Box<Cmd>, Box<Cmd>),
@@ -86,7 +86,7 @@ pub enum Cmd {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SingleCommand {
+pub struct SimpleCommand {
     pub cmd: String,
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
@@ -95,7 +95,7 @@ pub struct SingleCommand {
     pub stderr: Rc<RefCell<FileDescriptor>>,
 }
 
-impl SingleCommand {
+impl SimpleCommand {
     pub fn new(cmd: String, args: Vec<String>, io: Io, env: HashMap<String, String>) -> Self {
         Self {
             cmd,
@@ -151,18 +151,18 @@ where
     }
 
     fn get_pipe(&mut self) -> Result<Cmd, String> {
-        let mut node = self.get_single()?;
+        let mut node = self.get_simple()?;
         while let Some(Token::Operator(Operator::Pipe)) = self.lexer.peek() {
             self.lexer.next();
-            node = Cmd::Pipeline(Box::new(node), Box::new(self.get_single()?));
+            node = Cmd::Pipeline(Box::new(node), Box::new(self.get_simple()?));
         }
         Ok(node)
     }
 
-    fn get_single(&mut self) -> Result<Cmd, String> {
+    fn get_simple(&mut self) -> Result<Cmd, String> {
         if let Some(Token::Operator(Operator::Bang)) = self.lexer.peek() {
             self.lexer.next();
-            return Ok(Cmd::Not(Box::new(self.get_single()?)));
+            return Ok(Cmd::Not(Box::new(self.get_simple()?)));
         }
 
         let mut env: HashMap<String, String> = HashMap::new();
@@ -193,7 +193,7 @@ where
             return Ok(Cmd::NoOp);
         }
 
-        Ok(Cmd::Single(SingleCommand::new(
+        Ok(Cmd::Simple(SimpleCommand::new(
             result.remove(0),
             result,
             io,
@@ -215,7 +215,7 @@ mod tests {
             Token::Word(String::from("-lah")),
         ];
 
-        let expected_ast = Cmd::Single(SingleCommand::new(
+        let expected_ast = Cmd::Simple(SimpleCommand::new(
             String::from("ls"),
             vec![String::from("-lah")],
             Io::new(),
@@ -236,13 +236,13 @@ mod tests {
         ];
 
         let expected_ast = Cmd::Pipeline(
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("cat"),
                 vec![String::from("my_file")],
                 Io::new(),
                 HashMap::new(),
             ))),
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("grep"),
                 vec![String::from("test")],
                 Io::new(),
@@ -262,13 +262,13 @@ mod tests {
         ];
 
         let expected_ast = Cmd::And(
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("true"),
                 vec![],
                 Io::new(),
                 HashMap::new(),
             ))),
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("false"),
                 vec![],
                 Io::new(),
@@ -288,13 +288,13 @@ mod tests {
         ];
 
         let expected_ast = Cmd::Or(
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("false"),
                 vec![],
                 Io::new(),
                 HashMap::new(),
             ))),
-            Box::new(Cmd::Single(SingleCommand::new(
+            Box::new(Cmd::Simple(SimpleCommand::new(
                 String::from("true"),
                 vec![],
                 Io::new(),
@@ -316,7 +316,7 @@ mod tests {
 
         let mut expected_env = HashMap::new();
         expected_env.insert(String::from("key"), String::from("value"));
-        let expected_ast = Cmd::Single(SingleCommand::new(
+        let expected_ast = Cmd::Simple(SimpleCommand::new(
             String::from("echo"),
             vec![String::from("test")],
             Io::new(),

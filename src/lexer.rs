@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::vec::IntoIter;
 
 pub struct Lexer {
-    #[allow(dead_code)]
     shell: Rc<RefCell<Shell>>,
     line: Peekable<IntoIter<char>>,
     ifs: String,

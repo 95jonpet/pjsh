@@ -9,7 +9,6 @@ use executor::Executor;
 use lexer::Lexer;
 use parser::Cmd;
 use parser::Parser;
-use parser::SingleCommand;
 use shell::Shell;
 
 use clap::{crate_name, crate_version, Clap};
@@ -20,6 +19,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::parser::Io;
+use crate::parser::SimpleCommand;
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
@@ -77,7 +77,7 @@ fn login_command() -> Cmd {
         .expect("login script path exists")
         .to_owned();
 
-    Cmd::Single(SingleCommand::new(
+    Cmd::Simple(SimpleCommand::new(
         String::from("source"),
         vec![login_script_path_string],
         Io::new(),
