@@ -16,6 +16,7 @@ use clap::{crate_name, crate_version, Clap};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
+use std::env::VarError;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -40,7 +41,7 @@ fn main() {
 
     let shell = create_shell(args);
     let mut executor = Executor::new();
-    executor.execute(login_command(), false);
+    executor.execute(perform_login(), false);
 
     loop {
         let input = shell.borrow_mut().next();
@@ -64,8 +65,8 @@ fn main() {
     }
 }
 
-fn login_command() -> Cmd {
-    if let Ok(home_dir) = env::var("HOME") {
+fn perform_login() -> Cmd {
+    if let Ok(home_dir) = home_dir() {
         let login_script_path: PathBuf = [&home_dir, ".pjshrc"].iter().collect();
 
         if !login_script_path.is_file() {
@@ -83,6 +84,19 @@ fn login_command() -> Cmd {
     }
 
     Cmd::NoOp
+}
+
+fn home_dir() -> Result<String, VarError> {
+    env::var("HOME").or_else(|_| {
+        let drive = env::var("HOMEDRIVE")?;
+        let path = env::var("HOMEPATH")?;
+
+        let mut home = drive;
+        home.push_str(&path);
+        home = home.replace("\\", "/");
+
+        Ok(home)
+    })
 }
 
 fn create_shell(args: Cli) -> Rc<RefCell<Shell>> {

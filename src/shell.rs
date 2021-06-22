@@ -105,6 +105,6 @@ impl Iterator for Shell {
     type Item = String;
 
     fn next(&mut self) -> Option<String> {
-        self.next_prompt(PS1)
+        self.next_prompt(&self.get_var("PS1").unwrap_or(PS1.to_string()))
     }
 }

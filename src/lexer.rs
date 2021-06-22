@@ -32,7 +32,13 @@ impl Lexer {
 
     /// Advances the character iterator to the next line.
     fn advance_line(&mut self) -> Result<(), String> {
-        if let Some(s) = self.shell.borrow_mut().next_prompt(shell::PS2) {
+        if let Some(s) = self.shell.borrow_mut().next_prompt(
+            &self
+                .shell
+                .borrow()
+                .get_var("PS2")
+                .unwrap_or(shell::PS2.to_string()),
+        ) {
             self.line = s.chars().collect::<Vec<_>>().into_iter().peekable();
             Ok(())
         } else {
