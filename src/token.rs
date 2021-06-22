@@ -1,11 +1,17 @@
 #[derive(Debug, PartialEq)]
 pub enum Token {
-    Word(String),
+    Word(Vec<Unit>),
     Keyword(Keyword),
     Separator(Separator),
     Operator(Operator),
     Assign(String, String),
     Comment(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Unit {
+    Literal(String),
+    Variable(String),
 }
 
 #[derive(Debug, PartialEq)]

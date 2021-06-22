@@ -1,10 +1,11 @@
 use crate::shell::Shell;
-use crate::token::Operator;
 use crate::token::Token;
+use crate::token::{Operator, Unit};
 
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::env;
 use std::iter::{Iterator, Peekable};
 use std::process::Stdio;
 use std::rc::Rc;
@@ -108,6 +109,10 @@ impl SimpleCommand {
     }
 }
 
+struct ParserOptions {
+    allow_unresolved_variables: bool,
+}
+
 pub struct Parser<I>
 where
     I: Iterator<Item = Token>,
@@ -115,6 +120,7 @@ where
     lexer: Peekable<I>,
     #[allow(dead_code)]
     shell: Rc<RefCell<Shell>>,
+    options: ParserOptions,
 }
 
 impl<I> Parser<I>
@@ -122,9 +128,14 @@ where
     I: Iterator<Item = Token>,
 {
     pub fn new(lexer: I, shell: Rc<RefCell<Shell>>) -> Self {
+        let options = ParserOptions {
+            allow_unresolved_variables: true,
+        };
+
         Self {
             lexer: lexer.peekable(),
             shell,
+            options,
         }
     }
 
@@ -172,8 +183,9 @@ where
         loop {
             match self.lexer.peek() {
                 Some(Token::Word(_)) => {
-                    if let Some(Token::Word(word)) = self.lexer.next() {
-                        result.push(word);
+                    if let Some(Token::Word(units)) = self.lexer.next() {
+                        let expanded_word = self.expand_word(&units);
+                        result.push(expanded_word);
                     } else {
                         unreachable!()
                     }
@@ -200,6 +212,24 @@ where
             env,
         )))
     }
+
+    fn expand_word(&self, units: &Vec<Unit>) -> String {
+        let mut word = String::new();
+        for unit in units {
+            match unit {
+                Unit::Literal(literal) => word.push_str(literal),
+                Unit::Variable(var) => match env::var(var) {
+                    Ok(resolved_value) => word.push_str(&resolved_value),
+                    Err(_error) => {
+                        if !self.options.allow_unresolved_variables {
+                            panic!("Unresolved variable '{}'", var)
+                        }
+                    }
+                },
+            }
+        }
+        word
+    }
 }
 
 #[cfg(test)]
@@ -211,8 +241,8 @@ mod tests {
     #[test]
     fn it_parses_single_commands() {
         let tokens = vec![
-            Token::Word(String::from("ls")),
-            Token::Word(String::from("-lah")),
+            Token::Word(vec![Unit::Literal(String::from("ls"))]),
+            Token::Word(vec![Unit::Literal(String::from("-lah"))]),
         ];
 
         let expected_ast = Cmd::Simple(SimpleCommand::new(
@@ -228,11 +258,11 @@ mod tests {
     #[test]
     fn it_parses_pipelines() {
         let tokens = vec![
-            Token::Word(String::from("cat")),
-            Token::Word(String::from("my_file")),
+            Token::Word(vec![Unit::Literal(String::from("cat"))]),
+            Token::Word(vec![Unit::Literal(String::from("my_file"))]),
             Token::Operator(Operator::Pipe),
-            Token::Word(String::from("grep")),
-            Token::Word(String::from("test")),
+            Token::Word(vec![Unit::Literal(String::from("grep"))]),
+            Token::Word(vec![Unit::Literal(String::from("test"))]),
         ];
 
         let expected_ast = Cmd::Pipeline(
@@ -256,9 +286,9 @@ mod tests {
     #[test]
     fn it_parses_commands_with_and_logic() {
         let tokens = vec![
-            Token::Word(String::from("true")),
+            Token::Word(vec![Unit::Literal(String::from("true"))]),
             Token::Operator(Operator::And),
-            Token::Word(String::from("false")),
+            Token::Word(vec![Unit::Literal(String::from("false"))]),
         ];
 
         let expected_ast = Cmd::And(
@@ -282,9 +312,9 @@ mod tests {
     #[test]
     fn it_parses_commands_with_or_logic() {
         let tokens = vec![
-            Token::Word(String::from("false")),
+            Token::Word(vec![Unit::Literal(String::from("false"))]),
             Token::Operator(Operator::Or),
-            Token::Word(String::from("true")),
+            Token::Word(vec![Unit::Literal(String::from("true"))]),
         ];
 
         let expected_ast = Cmd::Or(
@@ -310,8 +340,8 @@ mod tests {
     fn it_assigns_variables() {
         let tokens = vec![
             Token::Assign(String::from("key"), String::from("value")),
-            Token::Word(String::from("echo")),
-            Token::Word(String::from("test")),
+            Token::Word(vec![Unit::Literal(String::from("echo"))]),
+            Token::Word(vec![Unit::Literal(String::from("test"))]),
         ];
 
         let mut expected_env = HashMap::new();

@@ -1,5 +1,5 @@
 use crate::shell::{self, Shell};
-use crate::token::{Keyword, Operator, Separator, Token};
+use crate::token::{Keyword, Operator, Separator, Token, Unit};
 use std::cell::RefCell;
 use std::iter::Peekable;
 use std::rc::Rc;
@@ -145,7 +145,7 @@ impl Lexer {
                 self.next_char(); // Skip delimiter.
                 let string_content = self.next_while(|ch| ch != &'\'', true);
                 self.next_char(); // Skip delimiter.
-                Some(Token::Word(string_content.unwrap()))
+                Some(Token::Word(vec![Unit::Literal(string_content.unwrap())]))
             }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
                 let word = self
@@ -191,12 +191,25 @@ impl Lexer {
                     }
                 }
 
-                Some(Token::Word(word))
+                let unit = match &word[..1] {
+                    "$" => Unit::Variable(String::from(&word[1..])),
+                    _ => Unit::Literal(word),
+                };
+
+                Some(Token::Word(vec![unit]))
             }
             Some(_) => {
                 // Treat unknown lexemes as string literals.
                 let string_content = self.next_while(|c| !ifs.contains(*c), false);
-                string_content.map(|word| Token::Word(word)).ok()
+                string_content
+                    .map(|word| {
+                        let unit = match &word[..1] {
+                            "$" => Unit::Variable(String::from(&word[1..])),
+                            _ => Unit::Literal(word),
+                        };
+                        Token::Word(vec![unit])
+                    })
+                    .ok()
             }
             _ => None,
         }
@@ -226,7 +239,9 @@ mod tests {
     fn it_identifies_strings() {
         assert_eq!(
             tokenize("'This is a string'"),
-            vec![Token::Word(String::from("This is a string")),]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "This is a string"
+            ))])]
         );
     }
 
@@ -234,7 +249,9 @@ mod tests {
     fn it_identifies_strings_spanning_multiple_unix_lines() {
         assert_eq!(
             tokenize("'first\nsecond'"),
-            vec![Token::Word(String::from("first\nsecond")),]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "first\nsecond"
+            ))])]
         );
     }
 
@@ -243,8 +260,8 @@ mod tests {
         assert_eq!(
             tokenize("ls 'first\r\nsecond'"),
             vec![
-                Token::Word(String::from("ls")),
-                Token::Word(String::from("first\r\nsecond")),
+                Token::Word(vec![Unit::Literal(String::from("ls"))]),
+                Token::Word(vec![Unit::Literal(String::from("first\r\nsecond"))]),
             ]
         );
     }
@@ -253,7 +270,9 @@ mod tests {
     fn it_identifies_strings_with_escaped_chars() {
         assert_eq!(
             tokenize(r"'It\'s a string'"),
-            vec![Token::Word(String::from("It's a string")),]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "It's a string"
+            ))])]
         );
     }
 
@@ -263,39 +282,81 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_words() {
+    fn it_identifies_literal_words() {
         assert_eq!(
             tokenize("lowercase"),
-            vec![Token::Word(String::from("lowercase"))]
+            vec![Token::Word(vec![Unit::Literal(String::from("lowercase"))])]
         );
         assert_eq!(
             tokenize("UPPERCASE"),
-            vec![Token::Word(String::from("UPPERCASE"))]
+            vec![Token::Word(vec![Unit::Literal(String::from("UPPERCASE"))])]
         );
         assert_eq!(
             tokenize("MixedCase"),
-            vec![Token::Word(String::from("MixedCase"))]
+            vec![Token::Word(vec![Unit::Literal(String::from("MixedCase"))])]
         );
         assert_eq!(
             tokenize("with_underscore"),
-            vec![Token::Word(String::from("with_underscore"))]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "with_underscore"
+            ))])]
         );
         assert_eq!(
             tokenize("number123"),
-            vec![Token::Word(String::from("number123"))]
+            vec![Token::Word(vec![Unit::Literal(String::from("number123"))])]
         );
         assert_eq!(
             tokenize("two words"),
             vec![
-                Token::Word(String::from("two")),
-                Token::Word(String::from("words"))
+                Token::Word(vec![Unit::Literal(String::from("two"))]),
+                Token::Word(vec![Unit::Literal(String::from("words"))])
             ]
         );
         assert_eq!(
             tokenize("cat file.extension"),
             vec![
-                Token::Word(String::from("cat")),
-                Token::Word(String::from("file.extension"))
+                Token::Word(vec![Unit::Literal(String::from("cat"))]),
+                Token::Word(vec![Unit::Literal(String::from("file.extension"))])
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_variable_words() {
+        assert_eq!(
+            tokenize("$lowercase"),
+            vec![Token::Word(vec![Unit::Variable(String::from("lowercase"))])]
+        );
+        assert_eq!(
+            tokenize("$UPPERCASE"),
+            vec![Token::Word(vec![Unit::Variable(String::from("UPPERCASE"))])]
+        );
+        assert_eq!(
+            tokenize("$MixedCase"),
+            vec![Token::Word(vec![Unit::Variable(String::from("MixedCase"))])]
+        );
+        assert_eq!(
+            tokenize("$with_underscore"),
+            vec![Token::Word(vec![Unit::Variable(String::from(
+                "with_underscore"
+            ))])]
+        );
+        assert_eq!(
+            tokenize("$number123"),
+            vec![Token::Word(vec![Unit::Variable(String::from("number123"))])]
+        );
+        assert_eq!(
+            tokenize("$two $words"),
+            vec![
+                Token::Word(vec![Unit::Variable(String::from("two"))]),
+                Token::Word(vec![Unit::Variable(String::from("words"))])
+            ]
+        );
+        assert_eq!(
+            tokenize("cat $file"),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("cat"))]),
+                Token::Word(vec![Unit::Variable(String::from("file"))])
             ]
         );
     }
@@ -311,7 +372,7 @@ mod tests {
         assert_eq!(
             tokenize("code &"),
             vec![
-                Token::Word(String::from("code")),
+                Token::Word(vec![Unit::Literal(String::from("code"))]),
                 Token::Operator(Operator::Ampersand),
             ]
         );
@@ -323,9 +384,9 @@ mod tests {
         assert_eq!(
             tokenize("x && y"),
             vec![
-                Token::Word(String::from("x")),
+                Token::Word(vec![Unit::Literal(String::from("x"))]),
                 Token::Operator(Operator::And),
-                Token::Word(String::from("y")),
+                Token::Word(vec![Unit::Literal(String::from("y"))]),
             ]
         );
     }
@@ -340,7 +401,7 @@ mod tests {
             tokenize("x= test"),
             vec![
                 Token::Assign(String::from("x"), String::new()),
-                Token::Word(String::from("test")),
+                Token::Word(vec![Unit::Literal(String::from("test"))]),
             ]
         );
         assert_eq!(
@@ -354,8 +415,8 @@ mod tests {
         assert_eq!(
             tokenize("run_tests --env=production"),
             vec![
-                Token::Word(String::from("run_tests")),
-                Token::Word(String::from("--env=production")),
+                Token::Word(vec![Unit::Literal(String::from("run_tests"))]),
+                Token::Word(vec![Unit::Literal(String::from("--env=production"))]),
             ]
         );
     }
@@ -367,7 +428,7 @@ mod tests {
             tokenize("! true"),
             vec![
                 Token::Operator(Operator::Bang),
-                Token::Word(String::from("true"))
+                Token::Word(vec![Unit::Literal(String::from("true"))])
             ]
         );
     }
@@ -378,9 +439,9 @@ mod tests {
         assert_eq!(
             tokenize("x = 1234"),
             vec![
-                Token::Word(String::from("x")),
+                Token::Word(vec![Unit::Literal(String::from("x"))]),
                 Token::Operator(Operator::Equal),
-                Token::Word(String::from("1234"))
+                Token::Word(vec![Unit::Literal(String::from("1234"))])
             ]
         );
     }
@@ -391,9 +452,9 @@ mod tests {
         assert_eq!(
             tokenize("x || y"),
             vec![
-                Token::Word(String::from("x")),
+                Token::Word(vec![Unit::Literal(String::from("x"))]),
                 Token::Operator(Operator::Or),
-                Token::Word(String::from("y")),
+                Token::Word(vec![Unit::Literal(String::from("y"))]),
             ]
         );
     }
@@ -404,11 +465,11 @@ mod tests {
         assert_eq!(
             tokenize("cat file_name | grep value"),
             vec![
-                Token::Word(String::from("cat")),
-                Token::Word(String::from("file_name")),
+                Token::Word(vec![Unit::Literal(String::from("cat"))]),
+                Token::Word(vec![Unit::Literal(String::from("file_name"))]),
                 Token::Operator(Operator::Pipe),
-                Token::Word(String::from("grep")),
-                Token::Word(String::from("value")),
+                Token::Word(vec![Unit::Literal(String::from("grep"))]),
+                Token::Word(vec![Unit::Literal(String::from("value"))]),
             ]
         );
     }
