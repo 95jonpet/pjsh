@@ -184,7 +184,7 @@ where
             match self.lexer.peek() {
                 Some(Token::Word(_)) => {
                     if let Some(Token::Word(units)) = self.lexer.next() {
-                        let expanded_word = self.expand_word(&units);
+                        let expanded_word = self.expand_word(&units, &env);
                         result.push(expanded_word);
                     } else {
                         unreachable!()
@@ -213,14 +213,14 @@ where
         )))
     }
 
-    fn expand_word(&self, units: &Vec<Unit>) -> String {
+    fn expand_word(&self, units: &Vec<Unit>, local_env: &HashMap<String, String>) -> String {
         let mut word = String::new();
         for unit in units {
             match unit {
                 Unit::Literal(literal) => word.push_str(literal),
-                Unit::Variable(var) => match env::var(var) {
-                    Ok(resolved_value) => word.push_str(&resolved_value),
-                    Err(_error) => {
+                Unit::Variable(var) => match local_env.get(var).or(env::var(var).ok().as_ref()) {
+                    Some(value) => word.push_str(value),
+                    None => {
                         if !self.options.allow_unresolved_variables {
                             panic!("Unresolved variable '{}'", var)
                         }

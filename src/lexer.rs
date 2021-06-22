@@ -192,7 +192,7 @@ impl Lexer {
                 }
 
                 let unit = match &word[..1] {
-                    "$" => Unit::Variable(String::from(&word[1..])),
+                    "$" => Unit::Variable(String::from(&word.trim_end_matches('\r')[1..])),
                     _ => Unit::Literal(word),
                 };
 
@@ -204,7 +204,7 @@ impl Lexer {
                 string_content
                     .map(|word| {
                         let unit = match &word[..1] {
-                            "$" => Unit::Variable(String::from(&word[1..])),
+                            "$" => Unit::Variable(String::from(&word.trim_end_matches('\r')[1..])),
                             _ => Unit::Literal(word),
                         };
                         Token::Word(vec![unit])
