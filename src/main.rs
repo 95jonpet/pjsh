@@ -1,5 +1,5 @@
-mod builtins;
 mod builtin_utils;
+mod builtins;
 mod executor;
 mod lexer;
 mod parser;
@@ -65,25 +65,24 @@ fn main() {
 }
 
 fn login_command() -> Cmd {
-    let login_script_path: PathBuf = [env::var("HOME").unwrap().as_str(), ".pjshrc"]
-        .iter()
-        .collect();
+    if let Ok(home_dir) = env::var("HOME") {
+        let login_script_path: PathBuf = [&home_dir, ".pjshrc"].iter().collect();
 
-    if !login_script_path.is_file() {
-        return Cmd::NoOp;
+        if !login_script_path.is_file() {
+            return Cmd::NoOp;
+        }
+
+        if let Some(login_script_path_string) = login_script_path.to_str() {
+            return Cmd::Simple(SimpleCommand::new(
+                String::from("source"),
+                vec![login_script_path_string.to_owned()],
+                Io::new(),
+                HashMap::new(),
+            ));
+        }
     }
 
-    let login_script_path_string = login_script_path
-        .to_str()
-        .expect("login script path exists")
-        .to_owned();
-
-    Cmd::Simple(SimpleCommand::new(
-        String::from("source"),
-        vec![login_script_path_string],
-        Io::new(),
-        HashMap::new(),
-    ))
+    Cmd::NoOp
 }
 
 fn create_shell(args: Cli) -> Rc<RefCell<Shell>> {
