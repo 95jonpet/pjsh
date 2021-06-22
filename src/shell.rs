@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -67,6 +68,12 @@ impl Shell {
             name: String::from(path.file_name().unwrap().to_str().unwrap()),
             vars: HashMap::new(),
         }
+    }
+
+    pub fn get_var(&self, key: &str) -> Option<String> {
+        self.vars
+            .get(key)
+            .map_or(env::var(key).ok(), |s| Some(String::from(s)))
     }
 
     /// Instantiates an interactive [`Shell`].

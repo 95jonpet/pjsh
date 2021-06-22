@@ -5,7 +5,6 @@ use crate::token::{Operator, Unit};
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env;
 use std::iter::{Iterator, Peekable};
 use std::process::Stdio;
 use std::rc::Rc;
@@ -184,7 +183,7 @@ where
             match self.lexer.peek() {
                 Some(Token::Word(_)) => {
                     if let Some(Token::Word(units)) = self.lexer.next() {
-                        let expanded_word = self.expand_word(&units, &env);
+                        let expanded_word = self.expand_word(&units);
                         result.push(expanded_word);
                     } else {
                         unreachable!()
@@ -202,6 +201,10 @@ where
         }
 
         if result.is_empty() {
+            if !env.is_empty() {
+                self.shell.borrow_mut().vars.extend(env);
+            }
+
             return Ok(Cmd::NoOp);
         }
 
@@ -213,12 +216,12 @@ where
         )))
     }
 
-    fn expand_word(&self, units: &Vec<Unit>, local_env: &HashMap<String, String>) -> String {
+    fn expand_word(&self, units: &Vec<Unit>) -> String {
         let mut word = String::new();
         for unit in units {
             match unit {
                 Unit::Literal(literal) => word.push_str(literal),
-                Unit::Variable(var) => match local_env.get(var).or(env::var(var).ok().as_ref()) {
+                Unit::Variable(var) => match &self.shell.borrow_mut().get_var(var) {
                     Some(value) => word.push_str(value),
                     None => {
                         if !self.options.allow_unresolved_variables {

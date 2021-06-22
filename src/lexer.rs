@@ -40,9 +40,73 @@ impl Lexer {
         }
     }
 
+    fn next_while<P>(&mut self, predicate: P, advance_lines: bool) -> Result<Vec<Unit>, String>
+    where
+        P: Fn(&char) -> bool,
+    {
+        let mut units: Vec<Unit> = Vec::new();
+        let mut current_word = String::new();
+
+        loop {
+            match self.peek_char() {
+                Some('\\') => {
+                    self.next_char();
+                    match self.next_char() {
+                        Some('\n') => self.advance_line()?,
+                        Some(c) => current_word.push(c),
+                        None => (),
+                    }
+                }
+                Some(ch) if !predicate(ch) => {
+                    if !current_word.is_empty() {
+                        units.push(Unit::Literal(current_word));
+                        current_word = String::new();
+                    }
+                    break;
+                }
+                Some('$') => {
+                    if !current_word.is_empty() {
+                        units.push(Unit::Literal(current_word));
+                        current_word = String::new();
+                    }
+
+                    self.next_char(); // Skip peeked char.
+
+                    match self.peek_char() {
+                        Some('{') => {
+                            self.next_char(); // Skip peeked char.
+                            let variable_name = self.read_while(|ch| ch != &'}', true)?;
+                            self.next_char(); // Skip peeked char.
+                            units.push(Unit::Variable(variable_name));
+                        }
+                        _ => {
+                            units.push(Unit::Variable(
+                                self.read_while(|ch| predicate(ch) && !ch.is_whitespace(), false)?,
+                            ));
+                        }
+                    }
+                }
+                Some(_) => current_word.push(self.next_char().unwrap()),
+                None => {
+                    if advance_lines {
+                        self.advance_line()?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if !current_word.is_empty() {
+            units.push(Unit::Literal(current_word));
+        }
+
+        Ok(units)
+    }
+
     /// Advances the character iterator while a predicate holds and and returns a string containing
     /// all characters that are visited in the process.
-    fn next_while<P>(&mut self, predicate: P, advance_lines: bool) -> Result<String, String>
+    fn read_while<P>(&mut self, predicate: P, advance_lines: bool) -> Result<String, String>
     where
         P: Fn(&char) -> bool,
     {
@@ -103,12 +167,12 @@ impl Lexer {
     pub fn next_token(&mut self) -> Option<Token> {
         let ifs = self.ifs.clone();
 
-        self.next_while(|c| ifs.contains(*c), false).unwrap(); // Skip all whitespace.
-        self.next_while(|c| *c == '\r' || *c == '\n', false)
+        self.read_while(|c| ifs.contains(*c), false).unwrap(); // Skip all whitespace.
+        self.read_while(|c| *c == '\r' || *c == '\n', false)
             .unwrap(); // Skip newline characters.
         match self.peek_char() {
             Some('#') => {
-                let comment = self.next_while(|c| c != &'\n', false);
+                let comment = self.read_while(|c| c != &'\n', false);
                 comment.map(|string| Token::Comment(string)).ok()
             }
             Some('=') => {
@@ -143,13 +207,32 @@ impl Lexer {
             }
             Some('\'') => {
                 self.next_char(); // Skip delimiter.
-                let string_content = self.next_while(|ch| ch != &'\'', true);
+                let string_content = self.read_while(|ch| ch != &'\'', true);
                 self.next_char(); // Skip delimiter.
                 Some(Token::Word(vec![Unit::Literal(string_content.unwrap())]))
             }
+            Some('"') => {
+                self.next_char(); // Skip delimiter.
+                let units = self.next_while(|ch| ch != &'"', true).ok()?;
+                self.next_char(); // Skip delimiter.
+                Some(Token::Word(units))
+            }
+            Some('$') => {
+                self.next_char(); // Skip peeked char.
+                let string_content = match self.peek_char() {
+                    Some('{') => {
+                        self.next_char();
+                        let content = self.read_while(|ch| ch != &'}', true);
+                        self.next_char();
+                        content.unwrap()
+                    }
+                    _ => self.read_while(|ch| !ch.is_whitespace(), false).unwrap(), // TODO: Use IFS in condition.
+                };
+                Some(Token::Word(vec![Unit::Variable(string_content)]))
+            }
             Some(current_char) if current_char.is_ascii_alphanumeric() => {
                 let word = self
-                    .next_while(
+                    .read_while(
                         |c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.',
                         false,
                     )
@@ -171,7 +254,7 @@ impl Lexer {
                             }
                             Some('\'') => {
                                 self.next_char();
-                                let string = self.next_while(|c| c != &'\'', true);
+                                let string = self.read_while(|c| c != &'\'', true);
                                 self.next_char();
                                 string.map(|value| Token::Assign(word, value)).unwrap()
                             }
@@ -180,7 +263,7 @@ impl Lexer {
                                 Token::Assign(word, String::new())
                             }
                             _ => {
-                                let value = self.next_while(
+                                let value = self.read_while(
                                     |c| c.is_ascii_alphanumeric() || c == &'_' || c == &'.',
                                     false,
                                 );
@@ -191,24 +274,13 @@ impl Lexer {
                     }
                 }
 
-                let unit = match &word[..1] {
-                    "$" => Unit::Variable(String::from(&word.trim_end_matches('\r')[1..])),
-                    _ => Unit::Literal(word),
-                };
-
-                Some(Token::Word(vec![unit]))
+                Some(Token::Word(vec![Unit::Literal(word)]))
             }
             Some(_) => {
                 // Treat unknown lexemes as string literals.
-                let string_content = self.next_while(|c| !ifs.contains(*c), false);
+                let string_content = self.read_while(|c| !ifs.contains(*c), false);
                 string_content
-                    .map(|word| {
-                        let unit = match &word[..1] {
-                            "$" => Unit::Variable(String::from(&word.trim_end_matches('\r')[1..])),
-                            _ => Unit::Literal(word),
-                        };
-                        Token::Word(vec![unit])
-                    })
+                    .map(|word| Token::Word(vec![Unit::Literal(word)]))
                     .ok()
             }
             _ => None,
@@ -236,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_strings() {
+    fn it_identifies_single_quoted_strings() {
         assert_eq!(
             tokenize("'This is a string'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
@@ -246,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_strings_spanning_multiple_unix_lines() {
+    fn it_identifies_single_quoted_strings_spanning_multiple_unix_lines() {
         assert_eq!(
             tokenize("'first\nsecond'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
@@ -256,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_strings_spanning_multiple_windows_lines() {
+    fn it_identifies_single_quoted_strings_spanning_multiple_windows_lines() {
         assert_eq!(
             tokenize("ls 'first\r\nsecond'"),
             vec![
@@ -267,12 +339,34 @@ mod tests {
     }
 
     #[test]
-    fn it_identifies_strings_with_escaped_chars() {
+    fn it_identifies_single_quoted_strings_with_escaped_chars() {
         assert_eq!(
             tokenize(r"'It\'s a string'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
                 "It's a string"
             ))])]
+        );
+    }
+
+    #[test]
+    fn it_identifies_double_quoted_strings() {
+        assert_eq!(
+            tokenize("\"String with $var inside.\""),
+            vec![Token::Word(vec![
+                Unit::Literal(String::from("String with ")),
+                Unit::Variable(String::from("var")),
+                Unit::Literal(String::from(" inside.")),
+            ])]
+        );
+        assert_eq!(
+            tokenize("echo \"var=$var\""),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![
+                    Unit::Literal(String::from("var=")),
+                    Unit::Variable(String::from("var"))
+                ])
+            ]
         );
     }
 
@@ -358,6 +452,12 @@ mod tests {
                 Token::Word(vec![Unit::Literal(String::from("cat"))]),
                 Token::Word(vec![Unit::Variable(String::from("file"))])
             ]
+        );
+        assert_eq!(
+            tokenize("${variable_name}"),
+            vec![Token::Word(vec![Unit::Variable(String::from(
+                "variable_name"
+            ))])]
         );
     }
 
