@@ -196,6 +196,7 @@ where
                 Some(Token::Comment(_)) => {
                     self.lexer.next();
                 }
+                Some(Token::Separator(crate::token::Separator::Semicolon)) => break,
                 _ => break,
             }
         }

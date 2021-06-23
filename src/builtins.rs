@@ -52,7 +52,10 @@ pub fn exit(args: Vec<String>) -> bool {
 
 pub fn source(args: &Vec<String>, executor: &mut Executor) -> bool {
     let file = args.get(0).unwrap();
-    let shell = Rc::new(RefCell::new(Shell::from_file(PathBuf::from(file))));
+    let inner_shell = Shell::from_file(PathBuf::from(file));
+    let shell = Rc::new(RefCell::new(inner_shell));
+    // inner_shell.vars.extend(executor.shell.borrow().vars.iter());
+    // shell.borrow().vars.extend(executor.shell.borrow().vars.iter());
     loop {
         let input = shell.borrow_mut().next();
         if let Some(line) = input {

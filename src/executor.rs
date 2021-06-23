@@ -5,11 +5,15 @@ use crate::builtin_utils::Builtin;
 use crate::builtins;
 use crate::parser::FileDescriptor;
 use crate::parser::{Cmd, SimpleCommand};
+use crate::shell::Shell;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::env;
 use std::io::Read;
 use std::process::Command;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct CmdMeta {
@@ -41,12 +45,14 @@ impl CmdMeta {
 }
 
 pub struct Executor {
+    pub shell: Rc<RefCell<Shell>>,
     aliases: HashMap<String, String>,
 }
 
 impl Executor {
-    pub fn new() -> Self {
+    pub fn new(shell: Rc<RefCell<Shell>>) -> Self {
         Self {
+            shell,
             aliases: HashMap::new(),
         }
     }
@@ -123,9 +129,25 @@ impl Executor {
             "unalias" => unimplemented!(),
             "wait" => unimplemented!(),
 
+            "export" => {
+                if let Some(variable_name) = simple.args.first() {
+                    if let Some(variable_value) = self.shell.borrow_mut().get_var(variable_name) {
+                        env::set_var(variable_name, variable_value);
+                        true
+                    } else {
+                        unimplemented!()
+                    }
+                } else {
+                    unimplemented!()
+                }
+            }
+
             "source" | "." => builtins::source(&simple.args, self),
             "exit" => builtins::exit(simple.args),
             command => {
+                let mut full_env = self.shell.borrow().vars.clone();
+                full_env.extend(simple.env);
+
                 let mut cmd = self.resolve_command(String::from(command), simple.args);
                 // TODO Move alias builtin resolution to after alias resolution.
 
@@ -145,7 +167,7 @@ impl Executor {
                     return false;
                 }
 
-                cmd.envs(simple.env);
+                cmd.envs(full_env);
 
                 match cmd.status() {
                     Ok(child) => child.success(),

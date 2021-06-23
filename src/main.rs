@@ -40,7 +40,7 @@ fn main() {
     let args = Cli::parse();
 
     let shell = create_shell(args);
-    let mut executor = Executor::new();
+    let mut executor = Executor::new(Rc::clone(&shell));
     executor.execute(perform_login(), false);
 
     loop {
