@@ -1,47 +1,52 @@
 #[derive(Debug, PartialEq)]
 pub enum Token {
-    Word(Vec<Unit>),
-    Keyword(Keyword),
-    Separator(Separator),
-    Operator(Operator),
-    Assign(String, String),
-    Comment(String),
-}
+    /* Fundamental symbols. */
+    Word(String),
+    AssignmentWord(String, String),
+    Name(String),
+    Newline,
+    IoNumber,
 
-#[derive(Debug, PartialEq)]
-pub enum Unit {
-    Literal(String),
-    Variable(String),
-}
+    /* Delimiters. */
+    SQuote,
+    DQuote,
 
-#[derive(Debug, PartialEq)]
-pub enum Separator {
-    Semicolon,
-}
+    /* Operators containing a single character. */
+    Pipe,
+    LParen,
+    RParen,
+    Less,
+    Great,
+    And,
+    Semi,
 
-#[derive(Debug, PartialEq)]
-pub enum Keyword {
-    Case,
+    /* Operators containing more than one character. */
+    AndIf,
+    OrIf,
+    DSemi,
+    DLess,
+    DGreat,
+    LessAnd,
+    GreatAnd,
+    LessGreat,
+    DLessDash,
+    Clobber,
+    If,
+    Then,
+    Else,
+    Elif,
+    Fi,
     Do,
     Done,
-    Elif,
-    Else,
+    Case,
     Esac,
-    Fi,
-    For,
-    If,
-    In,
-    Then,
-    Until,
     While,
-}
+    Until,
+    For,
 
-#[derive(Debug, PartialEq)]
-pub enum Operator {
-    Ampersand,
-    And,
+    /* Reserved words. */
+    LBrace,
+    RBrace,
     Bang,
-    Equal,
-    Or,
-    Pipe,
+    In,
 }

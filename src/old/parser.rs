@@ -1,13 +1,13 @@
-use crate::shell::Shell;
-use crate::token::Token;
-use crate::token::{Operator, Unit};
-
+use crate::old::shell::Shell;
+use crate::old::token::Token;
 use os_pipe::{dup_stderr, dup_stdin, dup_stdout, PipeReader, PipeWriter};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::{Iterator, Peekable};
 use std::process::Stdio;
 use std::rc::Rc;
+
+use super::token::{Operator, Unit};
 
 #[derive(Debug)]
 pub enum FileDescriptor {
@@ -196,7 +196,7 @@ where
                 Some(Token::Comment(_)) => {
                     self.lexer.next();
                 }
-                Some(Token::Separator(crate::token::Separator::Semicolon)) => break,
+                Some(Token::Separator(crate::old::token::Separator::Semicolon)) => break,
                 _ => break,
             }
         }

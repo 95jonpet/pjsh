@@ -1,6 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
-use crate::{executor::Executor, lexer::Lexer, parser::Parser, shell::Shell};
+use super::{executor::Executor, lexer::Lexer, parser::Parser, shell::Shell};
+
+// use crate::{executor::Executor, lexer_old::lexer::Lexer, parser::Parser, shell::Shell};
 
 pub fn alias(
     aliases: &mut HashMap<String, String>,

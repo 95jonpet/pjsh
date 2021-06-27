@@ -2,10 +2,11 @@ use os_pipe::{pipe, PipeReader, PipeWriter};
 
 use crate::builtin_utils::cd::Cd;
 use crate::builtin_utils::Builtin;
-use crate::builtins;
-use crate::parser::FileDescriptor;
-use crate::parser::{Cmd, SimpleCommand};
-use crate::shell::Shell;
+use crate::old::builtins;
+// use crate::builtins;
+use super::parser::FileDescriptor;
+use super::parser::{Cmd, SimpleCommand};
+use super::shell::Shell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;

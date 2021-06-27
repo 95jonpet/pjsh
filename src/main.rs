@@ -1,16 +1,16 @@
 mod builtin_utils;
-mod builtins;
-mod executor;
+// mod builtins;
+mod cursor;
+mod input;
 mod lexer;
-mod parser;
-mod shell;
+mod old;
 mod token;
 
-use executor::Executor;
-use lexer::Lexer;
-use parser::Cmd;
-use parser::Parser;
-use shell::Shell;
+use old::executor::Executor;
+use old::lexer::Lexer;
+use old::parser::Cmd;
+use old::parser::Parser;
+use old::shell::Shell;
 
 use clap::{crate_name, crate_version, Clap};
 use std::cell::RefCell;
@@ -20,8 +20,8 @@ use std::env::VarError;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::parser::Io;
-use crate::parser::SimpleCommand;
+use crate::old::parser::Io;
+use crate::old::parser::SimpleCommand;
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
