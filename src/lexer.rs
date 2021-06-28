@@ -19,7 +19,7 @@ impl Lexer {
         Self { cursor }
     }
 
-    pub fn next_token(&mut self, mode: &Mode) -> Option<Token> {
+    pub fn next_token(&mut self, mode: &Mode) -> Token {
         match mode {
             Mode::InSingleQuotes => self.next_token_in_single_quotes(),
             Mode::Unquoted => {
@@ -27,32 +27,32 @@ impl Lexer {
                 let mut keyword_possible = true;
 
                 match *self.cursor.peek() {
-                    EOF_CHAR => None, // End of input.
+                    EOF_CHAR => Token::EOF, // End of input.
                     '#' => {
                         self.read_until(|ch| ch == &'\n');
                         if let '\n' = self.cursor.peek() {
                             self.cursor.next();
-                            Some(Token::Newline)
+                            Token::Newline
                         } else {
-                            None
+                            Token::EOF
                         }
                     }
                     '\n' => {
                         self.cursor.next();
-                        Some(Token::Newline)
+                        Token::Newline
                     }
                     '\'' => {
                         self.cursor.next();
-                        Some(Token::SQuote)
+                        Token::SQuote
                     }
                     '|' => {
                         self.cursor.next();
                         match self.cursor.peek() {
                             '|' => {
                                 self.cursor.next();
-                                Some(Token::OrIf)
+                                Token::OrIf
                             }
-                            _ => Some(Token::Pipe)
+                            _ => Token::Pipe
                         }
                     }
                     '&' => {
@@ -60,18 +60,18 @@ impl Lexer {
                         match self.cursor.peek() {
                             '&' => {
                                 self.cursor.next();
-                                Some(Token::AndIf)
+                                Token::AndIf
                             }
-                            _ => Some(Token::And)
+                            _ => Token::And
                         }
                     }
                     '(' => {
                         self.cursor.next();
-                        Some(Token::LParen)
+                        Token::LParen
                     }
                     ')' => {
                         self.cursor.next();
-                        Some(Token::RParen)
+                        Token::RParen
                     }
                     '<' => {
                         self.cursor.next();
@@ -81,20 +81,20 @@ impl Lexer {
                                 match self.cursor.peek() {
                                     '-' => {
                                         self.cursor.next();
-                                        Some(Token::DLessDash)
+                                        Token::DLessDash
                                     }
-                                    _ => Some(Token::DLess)
+                                    _ => Token::DLess
                                 }
                             }
                             '&' => {
                                 self.cursor.next();
-                                Some(Token::LessAnd)
+                                Token::LessAnd
                             }
                             '>' => {
                                 self.cursor.next();
-                                Some(Token::LessGreat)
+                                Token::LessGreat
                             }
-                            _ => Some(Token::Less)
+                            _ => Token::Less
                         }
                     }
                     '>' => {
@@ -102,17 +102,17 @@ impl Lexer {
                         match self.cursor.peek() {
                             '>' => {
                                 self.cursor.next();
-                                Some(Token::DGreat)
+                                Token::DGreat
                             }
                             '&' => {
                                 self.cursor.next();
-                                Some(Token::GreatAnd)
+                                Token::GreatAnd
                             }
                             '|' => {
                                 self.cursor.next();
-                                Some(Token::Clobber)
+                                Token::Clobber
                             }
-                            _ => Some(Token::Great)
+                            _ => Token::Great
                         }
                     }
                     ';' => {
@@ -120,9 +120,9 @@ impl Lexer {
                         match self.cursor.peek() {
                             ';' => {
                                 self.cursor.next();
-                                Some(Token::DSemi)
+                                Token::DSemi
                             }
-                            _ => Some(Token::Semi)
+                            _ => Token::Semi
                         }
                     }
                     ch if ch.is_ascii_alphanumeric() => {
@@ -135,14 +135,14 @@ impl Lexer {
         }
     }
 
-    fn next_token_in_single_quotes(&mut self) -> Option<Token> {
+    fn next_token_in_single_quotes(&mut self) -> Token {
         match *self.cursor.peek() {
-            EOF_CHAR => None, // End of input.
+            EOF_CHAR => Token::EOF, // End of input.
             '\'' => {
                 self.cursor.next();
-                Some(Token::SQuote)
+                Token::SQuote
             }
-            _ => Some(Token::Word(self.read_until(|ch| ch == &'\''))),
+            _ => Token::Word(self.read_until(|ch| ch == &'\'')),
         }
     }
 
@@ -163,13 +163,9 @@ impl Lexer {
         result
     }
 
-    fn delimit_word_token(&self, word: String) -> Option<Token> {
-        if word.is_empty() {
-            return None;
-        }
-
+    fn delimit_word_token(&self, word: String) -> Token {
         self.operator_token(&word)
-            .or_else(|| Some(Token::Word(word)))
+            .unwrap_or_else(|| Token::Word(word))
     }
 
     fn operator_token(&self, lexeme: &str) -> Option<Token> {
@@ -293,7 +289,11 @@ mod tests {
             cursor: Cursor::new(InputLines::Single(Some(String::from(input)))),
         };
 
-        while let Some(token) = lexer.next_token(&mode) {
+        loop {
+            let token = lexer.next_token(&mode);
+            if token == Token::EOF {
+                break;
+            }
             tokens.push(token);
         }
 

@@ -49,4 +49,8 @@ pub enum Token {
     RBrace,
     Bang,
     In,
+
+    /* Pseudotokens. */
+    EOF,
+    Unknown,
 }
