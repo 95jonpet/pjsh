@@ -46,6 +46,20 @@ mod tests {
     }
 
     #[test]
+    fn it_treats_unquoted_keywords_as_literals() {
+        let inputs = [
+            // These are considered keywords in unquoted mode.
+            "\"", "|", "(", ")", "<", ">", "&", ";", "&&", "||", ";;", "<<", ">>", "<&", ">&", "<>",
+            "<<-", ">|",
+        ];
+
+        for input in inputs {
+            // Should be considered words in single-quoted mode.
+            assert_eq!(lex(input), vec![Token::Word(String::from(input))]);
+        }
+    }
+
+    #[test]
     fn it_identifies_squote_tokens() {
         assert_eq!(lex("'"), vec![Token::SQuote]);
         assert_eq!(lex("w'"), vec![Token::Word("w".to_string()), Token::SQuote]);
