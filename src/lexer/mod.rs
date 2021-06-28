@@ -32,14 +32,4 @@ impl Lexer {
             Mode::Unquoted => unquoted_mode::next_unquoted_token(&mut self.cursor),
         }
     }
-
-    fn operator_token(&self, lexeme: &str) -> Option<Token> {
-        match lexeme {
-            // "{" => Some(Token::LBrace),
-            // "}" => Some(Token::RBrace),
-            // "!" => Some(Token::Bang),
-            // "in" => Some(Token::In),
-            _ => None,
-        }
-    }
 }
