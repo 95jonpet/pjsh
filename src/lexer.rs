@@ -24,6 +24,7 @@ impl Lexer {
             Mode::InSingleQuotes => self.next_token_in_single_quotes(),
             Mode::Unquoted => {
                 self.read_until(|ch| !ch.is_whitespace()); // Skip whitespaces.
+                let mut keyword_possible = true;
 
                 match *self.cursor.peek() {
                     EOF_CHAR => None, // End of input.
@@ -44,10 +45,91 @@ impl Lexer {
                         self.cursor.next();
                         Some(Token::SQuote)
                     }
-                    ch if ch.is_ascii_alphanumeric() => {
-                        Some(Token::Word(self.read_until(|ch| ch.is_ascii_whitespace())))
+                    '|' => {
+                        self.cursor.next();
+                        match self.cursor.peek() {
+                            '|' => {
+                                self.cursor.next();
+                                Some(Token::OrIf)
+                            }
+                            _ => Some(Token::Pipe)
+                        }
                     }
-                    _ => unimplemented!(),
+                    '&' => {
+                        self.cursor.next();
+                        match self.cursor.peek() {
+                            '&' => {
+                                self.cursor.next();
+                                Some(Token::AndIf)
+                            }
+                            _ => Some(Token::And)
+                        }
+                    }
+                    '(' => {
+                        self.cursor.next();
+                        Some(Token::LParen)
+                    }
+                    ')' => {
+                        self.cursor.next();
+                        Some(Token::RParen)
+                    }
+                    '<' => {
+                        self.cursor.next();
+                        match self.cursor.peek() {
+                            '<' => {
+                                self.cursor.next();
+                                match self.cursor.peek() {
+                                    '-' => {
+                                        self.cursor.next();
+                                        Some(Token::DLessDash)
+                                    }
+                                    _ => Some(Token::DLess)
+                                }
+                            }
+                            '&' => {
+                                self.cursor.next();
+                                Some(Token::LessAnd)
+                            }
+                            '>' => {
+                                self.cursor.next();
+                                Some(Token::LessGreat)
+                            }
+                            _ => Some(Token::Less)
+                        }
+                    }
+                    '>' => {
+                        self.cursor.next();
+                        match self.cursor.peek() {
+                            '>' => {
+                                self.cursor.next();
+                                Some(Token::DGreat)
+                            }
+                            '&' => {
+                                self.cursor.next();
+                                Some(Token::GreatAnd)
+                            }
+                            '|' => {
+                                self.cursor.next();
+                                Some(Token::Clobber)
+                            }
+                            _ => Some(Token::Great)
+                        }
+                    }
+                    ';' => {
+                        self.cursor.next();
+                        match self.cursor.peek() {
+                            ';' => {
+                                self.cursor.next();
+                                Some(Token::DSemi)
+                            }
+                            _ => Some(Token::Semi)
+                        }
+                    }
+                    ch if ch.is_ascii_alphanumeric() => {
+                        let word = self.read_until(|ch| ch.is_ascii_whitespace());
+                        self.delimit_word_token(word)
+                    }
+                    _ => unimplemented!("Cannot yet handle `{}`.", self.cursor.peek()),
                 }
             }
         }
@@ -81,34 +163,17 @@ impl Lexer {
         result
     }
 
-    fn delimit_token(&self, lexeme: &str) -> Option<Token> {
-        if lexeme.is_empty() {
+    fn delimit_word_token(&self, word: String) -> Option<Token> {
+        if word.is_empty() {
             return None;
         }
 
-        self.operator_token(lexeme)
+        self.operator_token(&word)
+            .or_else(|| Some(Token::Word(word)))
     }
 
     fn operator_token(&self, lexeme: &str) -> Option<Token> {
         match lexeme {
-            "|" => Some(Token::Pipe),
-            "(" => Some(Token::LParen),
-            ")" => Some(Token::RParen),
-            "<" => Some(Token::Less),
-            ">" => Some(Token::Great),
-            "&" => Some(Token::And),
-            ";" => Some(Token::Semi),
-
-            "&&" => Some(Token::AndIf),
-            "||" => Some(Token::OrIf),
-            ";;" => Some(Token::DSemi),
-            "<<" => Some(Token::DLess),
-            ">>" => Some(Token::DGreat),
-            "<&" => Some(Token::LessAnd),
-            ">&" => Some(Token::GreatAnd),
-            "<>" => Some(Token::LessGreat),
-            "<<-" => Some(Token::DLessDash),
-            ">|" => Some(Token::Clobber),
             "if" => Some(Token::If),
             "then" => Some(Token::Then),
             "else" => Some(Token::Else),
@@ -187,6 +252,39 @@ mod tests {
                 Token::Word("second".to_string())
             ]
         );
+    }
+
+    #[test]
+    fn it_tokenizes_operators() {
+        assert_eq!(lex(Mode::Unquoted, "|"), vec![Token::Pipe]);
+        assert_eq!(lex(Mode::Unquoted, "("), vec![Token::LParen]);
+        assert_eq!(lex(Mode::Unquoted, ")"), vec![Token::RParen]);
+        assert_eq!(lex(Mode::Unquoted, "<"), vec![Token::Less]);
+        assert_eq!(lex(Mode::Unquoted, ">"), vec![Token::Great]);
+        assert_eq!(lex(Mode::Unquoted, "&"), vec![Token::And]);
+        assert_eq!(lex(Mode::Unquoted, ";"), vec![Token::Semi]);
+        assert_eq!(lex(Mode::Unquoted, "&&"), vec![Token::AndIf]);
+        assert_eq!(lex(Mode::Unquoted, "||"), vec![Token::OrIf]);
+        assert_eq!(lex(Mode::Unquoted, ";;"), vec![Token::DSemi]);
+        assert_eq!(lex(Mode::Unquoted, "<<"), vec![Token::DLess]);
+        assert_eq!(lex(Mode::Unquoted, ">>"), vec![Token::DGreat]);
+        assert_eq!(lex(Mode::Unquoted, "<&"), vec![Token::LessAnd]);
+        assert_eq!(lex(Mode::Unquoted, ">&"), vec![Token::GreatAnd]);
+        assert_eq!(lex(Mode::Unquoted, "<>"), vec![Token::LessGreat]);
+        assert_eq!(lex(Mode::Unquoted, "<<-"), vec![Token::DLessDash]);
+        assert_eq!(lex(Mode::Unquoted, ">|"), vec![Token::Clobber]);
+        assert_eq!(lex(Mode::Unquoted, "if"), vec![Token::If]);
+        assert_eq!(lex(Mode::Unquoted, "then"), vec![Token::Then]);
+        assert_eq!(lex(Mode::Unquoted, "else"), vec![Token::Else]);
+        assert_eq!(lex(Mode::Unquoted, "elif"), vec![Token::Elif]);
+        assert_eq!(lex(Mode::Unquoted, "fi"), vec![Token::Fi]);
+        assert_eq!(lex(Mode::Unquoted, "do"), vec![Token::Do]);
+        assert_eq!(lex(Mode::Unquoted, "done"), vec![Token::Done]);
+        assert_eq!(lex(Mode::Unquoted, "case"), vec![Token::Case]);
+        assert_eq!(lex(Mode::Unquoted, "esac"), vec![Token::Esac]);
+        assert_eq!(lex(Mode::Unquoted, "while"), vec![Token::While]);
+        assert_eq!(lex(Mode::Unquoted, "until"), vec![Token::Until]);
+        assert_eq!(lex(Mode::Unquoted, "for"), vec![Token::For]);
     }
 
     fn lex(mode: Mode, input: &str) -> Vec<Token> {
