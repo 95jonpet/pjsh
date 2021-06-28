@@ -3,7 +3,7 @@ use std::{iter::Peekable, vec::IntoIter};
 use crate::input::InputLines;
 
 /// Peekable iterator over a char stream.
-pub(crate) struct Cursor {
+pub struct Cursor {
     input: Peekable<InputLines>,
     line: Peekable<IntoIter<char>>,
     line_buffer: String,
@@ -50,6 +50,25 @@ impl Cursor {
             }
             None => EOF_CHAR,
         }
+    }
+
+    /// Returns a [`String`] of all characters until a predicate `P` holds.
+    /// All returned [`char`] elements inside the string are consumed.
+    pub fn read_until<P>(&mut self, predicate: P) -> String
+    where
+        P: Fn(&char) -> bool,
+    {
+        let mut result = String::new();
+        loop {
+            match self.peek() {
+                ch if !predicate(ch) && ch != &EOF_CHAR => {
+                    let c = self.next();
+                    result.push(c);
+                }
+                _ => break,
+            }
+        }
+        result
     }
 
     /// Moves the iterator to the next line of input.
