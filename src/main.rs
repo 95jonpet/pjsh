@@ -4,6 +4,7 @@ mod cursor;
 mod input;
 mod lexer;
 mod old;
+mod parser;
 mod token;
 
 use old::executor::Executor;
