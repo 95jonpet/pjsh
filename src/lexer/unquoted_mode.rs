@@ -135,7 +135,7 @@ fn delimit_keyword_token(word: &str) -> Option<Token> {
 mod tests {
     use crate::{
         input::InputLines,
-        lexer::{Lexer, Mode},
+        lexer::{Lex, Lexer, Mode},
     };
 
     use super::*;

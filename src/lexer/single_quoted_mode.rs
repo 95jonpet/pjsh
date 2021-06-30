@@ -17,7 +17,7 @@ pub(crate) fn next_single_quoted_token(cursor: &mut Cursor) -> Token {
 mod tests {
     use crate::{
         input::InputLines,
-        lexer::{Lexer, Mode},
+        lexer::{Lex, Lexer, Mode},
     };
 
     use super::*;
