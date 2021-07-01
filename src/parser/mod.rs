@@ -86,15 +86,19 @@ impl Parser {
     // wordlist         : wordlist WORD
     //                  |          WORD
     //                  ;
-    fn wordlist(&mut self, wordlist: Wordlist) -> Result<Wordlist, ParseError> {
-        let Wordlist(mut words) = wordlist;
-        match self.eat_word() {
-            Ok(word) => {
-                words.push(word);
-                self.wordlist(Wordlist(words))
+    fn wordlist(&mut self) -> Result<Wordlist, ParseError> {
+        let mut words = Vec::new();
+        loop {
+            match self.eat_word() {
+                Ok(word) => words.push(word),
+                _ => break,
             }
-            Err(error) if words.is_empty() => Err(error),
-            Err(_) => Ok(Wordlist(words)),
+        }
+
+        if words.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(Wordlist(words))
         }
     }
 
@@ -132,15 +136,19 @@ impl Parser {
     // redirect_list    :               io_redirect
     //                  | redirect_list io_redirect
     //                  ;
-    fn redirect_list(&mut self, redirect_list: RedirectList) -> Result<RedirectList, ParseError> {
-        let RedirectList(mut redirects) = redirect_list;
-        match self.io_redirect() {
-            Ok(io_redirect) => {
-                redirects.push(io_redirect);
-                self.redirect_list(RedirectList(redirects))
+    fn redirect_list(&mut self) -> Result<RedirectList, ParseError> {
+        let mut redirects = Vec::new();
+        loop {
+            match self.io_redirect() {
+                Ok(redirect) => redirects.push(redirect),
+                _ => break,
             }
-            Err(error) if redirects.is_empty() => Err(error),
-            Err(_) => Ok(RedirectList(redirects)),
+        }
+
+        if redirects.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(RedirectList(redirects))
         }
     }
 
@@ -371,7 +379,7 @@ mod tests {
                 Word(String::from("first")),
                 Word(String::from("second"))
             ])),
-            parser(tokens).wordlist(Wordlist(Vec::new()))
+            parser(tokens).wordlist()
         );
     }
 
@@ -390,7 +398,7 @@ mod tests {
                 IoRedirect::IoFile(Some(1), IoFile::Great(String::from("file1"))),
                 IoRedirect::IoFile(Some(2), IoFile::DGreat(String::from("file2")))
             ])),
-            parser(tokens).redirect_list(RedirectList(Vec::new()))
+            parser(tokens).redirect_list()
         );
     }
 
