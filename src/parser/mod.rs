@@ -1,44 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::{
-    lexer::{Lex, Mode},
-    token::Token,
-};
+use crate::{ast::{IoFile, IoHere, IoRedirect, Word, Wordlist}, lexer::{Lex, Mode}, token::Token};
 
 #[derive(Debug, PartialEq)]
 enum ParseError {
     UnexpectedCharSequence,
     UnexpectedToken(Token),
-}
-
-// enum Result {
-//     NonTerminal(Token),
-//     Terminal(Token),
-// }
-
-#[derive(Debug, PartialEq)]
-struct Word(String);
-#[derive(Debug, PartialEq)]
-struct Wordlist(Vec<Word>);
-#[derive(Debug, PartialEq)]
-enum IoFile {
-    Less(String),
-    LessAnd(String),
-    Great(String),
-    GreatAnd(String),
-    DGreat(String),
-    LessGreat(String),
-    Clobber(String),
-}
-#[derive(Debug, PartialEq)]
-enum IoHere {
-    DLess(String),
-    DLessDash(String),
-}
-#[derive(Debug, PartialEq)]
-enum IoRedirect {
-    IoFile(u8, IoFile),
-    IoHere(u8, IoHere),
 }
 
 struct Parser {

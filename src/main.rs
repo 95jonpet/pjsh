@@ -1,3 +1,4 @@
+mod ast;
 mod builtin_utils;
 // mod builtins;
 mod cursor;
