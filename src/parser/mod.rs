@@ -35,6 +35,11 @@ enum IoHere {
     DLess(String),
     DLessDash(String),
 }
+#[derive(Debug, PartialEq)]
+enum IoRedirect {
+    IoFile(u8, IoFile),
+    IoHere(u8, IoHere),
+}
 
 struct Parser {
     lexer: Box<dyn Lex>,
@@ -139,7 +144,24 @@ impl Parser {
     //                  |           io_here
     //                  | IO_NUMBER io_here
     //                  ;
-    // fn io_redirect(&mut self) -> Result<(), ParseError> {}
+    fn io_redirect(&mut self) -> Result<IoRedirect, ParseError> {
+        let mut io_number: u8 = 0;
+        match self.peek_token() {
+            Token::Word(word) if word.parse::<u8>().is_ok() => {
+                io_number = word.parse::<u8>().expect("should be a number");
+                self.next_token();
+            }
+            _ => (),
+        }
+
+        if let Ok(io_file) = self.io_file() {
+            Ok(IoRedirect::IoFile(io_number, io_file))
+        } else if let Ok(io_here) = self.io_here() {
+            Ok(IoRedirect::IoHere(io_number, io_here))
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        }
+    }
 
     // io_file          : '<'       filename
     //                  | LESSAND   filename
@@ -344,6 +366,19 @@ mod tests {
                 Word(String::from("second"))
             ])),
             parser(tokens).wordlist(Wordlist(Vec::new()))
+        );
+    }
+
+    #[test]
+    fn it_parses_io_redirect() {
+        let tokens = vec![
+            Token::Word(String::from("1")),
+            Token::Great,
+            Token::Word(String::from("file")),
+        ];
+        assert_eq!(
+            Ok(IoRedirect::IoFile(1, IoFile::Great(String::from("file")))),
+            parser(tokens).io_redirect()
         );
     }
 
