@@ -88,6 +88,15 @@ impl Parser {
                 let value = String::from(&word[(split_index + 1)..]);
                 Ok(AssignmentWord(key, value))
             }
+            Ok(Word(non_assignment_word)) => {
+                // Word token is not an assignment word.
+                // The token has already been popped. Re-insert it in the cache manually.
+                // This will miss any quotation tokens that were used to delimit the token.
+                // TODO: Improve the robustness.
+                self.cached_tokens
+                    .push_back(Token::Word(non_assignment_word));
+                Err(ParseError::UnexpectedCharSequence)
+            }
             _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
