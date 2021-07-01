@@ -2,6 +2,22 @@
 pub struct Word(pub String);
 
 #[derive(Debug, PartialEq)]
+pub struct AssignmentWord(pub String, pub String);
+
+#[derive(Debug, PartialEq)]
+pub struct SimpleCommand(
+    pub Option<CmdPrefix>,
+    pub Option<String>,
+    pub Option<CmdSuffix>,
+);
+
+#[derive(Debug, PartialEq)]
+pub struct CmdPrefix(pub Vec<AssignmentWord>, pub RedirectList);
+
+#[derive(Debug, PartialEq)]
+pub struct CmdSuffix(pub Wordlist, pub RedirectList);
+
+#[derive(Debug, PartialEq)]
 pub struct Wordlist(pub Vec<Word>);
 
 #[derive(Debug, PartialEq)]

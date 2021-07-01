@@ -2,7 +2,7 @@
 pub enum Token {
     /* Fundamental symbols. */
     Word(String),
-    AssignmentWord(String, String),
+    // AssignmentWord(String, String),
     Name(String),
     Newline,
     IoNumber(u8),

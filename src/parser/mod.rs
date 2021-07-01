@@ -1,7 +1,10 @@
 use std::collections::VecDeque;
 
 use crate::{
-    ast::{IoFile, IoHere, IoRedirect, RedirectList, Word, Wordlist},
+    ast::{
+        AssignmentWord, CmdPrefix, CmdSuffix, IoFile, IoHere, IoRedirect, RedirectList,
+        SimpleCommand, Word, Wordlist,
+    },
     lexer::{Lex, Mode},
     token::Token,
 };
@@ -77,6 +80,18 @@ impl Parser {
         }
     }
 
+    fn assignment_word(&mut self) -> Result<AssignmentWord, ParseError> {
+        match self.eat_word() {
+            Ok(Word(word)) if word.contains('=') => {
+                let split_index = word.find('=').unwrap();
+                let key = String::from(&word[..split_index]);
+                let value = String::from(&word[(split_index + 1)..]);
+                Ok(AssignmentWord(key, value))
+            }
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
+        }
+    }
+
     // name             : NAME                     /* Apply rule 5 */
     //                  ;
     fn name(&mut self) -> Result<Word, ParseError> {
@@ -120,18 +135,87 @@ impl Parser {
     //                  | cmd_name cmd_suffix
     //                  | cmd_name
     //                  ;
+    fn simple_command(&mut self) -> Result<SimpleCommand, ParseError> {
+        if let Ok(prefix) = self.cmd_prefix() {
+            if let Ok(Word(cmd_word)) = self.cmd_word() {
+                if let Ok(suffix) = self.cmd_suffix() {
+                    Ok(SimpleCommand(Some(prefix), Some(cmd_word), Some(suffix)))
+                } else {
+                    Ok(SimpleCommand(Some(prefix), Some(cmd_word), None))
+                }
+            } else {
+                Ok(SimpleCommand(Some(prefix), None, None))
+            }
+        } else if let Ok(Word(cmd_name)) = self.cmd_name() {
+            if let Ok(suffix) = self.cmd_suffix() {
+                Ok(SimpleCommand(None, Some(cmd_name), Some(suffix)))
+            } else {
+                Ok(SimpleCommand(None, Some(cmd_name), None))
+            }
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        }
+    }
 
     // cmd_prefix       :            io_redirect
     //                  | cmd_prefix io_redirect
     //                  |            ASSIGNMENT_WORD
     //                  | cmd_prefix ASSIGNMENT_WORD
     //                  ;
+    fn cmd_prefix(&mut self) -> Result<CmdPrefix, ParseError> {
+        let mut assignments = Vec::new();
+        let mut redirects = Vec::new();
+
+        loop {
+            if let Ok(redirect) = self.io_redirect() {
+                redirects.push(redirect);
+                continue;
+            }
+
+            if let Ok(assignment) = self.assignment_word() {
+                assignments.push(assignment);
+                continue;
+            }
+
+            break;
+        }
+
+        if assignments.is_empty() && redirects.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(CmdPrefix(assignments, RedirectList(redirects)))
+        }
+    }
 
     // cmd_suffix       :            io_redirect
     //                  | cmd_suffix io_redirect
     //                  |            WORD
     //                  | cmd_suffix WORD
     //                  ;
+    fn cmd_suffix(&mut self) -> Result<CmdSuffix, ParseError> {
+        let mut redirects = Vec::new();
+        let mut words = Vec::new();
+
+        loop {
+            if let Ok(redirect) = self.io_redirect() {
+                redirects.push(redirect);
+                continue;
+            }
+
+            if let Ok(word) = self.eat_word() {
+                words.push(word);
+                continue;
+            }
+
+            break;
+        }
+
+        if redirects.is_empty() && words.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(CmdSuffix(Wordlist(words), RedirectList(redirects)))
+        }
+    }
 
     // redirect_list    :               io_redirect
     //                  | redirect_list io_redirect
@@ -380,6 +464,84 @@ mod tests {
                 Word(String::from("second"))
             ])),
             parser(tokens).wordlist()
+        );
+    }
+
+    #[test]
+    fn it_parses_simple_command() {
+        let tokens = vec![
+            Token::Word(String::from("key=value")),
+            Token::Word(String::from("command")),
+            Token::Word(String::from("argument")),
+            Token::IoNumber(2),
+            Token::Great,
+            Token::Word(String::from("error_file")),
+        ];
+
+        assert_eq!(
+            Ok(SimpleCommand(
+                Some(CmdPrefix(
+                    vec![AssignmentWord(String::from("key"), String::from("value"))],
+                    RedirectList(Vec::new())
+                )),
+                Some(String::from("command")),
+                Some(CmdSuffix(
+                    Wordlist(vec![Word(String::from("argument"))]),
+                    RedirectList(vec![IoRedirect::IoFile(
+                        Some(2),
+                        IoFile::Great(String::from("error_file"))
+                    )])
+                ))
+            )),
+            parser(tokens).simple_command()
+        );
+    }
+
+    #[test]
+    fn it_parses_cmd_prefix() {
+        let tokens = vec![
+            Token::Word(String::from("key=value")),
+            Token::IoNumber(2),
+            Token::Great,
+            Token::Word(String::from("error_file")),
+        ];
+
+        assert_eq!(
+            Ok(CmdPrefix(
+                vec![AssignmentWord(String::from("key"), String::from("value")),],
+                RedirectList(vec![IoRedirect::IoFile(
+                    Some(2),
+                    IoFile::Great(String::from("error_file"))
+                ),],)
+            )),
+            parser(tokens).cmd_prefix()
+        );
+    }
+
+    #[test]
+    fn it_parses_cmd_suffix() {
+        let tokens = vec![
+            Token::Word(String::from("argument1")),
+            Token::IoNumber(2),
+            Token::Great,
+            Token::Word(String::from("error_file")),
+            Token::Word(String::from("argument2")),
+            Token::Less,
+            Token::Word(String::from("in_file")),
+        ];
+
+        assert_eq!(
+            Ok(CmdSuffix(
+                Wordlist(vec![
+                    Word(String::from("argument1")),
+                    Word(String::from("argument2"))
+                ]),
+                RedirectList(vec![
+                    IoRedirect::IoFile(Some(2), IoFile::Great(String::from("error_file"))),
+                    IoRedirect::IoFile(None, IoFile::Less(String::from("in_file")))
+                ],)
+            )),
+            parser(tokens).cmd_suffix()
         );
     }
 
