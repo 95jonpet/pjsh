@@ -5,6 +5,9 @@ pub struct Word(pub String);
 pub struct Wordlist(pub Vec<Word>);
 
 #[derive(Debug, PartialEq)]
+pub struct RedirectList(pub Vec<IoRedirect>);
+
+#[derive(Debug, PartialEq)]
 pub enum IoFile {
     Less(String),
     LessAnd(String),
@@ -23,6 +26,6 @@ pub enum IoHere {
 
 #[derive(Debug, PartialEq)]
 pub enum IoRedirect {
-    IoFile(u8, IoFile),
-    IoHere(u8, IoHere),
+    IoFile(Option<u8>, IoFile),
+    IoHere(Option<u8>, IoHere),
 }

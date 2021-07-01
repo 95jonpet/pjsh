@@ -105,29 +105,16 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
             }
         }
         ch if ch.is_ascii_alphanumeric() => {
-            let word = cursor.read_until(|ch| ch.is_ascii_whitespace());
-            delimit_keyword_token(&word).unwrap_or_else(|| Token::Word(word))
+            let word = cursor.read_until(|ch| !ch.is_ascii_alphanumeric() && ch != &'_');
+            println!("Word: {}", word);
+            match cursor.peek() {
+                &'<' | &'>' if word.parse::<u8>().is_ok() => {
+                    Token::IoNumber(word.parse::<u8>().unwrap())
+                }
+                _ => Token::Word(word),
+            }
         }
         _ => unimplemented!("Cannot yet handle `{}`.", cursor.peek()),
-    }
-}
-
-/// Returns a delimited [`Token`] for a word denoting a keyword.
-fn delimit_keyword_token(word: &str) -> Option<Token> {
-    match word {
-        // "if" => Some(Token::If),
-        // "then" => Some(Token::Then),
-        // "else" => Some(Token::Else),
-        // "elif" => Some(Token::Elif),
-        // "fi" => Some(Token::Fi),
-        // "do" => Some(Token::Do),
-        // "done" => Some(Token::Done),
-        // "case" => Some(Token::Case),
-        // "esac" => Some(Token::Esac),
-        // "while" => Some(Token::While),
-        // "until" => Some(Token::Until),
-        // "for" => Some(Token::For),
-        _ => None,
     }
 }
 
@@ -188,6 +175,19 @@ mod tests {
             vec![
                 Token::Word("first".to_string()),
                 Token::Word("second".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn it_identifies_io_number_tokens() {
+        assert_eq!(lex("2>"), vec![Token::IoNumber(2), Token::Great]);
+        assert_eq!(
+            lex("1< file"),
+            vec![
+                Token::IoNumber(1),
+                Token::Less,
+                Token::Word(String::from("file"))
             ]
         );
     }

@@ -5,7 +5,7 @@ pub enum Token {
     AssignmentWord(String, String),
     Name(String),
     Newline,
-    IoNumber,
+    IoNumber(u8),
 
     /* Delimiters. */
     /// '

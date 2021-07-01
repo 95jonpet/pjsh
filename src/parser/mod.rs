@@ -1,6 +1,10 @@
 use std::collections::VecDeque;
 
-use crate::{ast::{IoFile, IoHere, IoRedirect, Word, Wordlist}, lexer::{Lex, Mode}, token::Token};
+use crate::{
+    ast::{IoFile, IoHere, IoRedirect, RedirectList, Word, Wordlist},
+    lexer::{Lex, Mode},
+    token::Token,
+};
 
 #[derive(Debug, PartialEq)]
 enum ParseError {
@@ -106,17 +110,52 @@ impl Parser {
         self.eat_word()
     }
 
+    // simple_command   : cmd_prefix cmd_word cmd_suffix
+    //                  | cmd_prefix cmd_word
+    //                  | cmd_prefix
+    //                  | cmd_name cmd_suffix
+    //                  | cmd_name
+    //                  ;
+
+    // cmd_prefix       :            io_redirect
+    //                  | cmd_prefix io_redirect
+    //                  |            ASSIGNMENT_WORD
+    //                  | cmd_prefix ASSIGNMENT_WORD
+    //                  ;
+
+    // cmd_suffix       :            io_redirect
+    //                  | cmd_suffix io_redirect
+    //                  |            WORD
+    //                  | cmd_suffix WORD
+    //                  ;
+
+    // redirect_list    :               io_redirect
+    //                  | redirect_list io_redirect
+    //                  ;
+    fn redirect_list(&mut self, redirect_list: RedirectList) -> Result<RedirectList, ParseError> {
+        let RedirectList(mut redirects) = redirect_list;
+        match self.io_redirect() {
+            Ok(io_redirect) => {
+                redirects.push(io_redirect);
+                self.redirect_list(RedirectList(redirects))
+            }
+            Err(error) if redirects.is_empty() => Err(error),
+            Err(_) => Ok(RedirectList(redirects)),
+        }
+    }
+
     // io_redirect      :           io_file
     //                  | IO_NUMBER io_file
     //                  |           io_here
     //                  | IO_NUMBER io_here
     //                  ;
     fn io_redirect(&mut self) -> Result<IoRedirect, ParseError> {
-        let mut io_number: u8 = 0;
+        let mut io_number: Option<u8> = None;
         match self.peek_token() {
-            Token::Word(word) if word.parse::<u8>().is_ok() => {
-                io_number = word.parse::<u8>().expect("should be a number");
-                self.next_token();
+            Token::IoNumber(_) => {
+                if let Token::IoNumber(number) = self.next_token() {
+                    io_number = Some(number);
+                }
             }
             _ => (),
         }
@@ -337,14 +376,36 @@ mod tests {
     }
 
     #[test]
+    fn it_parses_redirect_list() {
+        let tokens = vec![
+            Token::IoNumber(1),
+            Token::Great,
+            Token::Word(String::from("file1")),
+            Token::IoNumber(2),
+            Token::DGreat,
+            Token::Word(String::from("file2")),
+        ];
+        assert_eq!(
+            Ok(RedirectList(vec![
+                IoRedirect::IoFile(Some(1), IoFile::Great(String::from("file1"))),
+                IoRedirect::IoFile(Some(2), IoFile::DGreat(String::from("file2")))
+            ])),
+            parser(tokens).redirect_list(RedirectList(Vec::new()))
+        );
+    }
+
+    #[test]
     fn it_parses_io_redirect() {
         let tokens = vec![
-            Token::Word(String::from("1")),
+            Token::IoNumber(1),
             Token::Great,
             Token::Word(String::from("file")),
         ];
         assert_eq!(
-            Ok(IoRedirect::IoFile(1, IoFile::Great(String::from("file")))),
+            Ok(IoRedirect::IoFile(
+                Some(1),
+                IoFile::Great(String::from("file"))
+            )),
             parser(tokens).io_redirect()
         );
     }
