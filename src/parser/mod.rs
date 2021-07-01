@@ -20,6 +20,16 @@ enum ParseError {
 struct Word(String);
 #[derive(Debug, PartialEq)]
 struct Wordlist(Vec<Word>);
+#[derive(Debug, PartialEq)]
+enum IoFile {
+    Less(String),
+    LessAnd(String),
+    Great(String),
+    GreatAnd(String),
+    DGreat(String),
+    LessGreat(String),
+    Clobber(String),
+}
 
 struct Parser {
     lexer: Box<dyn Lex>,
@@ -134,17 +144,35 @@ impl Parser {
     //                  | LESSGREAT filename
     //                  | CLOBBER   filename
     //                  ;
-    fn io_file(&mut self) -> Result<(), ParseError> {
+    fn io_file(&mut self) -> Result<IoFile, ParseError> {
         match self.peek_token() {
-            Token::Less
-            | Token::LessAnd
-            | Token::Great
-            | Token::GreatAnd
-            | Token::DGreat
-            | Token::LessGreat
-            | Token::Clobber => {
+            Token::Less => {
                 self.next_token();
-                self.filename().map(|filename| ())
+                self.filename().map(|Word(file)| IoFile::Less(file))
+            }
+            Token::LessAnd => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::LessAnd(file))
+            }
+            Token::Great => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::Great(file))
+            }
+            Token::GreatAnd => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::GreatAnd(file))
+            }
+            Token::DGreat => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::DGreat(file))
+            }
+            Token::LessGreat => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::LessGreat(file))
+            }
+            Token::Clobber => {
+                self.next_token();
+                self.filename().map(|Word(file)| IoFile::Clobber(file))
             }
             _ => Err(ParseError::UnexpectedToken(self.next_token())),
         }
@@ -313,18 +341,18 @@ mod tests {
     #[test]
     fn it_parses_io_file() {
         let prefix_tokens = [
-            Token::Less,
-            Token::LessAnd,
-            Token::Great,
-            Token::GreatAnd,
-            Token::DGreat,
-            Token::LessGreat,
-            Token::Clobber,
+            (Token::Less, IoFile::Less(String::from("word"))),
+            (Token::LessAnd, IoFile::LessAnd(String::from("word"))),
+            (Token::Great, IoFile::Great(String::from("word"))),
+            (Token::GreatAnd, IoFile::GreatAnd(String::from("word"))),
+            (Token::DGreat, IoFile::DGreat(String::from("word"))),
+            (Token::LessGreat, IoFile::LessGreat(String::from("word"))),
+            (Token::Clobber, IoFile::Clobber(String::from("word"))),
         ];
 
-        for prefix in prefix_tokens {
+        for (prefix, io_file) in prefix_tokens {
             assert_eq!(
-                Ok(()),
+                Ok(io_file),
                 parser(vec![prefix, Token::Word(String::from("word"))]).io_file()
             );
         }
