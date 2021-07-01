@@ -30,6 +30,11 @@ enum IoFile {
     LessGreat(String),
     Clobber(String),
 }
+#[derive(Debug, PartialEq)]
+enum IoHere {
+    DLess(String),
+    DLessDash(String),
+}
 
 struct Parser {
     lexer: Box<dyn Lex>,
@@ -92,7 +97,7 @@ impl Parser {
             Token::Newline => self.newline_list(),
             Token::EOF => Ok(()),
             Token::Unknown => Err(ParseError::UnexpectedCharSequence),
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 
@@ -174,7 +179,7 @@ impl Parser {
                 self.next_token();
                 self.filename().map(|Word(file)| IoFile::Clobber(file))
             }
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 
@@ -187,13 +192,17 @@ impl Parser {
     // io_here          : DLESS     here_end
     //                  | DLESSDASH here_end
     //                  ;
-    fn io_here(&mut self) -> Result<(), ParseError> {
+    fn io_here(&mut self) -> Result<IoHere, ParseError> {
         match self.peek_token() {
-            Token::DLess | Token::DLessDash => {
+            Token::DLess => {
                 self.next_token();
-                self.here_end().map(|definition| ())
+                self.here_end().map(|Word(end)| IoHere::DLess(end))
             }
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            Token::DLessDash => {
+                self.next_token();
+                self.here_end().map(|Word(end)| IoHere::DLessDash(end))
+            }
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 
@@ -229,7 +238,7 @@ impl Parser {
                 self.next_token();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 
@@ -242,7 +251,7 @@ impl Parser {
                 self.next_token();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 
@@ -276,12 +285,12 @@ impl Parser {
                             self.pop_lexer_mode();
                             Ok(Word(word))
                         }
-                        _ => Err(ParseError::UnexpectedToken(self.next_token())),
+                        _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
                     },
-                    _ => Err(ParseError::UnexpectedToken(self.next_token())),
+                    _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
                 }
             }
-            _ => Err(ParseError::UnexpectedToken(self.next_token())),
+            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
     }
 }
@@ -354,6 +363,21 @@ mod tests {
             assert_eq!(
                 Ok(io_file),
                 parser(vec![prefix, Token::Word(String::from("word"))]).io_file()
+            );
+        }
+    }
+
+    #[test]
+    fn it_parses_io_here() {
+        let prefix_tokens = [
+            (Token::DLess, IoHere::DLess(String::from("end"))),
+            (Token::DLessDash, IoHere::DLessDash(String::from("end"))),
+        ];
+
+        for (prefix, io_here) in prefix_tokens {
+            assert_eq!(
+                Ok(io_here),
+                parser(vec![prefix, Token::Word(String::from("end"))]).io_here()
             );
         }
     }
