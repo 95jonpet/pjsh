@@ -8,6 +8,25 @@ pub struct Word(pub String);
 pub struct AssignmentWord(pub String, pub String);
 
 #[derive(Debug, PartialEq)]
+pub struct List(pub Vec<ListPart>);
+
+#[derive(Debug, PartialEq)]
+pub enum ListPart {
+    Start(AndOr),
+    Tail(AndOr, SeparatorOp),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AndOr(pub Vec<AndOrPart>);
+
+#[derive(Debug, PartialEq)]
+pub enum AndOrPart {
+    Start(Pipeline),
+    And(Pipeline),
+    Or(Pipeline),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Pipeline {
     Normal(PipeSequence),
     Bang(PipeSequence),
@@ -16,6 +35,15 @@ pub enum Pipeline {
 /// Represents a sequence of commands separated by pipes.
 #[derive(Debug, PartialEq)]
 pub struct PipeSequence(pub Vec<Command>);
+
+#[derive(Debug, PartialEq)]
+pub struct Program(pub CompleteCommands);
+
+#[derive(Debug, PartialEq)]
+pub struct CompleteCommands(pub Vec<CompleteCommand>);
+
+#[derive(Debug, PartialEq)]
+pub struct CompleteCommand(pub List, pub Option<SeparatorOp>);
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -63,4 +91,12 @@ pub enum IoHere {
 pub enum IoRedirect {
     IoFile(Option<u8>, IoFile),
     IoHere(Option<u8>, IoHere),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SeparatorOp {
+    /// &
+    Async,
+    /// ;
+    Serial,
 }

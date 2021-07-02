@@ -2,8 +2,9 @@ use std::collections::VecDeque;
 
 use crate::{
     ast::{
-        AssignmentWord, CmdPrefix, CmdSuffix, Command, IoFile, IoHere, IoRedirect, PipeSequence,
-        Pipeline, RedirectList, SimpleCommand, Word, Wordlist,
+        AndOr, AndOrPart, AssignmentWord, CmdPrefix, CmdSuffix, Command, CompleteCommand,
+        CompleteCommands, IoFile, IoHere, IoRedirect, List, ListPart, PipeSequence, Pipeline,
+        Program, RedirectList, SeparatorOp, SimpleCommand, Word, Wordlist,
     },
     lexer::{Lex, Mode},
     token::Token,
@@ -71,13 +72,8 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<(), ParseError> {
-        match self.lexer.next_token(Mode::Unquoted) {
-            Token::Newline => self.newline_list(),
-            Token::EOF => Ok(()),
-            Token::Unknown => Err(ParseError::UnexpectedCharSequence),
-            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
-        }
+    pub fn parse(&mut self) -> Result<Program, ParseError> {
+        self.program()
     }
 
     fn assignment_word(&mut self) -> Result<AssignmentWord, ParseError> {
@@ -94,7 +90,7 @@ impl Parser {
                 // This will miss any quotation tokens that were used to delimit the token.
                 // TODO: Improve the robustness.
                 self.cached_tokens
-                    .push_back(Token::Word(non_assignment_word));
+                    .push_front(Token::Word(non_assignment_word));
                 Err(ParseError::UnexpectedCharSequence)
             }
             _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
@@ -104,23 +100,106 @@ impl Parser {
     // program          : linebreak complete_commands linebreak
     //                  | linebreak
     //                  ;
+    fn program(&mut self) -> Result<Program, ParseError> {
+        self.linebreak()?;
+        if let Ok(complete_commands) = self.complete_commands() {
+            self.linebreak()?;
+            return Ok(Program(complete_commands));
+        }
+        Ok(Program(CompleteCommands(Vec::new())))
+    }
 
     // complete_commands: complete_commands newline_list complete_command
     //                  |                                complete_command
     //                  ;
+    fn complete_commands(&mut self) -> Result<CompleteCommands, ParseError> {
+        let mut commands = Vec::new();
+        while let Ok(command) = self.complete_command() {
+            if self.linebreak().is_err() {
+                return Err(ParseError::UnexpectedToken(self.peek_token().clone()));
+            }
+
+            commands.push(command);
+        }
+
+        Ok(CompleteCommands(commands))
+    }
 
     // complete_command : list separator_op
     //                  | list
     //                  ;
+    fn complete_command(&mut self) -> Result<CompleteCommand, ParseError> {
+        let list = self.list()?;
+        match self.separator_op() {
+            Ok(separator_op) => Ok(CompleteCommand(list, Some(separator_op))),
+            _ => Ok(CompleteCommand(list, None)),
+        }
+    }
 
     // list             : list separator_op and_or
     //                  |                   and_or
     //                  ;
+    fn list(&mut self) -> Result<List, ParseError> {
+        let mut parts = Vec::new();
+
+        if let Ok(and_or) = self.and_or() {
+            parts.push(ListPart::Start(and_or));
+        }
+
+        while let Ok(separator_op) = self.separator_op() {
+            if let Ok(and_or) = self.and_or() {
+                parts.push(ListPart::Tail(and_or, separator_op));
+            } else {
+                return Err(ParseError::UnexpectedToken(self.peek_token().clone()));
+            }
+        }
+
+        if parts.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(List(parts))
+        }
+    }
 
     // and_or           :                         pipeline
     //                  | and_or AND_IF linebreak pipeline
     //                  | and_or OR_IF  linebreak pipeline
     //                  ;
+    fn and_or(&mut self) -> Result<AndOr, ParseError> {
+        let mut parts = Vec::new();
+
+        if let Ok(pipeline) = self.pipeline() {
+            parts.push(AndOrPart::Start(pipeline));
+        }
+
+        loop {
+            match self.peek_token() {
+                Token::AndIf => {
+                    self.next_token();
+                    if let Ok(pipeline) = self.pipeline() {
+                        parts.push(AndOrPart::And(pipeline));
+                    } else {
+                        self.cached_tokens.push_front(Token::AndIf);
+                    }
+                }
+                Token::OrIf => {
+                    self.next_token();
+                    if let Ok(pipeline) = self.pipeline() {
+                        parts.push(AndOrPart::Or(pipeline));
+                    } else {
+                        self.cached_tokens.push_front(Token::OrIf);
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        if parts.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(AndOr(parts))
+        }
+    }
 
     // pipeline         :      pipe_sequence
     //                  | Bang pipe_sequence
@@ -134,9 +213,9 @@ impl Parser {
                     Err(ParseError::UnexpectedToken(self.peek_token().clone()))
                 }
             } else {
-                // Unwanted token. Push it back to the cache.
+                // Unwanted token. Push it back to the front of the cache.
                 // TODO: Make this more robust.
-                self.cached_tokens.push_back(Token::Word(word));
+                self.cached_tokens.push_front(Token::Word(word));
                 if let Ok(pipe_sequence) = self.pipe_sequence() {
                     Ok(Pipeline::Normal(pipe_sequence))
                 } else {
@@ -462,11 +541,15 @@ impl Parser {
     // separator_op     : '&'
     //                  | ';'
     //                  ;
-    fn separator_op(&mut self) -> Result<(), ParseError> {
+    fn separator_op(&mut self) -> Result<SeparatorOp, ParseError> {
         match self.peek_token() {
-            Token::And | Token::Semi => {
+            Token::And => {
                 self.next_token();
-                Ok(())
+                Ok(SeparatorOp::Async)
+            }
+            Token::Semi => {
+                self.next_token();
+                Ok(SeparatorOp::Serial)
             }
             _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
@@ -722,9 +805,14 @@ mod tests {
 
     #[test]
     fn it_parses_separator_op() {
-        for separator in vec![Token::And, Token::Semi] {
-            assert_eq!(Ok(()), parser(vec![separator]).separator_op());
-        }
+        assert_eq!(
+            Ok(SeparatorOp::Serial),
+            parser(vec![Token::Semi]).separator_op()
+        );
+        assert_eq!(
+            Ok(SeparatorOp::Async),
+            parser(vec![Token::And]).separator_op()
+        );
     }
 
     #[test]
