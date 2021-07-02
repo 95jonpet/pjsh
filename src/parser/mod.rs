@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use crate::{
     ast::{
-        AssignmentWord, CmdPrefix, CmdSuffix, IoFile, IoHere, IoRedirect, RedirectList,
-        SimpleCommand, Word, Wordlist,
+        AssignmentWord, CmdPrefix, CmdSuffix, Command, IoFile, IoHere, IoRedirect, PipeSequence,
+        Pipeline, RedirectList, SimpleCommand, Word, Wordlist,
     },
     lexer::{Lex, Mode},
     token::Token,
@@ -99,6 +99,94 @@ impl Parser {
             }
             _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
         }
+    }
+
+    // program          : linebreak complete_commands linebreak
+    //                  | linebreak
+    //                  ;
+
+    // complete_commands: complete_commands newline_list complete_command
+    //                  |                                complete_command
+    //                  ;
+
+    // complete_command : list separator_op
+    //                  | list
+    //                  ;
+
+    // list             : list separator_op and_or
+    //                  |                   and_or
+    //                  ;
+
+    // and_or           :                         pipeline
+    //                  | and_or AND_IF linebreak pipeline
+    //                  | and_or OR_IF  linebreak pipeline
+    //                  ;
+
+    // pipeline         :      pipe_sequence
+    //                  | Bang pipe_sequence
+    //                  ;
+    fn pipeline(&mut self) -> Result<Pipeline, ParseError> {
+        if let Ok(Word(word)) = self.eat_word() {
+            if &word == "!" {
+                if let Ok(pipe_sequence) = self.pipe_sequence() {
+                    Ok(Pipeline::Bang(pipe_sequence))
+                } else {
+                    Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+                }
+            } else {
+                // Unwanted token. Push it back to the cache.
+                // TODO: Make this more robust.
+                self.cached_tokens.push_back(Token::Word(word));
+                if let Ok(pipe_sequence) = self.pipe_sequence() {
+                    Ok(Pipeline::Normal(pipe_sequence))
+                } else {
+                    Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+                }
+            }
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        }
+    }
+
+    // pipe_sequence    :                             command
+    //                  | pipe_sequence '|' linebreak command
+    //                  ;
+    fn pipe_sequence(&mut self) -> Result<PipeSequence, ParseError> {
+        let mut commands = Vec::new();
+
+        if let Ok(command) = self.command() {
+            commands.push(command);
+        }
+
+        while self.peek_token() == &Token::Pipe {
+            self.next_token();
+            if self.linebreak().is_ok() {
+                if let Ok(command) = self.command() {
+                    commands.push(command);
+                }
+            }
+        }
+
+        if commands.is_empty() {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        } else {
+            Ok(PipeSequence(commands))
+        }
+    }
+
+    // command          : simple_command
+    //                  | compound_command
+    //                  | compound_command redirect_list
+    //                  | function_definition
+    //                  ;
+    fn command(&mut self) -> Result<Command, ParseError> {
+        if let Ok(simple_command) = self.simple_command() {
+            Ok(Command::Simple(simple_command))
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
+        }
+
+        // TODO: Add support for all variants.
     }
 
     // name             : NAME                     /* Apply rule 5 */

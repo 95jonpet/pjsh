@@ -5,6 +5,20 @@ pub struct Word(pub String);
 pub struct AssignmentWord(pub String, pub String);
 
 #[derive(Debug, PartialEq)]
+pub enum Pipeline {
+    Normal(PipeSequence),
+    Bang(PipeSequence)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PipeSequence(pub Vec<Command>);
+
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    Simple(SimpleCommand),
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SimpleCommand(
     pub Option<CmdPrefix>,
     pub Option<String>,
