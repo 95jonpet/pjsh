@@ -1,15 +1,19 @@
+/// Represents a regular word/string of characters.
+/// Note that whitespace characters may be present.
 #[derive(Debug, PartialEq)]
 pub struct Word(pub String);
 
+/// Represents an assignment.
 #[derive(Debug, PartialEq)]
 pub struct AssignmentWord(pub String, pub String);
 
 #[derive(Debug, PartialEq)]
 pub enum Pipeline {
     Normal(PipeSequence),
-    Bang(PipeSequence)
+    Bang(PipeSequence),
 }
 
+/// Represents a sequence of commands separated by pipes.
 #[derive(Debug, PartialEq)]
 pub struct PipeSequence(pub Vec<Command>);
 
@@ -18,6 +22,7 @@ pub enum Command {
     Simple(SimpleCommand),
 }
 
+/// Represents a command with an optional prefix and suffix.
 #[derive(Debug, PartialEq)]
 pub struct SimpleCommand(
     pub Option<CmdPrefix>,
