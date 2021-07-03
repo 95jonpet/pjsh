@@ -11,12 +11,12 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-enum ParseError {
+pub enum ParseError {
     UnexpectedCharSequence,
     UnexpectedToken(Token),
 }
 
-struct Parser {
+pub struct Parser {
     lexer: Box<dyn Lex>,
     lexer_mode_stack: Vec<Mode>,
     cached_tokens: VecDeque<Token>,
@@ -525,17 +525,7 @@ impl Parser {
     //                  | /* empty */
     //                  ;
     fn linebreak(&mut self) -> Result<(), ParseError> {
-        match self.peek_token() {
-            Token::Newline => {
-                self.next_token();
-                self.newline_list()
-            }
-            Token::EOF => {
-                self.next_token();
-                Ok(())
-            }
-            _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
-        }
+        self.newline_list().or(Ok(()))
     }
 
     // separator_op     : '&'
