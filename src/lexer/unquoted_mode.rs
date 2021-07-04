@@ -3,7 +3,10 @@ use crate::token::Token;
 
 /// Returns the next [`Token`] in unquoted mode.
 pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
-    cursor.read_until(|ch| !ch.is_whitespace()); // Skip whitespaces.
+    // cursor.read_until(|ch| !ch.is_whitespace()); // Skip whitespaces.
+    cursor.read_until(|ch| ch != &' ' && ch != &'\t' && ch != &'\r'); // Skip whitespaces.
+
+    println!("ch: {}", cursor.peek());
 
     match *cursor.peek() {
         EOF_CHAR => Token::EOF, // End of input.
@@ -18,7 +21,11 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
         }
         '\n' => {
             cursor.next();
-            Token::Newline
+            if cursor.is_interactive() {
+                Token::EOF // A complete command has been sent.
+            } else {
+                Token::Newline
+            }
         }
         '\'' => {
             cursor.next();
@@ -104,8 +111,10 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
                 _ => Token::Semi,
             }
         }
-        ch if ch.is_ascii_alphanumeric() => {
-            let word = cursor.read_until(|ch| !ch.is_ascii_alphanumeric() && ch != &'_');
+        ch if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '/' => {
+            let word = cursor.read_until(|ch| {
+                !ch.is_ascii_alphanumeric() && ch != &'_' && ch != &'-' && ch != &'/'
+            });
             match cursor.peek() {
                 &'<' | &'>' if word.parse::<u8>().is_ok() => {
                     Token::IoNumber(word.parse::<u8>().unwrap())
@@ -279,7 +288,7 @@ mod tests {
     fn lex(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
         let mut lexer = Lexer {
-            cursor: Cursor::new(InputLines::Single(Some(String::from(input)))),
+            cursor: Cursor::new(InputLines::Single(Some(String::from(input))), false),
         };
 
         loop {

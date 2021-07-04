@@ -1,3 +1,5 @@
+use os_pipe::pipe;
+
 use crate::ast::{
     AndOr, AndOrPart, CmdSuffix, Command, CompleteCommand, CompleteCommands, List, ListPart,
     PipeSequence, Pipeline, Program, SeparatorOp, SimpleCommand, Word, Wordlist,
@@ -114,17 +116,26 @@ impl Executor {
                 },
             );
 
+            println!("Program: {}, arguments: {:?}", command_name, arguments);
+
+            let (mut reader, writer) = pipe().unwrap();
             let result = std::process::Command::new(command_name)
                 .args(arguments)
-                .output();
+                .stdout(writer)
+                .status();
 
             match result {
-                Ok(output) => match std::str::from_utf8(&output.stdout) {
-                    Ok(output_string) => println!("{}", output_string),
-                    _ => return Err(ExecError),
-                },
-                Err(_) => return Err(ExecError),
-            }
+                Ok(child) => println!("pjsh: {}", child),
+                Err(e) => eprintln!("pjsh: {}", e),
+            };
+
+            // match result {
+            //     Ok(output) => match std::str::from_utf8(&output.stdout) {
+            //         Ok(output_string) => println!("{}", output_string),
+            //         _ => return Err(ExecError),
+            //     },
+            //     Err(_) => return Err(ExecError),
+            // }
         }
         Ok(())
     }

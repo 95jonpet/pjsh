@@ -18,10 +18,11 @@ use old::shell::Shell;
 use clap::{crate_name, crate_version, Clap};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env;
 use std::env::VarError;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::{env, io};
 
 use crate::old::parser::Io;
 use crate::old::parser::SimpleCommand;
@@ -40,19 +41,26 @@ struct Cli {
 }
 
 fn main() {
-    let cmd = "ls";
+    // let cmd = "ls -lah";
+    // let cmd = "ls -lah | grep 'cargo'";
     // let cmd = "echo test1 test2 > file";
-    let input = crate::input::InputLines::Single(Some(String::from(cmd)));
-    let cursor = crate::cursor::Cursor::new(input);
+    // let input = crate::input::InputLines::Single(Some(String::from(cmd)));
+    let input = crate::input::InputLines::Buffered(Box::new(BufReader::new(io::stdin())));
+    let cursor = crate::cursor::Cursor::new(input, true);
     let lexer = crate::lexer::Lexer::new(cursor);
     let mut parser = crate::parser::Parser::new(Box::new(lexer));
     let executor = crate::executor::Executor::new();
 
-    if let Ok(program) = parser.parse() {
-        let result = executor.execute(program);
-        match result {
-            Ok(_) => (),
-            Err(_) => println!("Execution failed."),
+    loop {
+        println!("Loop");
+        if let Ok(program) = parser.parse() {
+            println!("{:?}", program);
+
+            let result = executor.execute(program);
+            match result {
+                Ok(_) => (),
+                Err(_) => println!("Execution failed."),
+            }
         }
     }
 

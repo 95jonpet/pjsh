@@ -68,7 +68,7 @@ mod tests {
     fn lex(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
         let mut lexer = Lexer {
-            cursor: Cursor::new(InputLines::Single(Some(String::from(input)))),
+            cursor: Cursor::new(InputLines::Single(Some(String::from(input))), false),
         };
 
         loop {

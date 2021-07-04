@@ -1,10 +1,15 @@
-use std::{iter::Peekable, vec::IntoIter};
+use std::{
+    io::{self, Write},
+    iter::Peekable,
+    vec::IntoIter,
+};
 
 use crate::input::InputLines;
 
 /// Peekable iterator over a char stream.
 pub struct Cursor {
     input: Peekable<InputLines>,
+    interactive: bool,
     line: Peekable<IntoIter<char>>,
     line_buffer: String,
     line_offset: usize,
@@ -15,9 +20,10 @@ pub struct Cursor {
 pub(crate) const EOF_CHAR: char = '\0';
 
 impl Cursor {
-    pub fn new(input: InputLines) -> Self {
+    pub fn new(input: InputLines, interactive: bool) -> Self {
         Self {
             input: input.peekable(),
+            interactive,
             line: Vec::new().into_iter().peekable(),
             line_buffer: String::new(),
             line_offset: 0,
@@ -71,8 +77,19 @@ impl Cursor {
         result
     }
 
+    /// Returns `true` if the cursor is interactive.
+    /// In interactive mode, each line should be parsed and executed immediately.
+    pub fn is_interactive(&self) -> bool {
+        self.interactive
+    }
+
     /// Moves the iterator to the next line of input.
     fn advance_line(&mut self) {
+        if self.is_interactive() {
+            print!("{}", "$ ");
+            io::stdout().flush().unwrap();
+        }
+
         match self.input.next() {
             Some(line) => {
                 self.line = line.chars().collect::<Vec<_>>().into_iter().peekable();
