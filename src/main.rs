@@ -2,6 +2,7 @@ mod ast;
 mod builtin_utils;
 // mod builtins;
 mod cursor;
+mod executor;
 mod input;
 mod lexer;
 mod old;
@@ -39,32 +40,48 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::parse();
+    let cmd = "ls";
+    // let cmd = "echo test1 test2 > file";
+    let input = crate::input::InputLines::Single(Some(String::from(cmd)));
+    let cursor = crate::cursor::Cursor::new(input);
+    let lexer = crate::lexer::Lexer::new(cursor);
+    let mut parser = crate::parser::Parser::new(Box::new(lexer));
+    let executor = crate::executor::Executor::new();
 
-    let shell = create_shell(args);
-    let mut executor = Executor::new(Rc::clone(&shell));
-    executor.execute(perform_login(), false);
-
-    loop {
-        let input = shell.borrow_mut().next();
-        if let Some(line) = input {
-            let lexer = Lexer::new(&line, Rc::clone(&shell));
-            let mut parser = Parser::new(lexer, Rc::clone(&shell));
-            match parser.get() {
-                Ok(command) => {
-                    executor.execute(command, false);
-                }
-                Err(e) => {
-                    eprintln!("ERROR: {}", e);
-                }
-            }
-        } else {
-            if shell.borrow().is_interactive() {
-                println!();
-            }
-            break;
+    if let Ok(program) = parser.parse() {
+        let result = executor.execute(program);
+        match result {
+            Ok(_) => (),
+            Err(_) => println!("Execution failed."),
         }
     }
+
+    // let args = Cli::parse();
+
+    // let shell = create_shell(args);
+    // let mut executor = Executor::new(Rc::clone(&shell));
+    // executor.execute(perform_login(), false);
+
+    // loop {
+    //     let input = shell.borrow_mut().next();
+    //     if let Some(line) = input {
+    //         let lexer = Lexer::new(&line, Rc::clone(&shell));
+    //         let mut parser = Parser::new(lexer, Rc::clone(&shell));
+    //         match parser.get() {
+    //             Ok(command) => {
+    //                 executor.execute(command, false);
+    //             }
+    //             Err(e) => {
+    //                 eprintln!("ERROR: {}", e);
+    //             }
+    //         }
+    //     } else {
+    //         if shell.borrow().is_interactive() {
+    //             println!();
+    //         }
+    //         break;
+    //     }
+    // }
 }
 
 fn perform_login() -> Cmd {

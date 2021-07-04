@@ -93,7 +93,7 @@ pub enum IoRedirect {
     IoHere(Option<u8>, IoHere),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SeparatorOp {
     /// &
     Async,

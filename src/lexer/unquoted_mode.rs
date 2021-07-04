@@ -106,7 +106,6 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
         }
         ch if ch.is_ascii_alphanumeric() => {
             let word = cursor.read_until(|ch| !ch.is_ascii_alphanumeric() && ch != &'_');
-            println!("Word: {}", word);
             match cursor.peek() {
                 &'<' | &'>' if word.parse::<u8>().is_ok() => {
                     Token::IoNumber(word.parse::<u8>().unwrap())
