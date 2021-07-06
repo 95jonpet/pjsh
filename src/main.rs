@@ -40,13 +40,18 @@ fn main() {
     let mut parser = crate::parser::Parser::new(Box::new(lexer));
     let executor = crate::executor::Executor::new();
 
-    loop {
-        if let Ok(program) = parser.parse() {
-            let result = executor.execute(program);
-            match result {
-                Ok(_) => (),
-                Err(_) => (),
+    // In interactive mode, multiple programs are accepted - typically one for each line of input.
+    // In non-interactive mode, only one program, consisting of all input, should be accepted.
+    while interactive {
+        match parser.parse() {
+            Ok(program) => {
+                let result = executor.execute(program);
+                match result {
+                    Ok(_) => (),
+                    Err(_) => (),
+                }
             }
+            Err(parse_error) => eprintln!("pjsh: {}", parse_error),
         }
     }
 }

@@ -1,3 +1,5 @@
+mod error;
+
 use std::collections::VecDeque;
 
 use crate::{
@@ -10,11 +12,7 @@ use crate::{
     token::Token,
 };
 
-#[derive(Debug, PartialEq)]
-pub enum ParseError {
-    UnexpectedCharSequence,
-    UnexpectedToken(Token),
-}
+use self::error::ParseError;
 
 pub struct Parser {
     lexer: Box<dyn Lex>,
