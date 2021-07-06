@@ -7,9 +7,10 @@ mod parser;
 mod token;
 
 use clap::{crate_name, crate_version, Clap};
+use input::InputLines;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::{env, io};
+use std::{env, fs, io};
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
@@ -25,8 +26,16 @@ struct Cli {
 }
 
 fn main() {
-    let input = crate::input::InputLines::Buffered(Box::new(BufReader::new(io::stdin())));
-    let cursor = crate::cursor::Cursor::new(input, true);
+    let cli = Cli::parse();
+    let interactive = cli.command.is_none() && cli.script_file.is_none();
+    let input = match cli {
+        conf if conf.command.is_some() => InputLines::Single(conf.command),
+        conf if conf.script_file.is_some() => InputLines::Buffered(Box::new(BufReader::new(
+            fs::File::open(conf.script_file.unwrap()).unwrap(),
+        ))),
+        _ => InputLines::Buffered(Box::new(BufReader::new(io::stdin()))),
+    };
+    let cursor = crate::cursor::Cursor::new(input, interactive);
     let lexer = crate::lexer::Lexer::new(cursor);
     let mut parser = crate::parser::Parser::new(Box::new(lexer));
     let executor = crate::executor::Executor::new();
@@ -36,7 +45,7 @@ fn main() {
             let result = executor.execute(program);
             match result {
                 Ok(_) => (),
-                Err(_) => println!("Execution failed."),
+                Err(_) => (),
             }
         }
     }
