@@ -20,6 +20,7 @@ pub struct Cursor {
 pub(crate) const EOF_CHAR: char = '\0';
 
 impl Cursor {
+    /// Creates a new cursor for iterating over a char stream.
     pub fn new(input: InputLines, interactive: bool) -> Self {
         Self {
             input: input.peekable(),
