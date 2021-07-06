@@ -1,10 +1,12 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     /* Fundamental symbols. */
+    /// Generic word.
+    /// This symbol may be resolved to other subtokens such as assignment words and names.
     Word(String),
-    // AssignmentWord(String, String),
-    Name(String),
+    /// \n
     Newline,
+    /// Integer preceding redirection operators.
     IoNumber(u8),
 
     /* Delimiters. */
@@ -83,5 +85,4 @@ pub enum Token {
 
     /* Pseudotokens. */
     EOF,
-    Unknown,
 }

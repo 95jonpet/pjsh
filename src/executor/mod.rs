@@ -1,6 +1,4 @@
-use std::process::{ExitStatus, Stdio};
-
-use os_pipe::pipe;
+use std::process::Stdio;
 
 use crate::ast::{
     AndOr, AndOrPart, CmdSuffix, Command, CompleteCommand, CompleteCommands, List, ListPart,
@@ -29,9 +27,9 @@ impl Executor {
         let mut list_part_iterator = list_parts.iter();
 
         let mut current = list_part_iterator.next();
-        let mut next = None;
+        // let mut next = None;
         loop {
-            next = list_part_iterator.next();
+            let next = list_part_iterator.next();
 
             let separator_op = next.map_or_else(
                 || optional_separator.unwrap_or(crate::ast::SeparatorOp::Serial),
