@@ -6,15 +6,17 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
     // cursor.read_until(|ch| !ch.is_whitespace()); // Skip whitespaces.
     cursor.read_until(|ch| ch != &' ' && ch != &'\t' && ch != &'\r'); // Skip whitespaces.
 
-    println!("ch: {}", cursor.peek());
-
     match *cursor.peek() {
         EOF_CHAR => Token::EOF, // End of input.
         '#' => {
             cursor.read_until(|ch| ch == &'\n');
             if let '\n' = cursor.peek() {
                 cursor.next();
-                Token::Newline
+                if cursor.is_interactive() {
+                    Token::EOF // A complete command has been sent.
+                } else {
+                    Token::Newline
+                }
             } else {
                 Token::EOF
             }

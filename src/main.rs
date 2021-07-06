@@ -41,10 +41,6 @@ struct Cli {
 }
 
 fn main() {
-    // let cmd = "ls -lah";
-    // let cmd = "ls -lah | grep 'cargo'";
-    // let cmd = "echo test1 test2 > file";
-    // let input = crate::input::InputLines::Single(Some(String::from(cmd)));
     let input = crate::input::InputLines::Buffered(Box::new(BufReader::new(io::stdin())));
     let cursor = crate::cursor::Cursor::new(input, true);
     let lexer = crate::lexer::Lexer::new(cursor);
@@ -52,10 +48,7 @@ fn main() {
     let executor = crate::executor::Executor::new();
 
     loop {
-        println!("Loop");
         if let Ok(program) = parser.parse() {
-            println!("{:?}", program);
-
             let result = executor.execute(program);
             match result {
                 Ok(_) => (),

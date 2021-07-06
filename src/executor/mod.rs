@@ -1,3 +1,5 @@
+use std::process::{ExitStatus, Stdio};
+
 use os_pipe::pipe;
 
 use crate::ast::{
@@ -116,26 +118,16 @@ impl Executor {
                 },
             );
 
-            println!("Program: {}, arguments: {:?}", command_name, arguments);
-
-            let (mut reader, writer) = pipe().unwrap();
             let result = std::process::Command::new(command_name)
                 .args(arguments)
-                .stdout(writer)
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
                 .status();
 
-            match result {
-                Ok(child) => println!("pjsh: {}", child),
-                Err(e) => eprintln!("pjsh: {}", e),
-            };
-
-            // match result {
-            //     Ok(output) => match std::str::from_utf8(&output.stdout) {
-            //         Ok(output_string) => println!("{}", output_string),
-            //         _ => return Err(ExecError),
-            //     },
-            //     Err(_) => return Err(ExecError),
-            // }
+            if let Err(e) = result {
+                eprintln!("pjsh: {}", e);
+                return Err(ExecError);
+            }
         }
         Ok(())
     }

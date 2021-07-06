@@ -104,8 +104,10 @@ impl Parser {
         self.linebreak()?;
         if let Ok(complete_commands) = self.complete_commands() {
             self.linebreak()?;
+            self.cached_tokens.clear();
             return Ok(Program(complete_commands));
         }
+        self.cached_tokens.clear();
         Ok(Program(CompleteCommands(Vec::new())))
     }
 
