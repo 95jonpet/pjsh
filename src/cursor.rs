@@ -80,6 +80,7 @@ impl Cursor {
 
     /// Returns `true` if the cursor is interactive.
     /// In interactive mode, each line should be parsed and executed immediately.
+    #[inline]
     pub fn is_interactive(&self) -> bool {
         self.interactive
     }
