@@ -1,4 +1,5 @@
 mod error;
+mod exit_status;
 
 use std::{collections::HashMap, process::Stdio};
 
@@ -8,7 +9,7 @@ use crate::ast::{
     Word, Wordlist,
 };
 
-use self::error::ExecError;
+use self::{error::ExecError, exit_status::ExitStatus};
 
 pub struct Executor;
 
@@ -17,19 +18,24 @@ impl Executor {
         Self {}
     }
 
-    pub fn execute(&self, program: Program) -> Result<(), ExecError> {
+    pub fn execute(&self, program: Program) -> Result<ExitStatus, ExecError> {
         let Program(CompleteCommands(complete_commands)) = program;
+        let mut status = ExitStatus::SUCCESS;
         for complete_command in complete_commands {
-            self.execute_complete_command(complete_command)?;
+            status = self.execute_complete_command(complete_command)?;
         }
-        Ok(())
+        Ok(status)
     }
 
-    fn execute_complete_command(&self, complete_command: CompleteCommand) -> Result<(), ExecError> {
+    fn execute_complete_command(
+        &self,
+        complete_command: CompleteCommand,
+    ) -> Result<ExitStatus, ExecError> {
         let CompleteCommand(List(list_parts), optional_separator) = complete_command;
         let mut list_part_iterator = list_parts.iter();
 
         let mut current = list_part_iterator.next();
+        let mut status = ExitStatus::SUCCESS;
         loop {
             let next = list_part_iterator.next();
 
@@ -41,68 +47,72 @@ impl Executor {
                 },
             );
 
-            match current {
-                Some(ListPart::Start(and_or)) => {
-                    self.execute_and_or(and_or, &separator_op)?;
-                }
-                Some(ListPart::Tail(and_or, _)) => {
-                    self.execute_and_or(and_or, &separator_op)?;
-                }
-                _ => unreachable!(),
+            status = match current {
+                Some(ListPart::Start(and_or)) => self.execute_and_or(and_or, &separator_op)?,
+                Some(ListPart::Tail(and_or, _)) => self.execute_and_or(and_or, &separator_op)?,
+                None => break,
             };
-
-            if next == None {
-                break;
-            }
 
             current = next;
         }
 
-        Ok(())
+        Ok(status)
     }
 
-    fn execute_and_or(&self, and_or: &AndOr, separator_op: &SeparatorOp) -> Result<(), ExecError> {
+    fn execute_and_or(
+        &self,
+        and_or: &AndOr,
+        separator_op: &SeparatorOp,
+    ) -> Result<ExitStatus, ExecError> {
         let AndOr(parts) = and_or;
         let mut part_iterator = parts.into_iter();
-        let mut result = match part_iterator.next() {
-            Some(AndOrPart::Start(pipeline)) => self.execute_pipeline(pipeline).is_ok(),
-            _ => unreachable!(),
+        let mut status = match part_iterator.next() {
+            Some(AndOrPart::Start(pipeline)) => self.execute_pipeline(pipeline)?,
+            _ => return Err(ExecError::MalformedPipeline),
         };
 
         for part in part_iterator {
-            result = match part {
+            status = match part {
                 AndOrPart::Start(_) => return Err(ExecError::MalformedPipeline),
-                AndOrPart::And(pipeline) if result => self.execute_pipeline(pipeline).is_ok(),
-                AndOrPart::Or(pipeline) if !result => self.execute_pipeline(pipeline).is_ok(),
-                _ => return Ok(()),
+                AndOrPart::And(pipeline) if status.is_success() => {
+                    self.execute_pipeline(pipeline)?
+                }
+                AndOrPart::Or(pipeline) if !status.is_success() => {
+                    self.execute_pipeline(pipeline)?
+                }
+                _ => return Ok(status),
             };
         }
 
-        Ok(())
+        Ok(status)
     }
 
-    fn execute_pipeline(&self, pipeline: &Pipeline) -> Result<(), ExecError> {
+    fn execute_pipeline(&self, pipeline: &Pipeline) -> Result<ExitStatus, ExecError> {
         // TODO: Handle bang vs normal.
-        match pipeline {
+        let status = match pipeline {
             Pipeline::Bang(pipe_sequence) => self.execute_pipe_sequence(pipe_sequence)?,
             Pipeline::Normal(pipe_sequence) => self.execute_pipe_sequence(pipe_sequence)?,
-        }
+        };
 
-        Ok(())
+        Ok(status)
     }
 
-    fn execute_pipe_sequence(&self, pipe_sequence: &PipeSequence) -> Result<(), ExecError> {
+    fn execute_pipe_sequence(&self, pipe_sequence: &PipeSequence) -> Result<ExitStatus, ExecError> {
         let PipeSequence(commands) = pipe_sequence;
+        let mut status = ExitStatus::SUCCESS;
         for command in commands {
-            match command {
+            status = match command {
                 Command::Simple(simple_command) => self.execute_simple_command(simple_command)?,
-            }
+            };
         }
 
-        Ok(())
+        Ok(status)
     }
 
-    fn execute_simple_command(&self, simple_command: &SimpleCommand) -> Result<(), ExecError> {
+    fn execute_simple_command(
+        &self,
+        simple_command: &SimpleCommand,
+    ) -> Result<ExitStatus, ExecError> {
         // TODO: Handle redirects.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
@@ -139,7 +149,7 @@ impl Executor {
                 .status();
 
             match result {
-                Ok(_) => Ok(()),
+                Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
                 Err(_) => Err(ExecError::UnknownCommand(command_name.to_string())),
             }
         } else {
