@@ -99,6 +99,8 @@ impl Parser {
     //                  | linebreak
     //                  ;
     fn program(&mut self) -> Result<Program, ParseError> {
+        // TODO: Verify that no cached_tokens remain - i.e. parsing is incomplete.
+        //       The only valid token should be EOF.
         self.linebreak()?;
         if let Ok(complete_commands) = self.complete_commands() {
             self.linebreak()?;
