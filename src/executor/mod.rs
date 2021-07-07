@@ -1,8 +1,9 @@
-use std::process::Stdio;
+use std::{collections::HashMap, process::Stdio};
 
 use crate::ast::{
-    AndOr, AndOrPart, CmdSuffix, Command, CompleteCommand, CompleteCommands, List, ListPart,
-    PipeSequence, Pipeline, Program, SeparatorOp, SimpleCommand, Word, Wordlist,
+    AndOr, AndOrPart, AssignmentWord, CmdPrefix, CmdSuffix, Command, CompleteCommand,
+    CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp, SimpleCommand,
+    Word, Wordlist,
 };
 
 pub struct ExecError;
@@ -98,9 +99,18 @@ impl Executor {
 
     fn execute_simple_command(&self, simple_command: &SimpleCommand) -> Result<(), ExecError> {
         // TODO: Handle redirects.
-        // TODO: Handle assignment words in the prefix.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
+            let envs = maybe_prefix.as_ref().map_or_else(
+                || HashMap::new(),
+                |prefix| {
+                    let CmdPrefix(assignments, _) = prefix;
+                    assignments
+                        .into_iter()
+                        .map(|AssignmentWord(key, value)| (key, value))
+                        .collect()
+                },
+            );
             let arguments = maybe_suffix.as_ref().map_or_else(
                 || Vec::new(),
                 |suffix| {
@@ -118,6 +128,7 @@ impl Executor {
 
             let result = std::process::Command::new(command_name)
                 .args(arguments)
+                .envs(envs)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .status();
