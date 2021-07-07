@@ -86,5 +86,6 @@ pub enum Token {
     // In,
 
     /* Pseudotokens. */
+    /// End of file. Typically \0.
     EOF,
 }

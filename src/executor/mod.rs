@@ -1,3 +1,5 @@
+mod error;
+
 use std::{collections::HashMap, process::Stdio};
 
 use crate::ast::{
@@ -6,12 +8,7 @@ use crate::ast::{
     Word, Wordlist,
 };
 
-pub enum ExecError {
-    /// No command specified.
-    MissingCommand,
-    /// The given command cannot be resolved.
-    UnknownCommand(String),
-}
+use self::error::ExecError;
 
 pub struct Executor;
 
@@ -138,8 +135,7 @@ impl Executor {
                 .stderr(Stdio::inherit())
                 .status();
 
-            if let Err(e) = result {
-                eprintln!("pjsh: {}", e);
+            if let Err(_error) = result {
                 return Err(ExecError::UnknownCommand(command_name.to_string()));
             }
         }

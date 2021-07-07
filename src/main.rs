@@ -52,7 +52,7 @@ fn main() {
                 let result = executor.execute(program);
                 match result {
                     Ok(_) => (),
-                    Err(_) => (),
+                    Err(exec_error) => eprintln!("pjsh: {}", exec_error),
                 }
             }
             Err(parse_error) => eprintln!("pjsh: {}", parse_error),
