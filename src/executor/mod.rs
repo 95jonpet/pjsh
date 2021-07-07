@@ -30,7 +30,6 @@ impl Executor {
         let mut list_part_iterator = list_parts.iter();
 
         let mut current = list_part_iterator.next();
-        // let mut next = None;
         loop {
             let next = list_part_iterator.next();
 
@@ -59,20 +58,24 @@ impl Executor {
             current = next;
         }
 
-        // The current has not been executed yet.
-
         Ok(())
     }
 
     fn execute_and_or(&self, and_or: &AndOr, separator_op: &SeparatorOp) -> Result<(), ExecError> {
         let AndOr(parts) = and_or;
-        for part in parts {
-            // TODO: Handle and/or logic.
-            match part {
-                AndOrPart::Start(pipeline) => self.execute_pipeline(pipeline)?,
-                AndOrPart::And(pipeline) => self.execute_pipeline(pipeline)?,
-                AndOrPart::Or(pipeline) => self.execute_pipeline(pipeline)?,
-            }
+        let mut part_iterator = parts.into_iter();
+        let mut result = match part_iterator.next() {
+            Some(AndOrPart::Start(pipeline)) => self.execute_pipeline(pipeline).is_ok(),
+            _ => unreachable!(),
+        };
+
+        for part in part_iterator {
+            result = match part {
+                AndOrPart::Start(_) => return Err(ExecError::MalformedPipeline),
+                AndOrPart::And(pipeline) if result => self.execute_pipeline(pipeline).is_ok(),
+                AndOrPart::Or(pipeline) if !result => self.execute_pipeline(pipeline).is_ok(),
+                _ => return Ok(()),
+            };
         }
 
         Ok(())
