@@ -7,7 +7,11 @@ mod parser;
 mod token;
 
 use clap::{crate_name, crate_version, Clap};
+use cursor::Cursor;
+use executor::Executor;
 use input::InputLines;
+use lexer::Lexer;
+use parser::Parser;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::{env, fs, io};
@@ -35,10 +39,10 @@ fn main() {
         ))),
         _ => InputLines::Buffered(Box::new(BufReader::new(io::stdin()))),
     };
-    let cursor = crate::cursor::Cursor::new(input, interactive);
-    let lexer = crate::lexer::Lexer::new(cursor);
-    let mut parser = crate::parser::Parser::new(Box::new(lexer));
-    let executor = crate::executor::Executor::new();
+    let cursor = Cursor::new(input, interactive);
+    let lexer = Lexer::new(cursor);
+    let mut parser = Parser::new(Box::new(lexer));
+    let executor = Executor::new();
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.

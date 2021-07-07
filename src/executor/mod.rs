@@ -6,7 +6,12 @@ use crate::ast::{
     Word, Wordlist,
 };
 
-pub struct ExecError;
+pub enum ExecError {
+    /// No command specified.
+    MissingCommand,
+    /// The given command cannot be resolved.
+    UnknownCommand(String),
+}
 
 pub struct Executor;
 
@@ -135,9 +140,9 @@ impl Executor {
 
             if let Err(e) = result {
                 eprintln!("pjsh: {}", e);
-                return Err(ExecError);
+                return Err(ExecError::UnknownCommand(command_name.to_string()));
             }
         }
-        Ok(())
+        Err(ExecError::MissingCommand)
     }
 }
