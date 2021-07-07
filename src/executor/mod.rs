@@ -135,10 +135,12 @@ impl Executor {
                 .stderr(Stdio::inherit())
                 .status();
 
-            if let Err(_error) = result {
-                return Err(ExecError::UnknownCommand(command_name.to_string()));
+            match result {
+                Ok(_) => Ok(()),
+                Err(_) => Err(ExecError::UnknownCommand(command_name.to_string())),
             }
+        } else {
+            Err(ExecError::MissingCommand)
         }
-        Err(ExecError::MissingCommand)
     }
 }
