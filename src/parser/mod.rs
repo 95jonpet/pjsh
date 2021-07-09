@@ -38,7 +38,7 @@ impl Parser {
     fn lexer_mode(&self) -> Mode {
         *self
             .lexer_mode_stack
-            .first()
+            .last()
             .expect("a lexer mode to be set")
     }
 
@@ -71,11 +71,11 @@ impl Parser {
         self.lexer_mode_stack.push(lexer_mode);
     }
 
-    // Restore the previous [`Lex`] mode.
+    /// Restore the previous [`Lex`] mode.
     fn pop_lexer_mode(&mut self) {
-        if self.lexer_mode_stack.is_empty() {
-            unreachable!("An empty lexer mode stack should not be popped!");
-        }
+        self.lexer_mode_stack
+            .pop()
+            .expect("an empty lexer mode stack should not be popped");
     }
 
     /// Returns a parsed [`Program`].
