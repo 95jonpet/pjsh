@@ -44,7 +44,7 @@ fn main() {
         ))),
         _ => InputLines::Buffered(Box::new(BufReader::new(io::stdin()))),
     };
-    let cursor = Cursor::new(input, interactive);
+    let cursor = Cursor::new(input, interactive, options.clone());
     let lexer = Lexer::new(cursor, options.clone());
     let mut parser = Parser::new(Box::new(lexer), options.clone());
     let executor = Executor::new(options.clone());

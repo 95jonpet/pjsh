@@ -152,6 +152,7 @@ impl Executor {
                     match command_args.as_slice() {
                         ["-o", "xlex"] => self.options.borrow_mut().debug_lexing = true,
                         ["-o", "xparse"] => self.options.borrow_mut().debug_parsing = true,
+                        ["-v"] | ["-o", "verbose"] => self.options.borrow_mut().print_input = true,
                         args => {
                             eprintln!("set: unknown arguments {:?}", args);
                             return Ok(ExitStatus::new(1));

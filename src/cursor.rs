@@ -1,10 +1,12 @@
 use std::{
+    cell::RefCell,
     io::{self, Write},
     iter::Peekable,
+    rc::Rc,
     vec::IntoIter,
 };
 
-use crate::input::InputLines;
+use crate::{input::InputLines, options::Options};
 
 /// Peekable iterator over a char stream.
 pub struct Cursor {
@@ -14,6 +16,7 @@ pub struct Cursor {
     line_buffer: String,
     line_offset: usize,
     line_number: usize,
+    options: Rc<RefCell<Options>>,
 }
 
 /// Character representing the end of file/input.
@@ -21,7 +24,7 @@ pub(crate) const EOF_CHAR: char = '\0';
 
 impl Cursor {
     /// Creates a new cursor for iterating over a char stream.
-    pub fn new(input: InputLines, interactive: bool) -> Self {
+    pub fn new(input: InputLines, interactive: bool, options: Rc<RefCell<Options>>) -> Self {
         Self {
             input: input.peekable(),
             interactive,
@@ -29,6 +32,7 @@ impl Cursor {
             line_buffer: String::new(),
             line_offset: 0,
             line_number: 0,
+            options,
         }
     }
 
@@ -94,6 +98,11 @@ impl Cursor {
 
         match self.input.next() {
             Some(line) => {
+                // Print read input to stderr if requested.
+                if self.options.borrow().print_input {
+                    eprint!("{}", line); // Is expected to contain a newline.
+                }
+
                 self.line = line.chars().collect::<Vec<_>>().into_iter().peekable();
                 self.line_buffer = line;
                 self.line_number += 1;

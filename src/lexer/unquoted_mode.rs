@@ -296,9 +296,14 @@ mod tests {
 
     fn lex(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
+        let options = Rc::new(RefCell::new(Options::default()));
         let mut lexer = Lexer {
-            cursor: Cursor::new(InputLines::Single(Some(String::from(input))), false),
-            options: Rc::new(RefCell::new(Options::default())),
+            cursor: Cursor::new(
+                InputLines::Single(Some(String::from(input))),
+                false,
+                options.clone(),
+            ),
+            options: options.clone(),
         };
 
         loop {
