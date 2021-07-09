@@ -56,36 +56,6 @@ pub enum Token {
     DLessDash,
     /// >|
     Clobber,
-    /// if
-    If,
-    /// then
-    Then,
-    /// else
-    Else,
-    /// elif
-    Elif,
-    /// fi
-    Fi,
-    /// do
-    Do,
-    /// done
-    Done,
-    /// case
-    Case,
-    /// esac
-    Esac,
-    /// while
-    While,
-    /// until
-    Until,
-    /// for
-    For,
-
-    /* Reserved words. */
-    // LBrace,
-    // RBrace,
-    // Bang,
-    // In,
 
     /* Pseudotokens. */
     /// End of file. Typically \0.
