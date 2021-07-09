@@ -1,21 +1,26 @@
 mod error;
 mod exit_status;
 
-use std::{collections::HashMap, process::Stdio};
+use std::{cell::RefCell, collections::HashMap, process::Stdio, rc::Rc};
 
-use crate::ast::{
-    AndOr, AndOrPart, AssignmentWord, CmdPrefix, CmdSuffix, Command, CompleteCommand,
-    CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp, SimpleCommand,
-    Word, Wordlist,
+use crate::{
+    ast::{
+        AndOr, AndOrPart, AssignmentWord, CmdPrefix, CmdSuffix, Command, CompleteCommand,
+        CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp,
+        SimpleCommand, Word, Wordlist,
+    },
+    options::Options,
 };
 
 use self::{error::ExecError, exit_status::ExitStatus};
 
-pub struct Executor;
+pub struct Executor {
+    options: Rc<RefCell<Options>>,
+}
 
 impl Executor {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(options: Rc<RefCell<Options>>) -> Self {
+        Self { options }
     }
 
     pub fn execute(&self, program: Program) -> Result<ExitStatus, ExecError> {
@@ -141,16 +146,32 @@ impl Executor {
                 },
             );
 
-            let result = std::process::Command::new(command_name)
-                .args(arguments)
-                .envs(envs)
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .status();
+            match command_name.as_str() {
+                "set" => {
+                    let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
+                    match command_args.as_slice() {
+                        ["-o", "xlex"] => self.options.borrow_mut().debug_lexing = true,
+                        ["-o", "xparse"] => self.options.borrow_mut().debug_parsing = true,
+                        args => {
+                            eprintln!("set: unknown arguments {:?}", args);
+                            return Ok(ExitStatus::new(1));
+                        }
+                    }
+                    Ok(ExitStatus::SUCCESS)
+                }
+                program => {
+                    let result = std::process::Command::new(program)
+                        .args(arguments)
+                        .envs(envs)
+                        .stdout(Stdio::inherit())
+                        .stderr(Stdio::inherit())
+                        .status();
 
-            match result {
-                Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
-                Err(_) => Err(ExecError::UnknownCommand(command_name.to_string())),
+                    match result {
+                        Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
+                        Err(_) => Err(ExecError::UnknownCommand(command_name.to_string())),
+                    }
+                }
             }
         } else {
             Err(ExecError::MissingCommand)

@@ -1,6 +1,6 @@
 mod error;
 
-use std::collections::VecDeque;
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use crate::{
     ast::{
@@ -9,6 +9,7 @@ use crate::{
         Program, RedirectList, SeparatorOp, SimpleCommand, Word, Wordlist,
     },
     lexer::{Lex, Mode},
+    options::Options,
     token::Token,
 };
 
@@ -18,12 +19,13 @@ pub struct Parser {
     lexer: Box<dyn Lex>,
     lexer_mode_stack: Vec<Mode>,
     cached_tokens: VecDeque<Token>,
+    options: Rc<RefCell<Options>>,
 }
 
 const DEFAULT_LEXER_MODE_STACK_CAPACITY: usize = 10;
 
 impl Parser {
-    pub fn new(lexer: Box<dyn Lex>) -> Self {
+    pub fn new(lexer: Box<dyn Lex>, options: Rc<RefCell<Options>>) -> Self {
         let mut lexer_mode_stack = Vec::with_capacity(DEFAULT_LEXER_MODE_STACK_CAPACITY);
         lexer_mode_stack.push(Mode::Unquoted);
 
@@ -31,6 +33,7 @@ impl Parser {
             lexer,
             lexer_mode_stack,
             cached_tokens: VecDeque::new(),
+            options,
         }
     }
 
@@ -92,6 +95,11 @@ impl Parser {
 
         // Ensure that the cache is clear if the parser is reused.
         self.cached_tokens.clear();
+
+        // Allow the parsed program to be verbosely written to stderr when requested.
+        if self.options.borrow().debug_parsing {
+            eprintln!("[pjsh::parser] {:?}", maybe_program);
+        }
 
         maybe_program
     }
@@ -645,7 +653,7 @@ mod tests {
 
     fn parser(tokens: Vec<Token>) -> Parser {
         let lexer = MockLexer::new(tokens);
-        let parser = Parser::new(Box::new(lexer));
+        let parser = Parser::new(Box::new(lexer), Rc::new(RefCell::new(Options::default())));
         parser
     }
 

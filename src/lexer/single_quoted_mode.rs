@@ -15,9 +15,12 @@ pub(crate) fn next_single_quoted_token(cursor: &mut Cursor) -> Token {
 
 #[cfg(test)]
 mod tests {
+    use std::{cell::RefCell, rc::Rc};
+
     use crate::{
         input::InputLines,
         lexer::{Lex, Lexer, Mode},
+        options::Options,
     };
 
     use super::*;
@@ -69,6 +72,7 @@ mod tests {
         let mut tokens = Vec::new();
         let mut lexer = Lexer {
             cursor: Cursor::new(InputLines::Single(Some(String::from(input))), false),
+            options: Rc::new(RefCell::new(Options::default())),
         };
 
         loop {

@@ -3,6 +3,7 @@ mod cursor;
 mod executor;
 mod input;
 mod lexer;
+pub(crate) mod options;
 mod parser;
 mod token;
 
@@ -11,9 +12,12 @@ use cursor::Cursor;
 use executor::Executor;
 use input::InputLines;
 use lexer::Lexer;
+use options::Options;
 use parser::Parser;
+use std::cell::RefCell;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::{env, fs, io};
 
 /// A shell for executing POSIX commands.
@@ -32,6 +36,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     let interactive = cli.command.is_none() && cli.script_file.is_none();
+    let options = Rc::new(RefCell::new(Options::default()));
     let input = match cli {
         conf if conf.command.is_some() => InputLines::Single(conf.command),
         conf if conf.script_file.is_some() => InputLines::Buffered(Box::new(BufReader::new(
@@ -40,9 +45,9 @@ fn main() {
         _ => InputLines::Buffered(Box::new(BufReader::new(io::stdin()))),
     };
     let cursor = Cursor::new(input, interactive);
-    let lexer = Lexer::new(cursor);
-    let mut parser = Parser::new(Box::new(lexer));
-    let executor = Executor::new();
+    let lexer = Lexer::new(cursor, options.clone());
+    let mut parser = Parser::new(Box::new(lexer), options.clone());
+    let executor = Executor::new(options.clone());
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.
