@@ -1,3 +1,4 @@
+mod double_quoted_mode;
 mod single_quoted_mode;
 mod unquoted_mode;
 
@@ -10,7 +11,8 @@ pub enum Mode {
     Unquoted,
     /// Surrounded by single quotes.
     InSingleQuotes,
-    // InDoubleQuotes,
+    /// Surrounded by double quotes.
+    InDoubleQuotes,
     // Arithmetic,
 }
 
@@ -34,6 +36,7 @@ impl Lexer {
 impl Lex for Lexer {
     fn next_token(&mut self, mode: Mode) -> Token {
         match mode {
+            Mode::InDoubleQuotes => double_quoted_mode::next_double_quoted_token(&mut self.cursor),
             Mode::InSingleQuotes => single_quoted_mode::next_single_quoted_token(&mut self.cursor),
             Mode::Unquoted => unquoted_mode::next_unquoted_token(&mut self.cursor),
         }

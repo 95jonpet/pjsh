@@ -33,6 +33,10 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
             cursor.next();
             Token::SQuote
         }
+        '"' => {
+            cursor.next();
+            Token::DQuote
+        }
         '|' => {
             cursor.next();
             match cursor.peek() {

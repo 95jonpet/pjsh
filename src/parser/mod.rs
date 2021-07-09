@@ -587,6 +587,20 @@ impl Parser {
                     unreachable!()
                 }
             }
+            Token::DQuote => {
+                self.next_token();
+                self.push_lexer_mode(Mode::InDoubleQuotes);
+                match self.next_token() {
+                    Token::Word(word) => match self.next_token() {
+                        Token::DQuote => {
+                            self.pop_lexer_mode();
+                            Ok(Word(word))
+                        }
+                        _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
+                    },
+                    _ => Err(ParseError::UnexpectedToken(self.peek_token().clone())),
+                }
+            }
             Token::SQuote => {
                 self.next_token();
                 self.push_lexer_mode(Mode::InSingleQuotes);
