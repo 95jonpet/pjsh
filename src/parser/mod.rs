@@ -80,7 +80,20 @@ impl Parser {
 
     /// Returns a parsed [`Program`].
     pub fn parse(&mut self) -> Result<Program, ParseError> {
-        self.program()
+        let maybe_program = self.program();
+
+        // Verify that no cached non-EOF tokens remain.
+        // If such tokens are present, parsing is incomplete.
+        for cached_token in &self.cached_tokens {
+            if cached_token != &Token::EOF {
+                return Err(ParseError::UnconsumedToken(cached_token.clone()));
+            }
+        }
+
+        // Ensure that the cache is clear if the parser is reused.
+        self.cached_tokens.clear();
+
+        maybe_program
     }
 
     fn assignment_word(&mut self) -> Result<AssignmentWord, ParseError> {
@@ -108,16 +121,13 @@ impl Parser {
     //                  | linebreak
     //                  ;
     fn program(&mut self) -> Result<Program, ParseError> {
-        // TODO: Verify that no cached_tokens remain - i.e. parsing is incomplete.
-        //       The only valid token should be EOF.
         self.linebreak()?;
         if let Ok(complete_commands) = self.complete_commands() {
             self.linebreak()?;
-            self.cached_tokens.clear();
-            return Ok(Program(complete_commands));
+            Ok(Program(complete_commands))
+        } else {
+            Ok(Program(CompleteCommands(Vec::new())))
         }
-        self.cached_tokens.clear();
-        Ok(Program(CompleteCommands(Vec::new())))
     }
 
     // complete_commands: complete_commands newline_list complete_command
