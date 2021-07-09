@@ -46,7 +46,7 @@ fn main() {
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.
-    while interactive {
+    loop {
         match parser.parse() {
             Ok(program) => {
                 let result = executor.execute(program);
@@ -56,6 +56,10 @@ fn main() {
                 }
             }
             Err(parse_error) => eprintln!("pjsh: {}", parse_error),
+        }
+
+        if !interactive {
+            break;
         }
     }
 }
