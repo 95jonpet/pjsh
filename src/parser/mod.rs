@@ -34,6 +34,7 @@ impl Parser {
         }
     }
 
+    /// Returns the current [`Mode`] that should be used when performing lexical analysis.
     fn lexer_mode(&self) -> Mode {
         *self
             .lexer_mode_stack
@@ -41,6 +42,8 @@ impl Parser {
             .expect("a lexer mode to be set")
     }
 
+    /// Returns the next [`Token`] from the [`Lex`].
+    /// The token is also cached locally.
     fn peek_token(&mut self) -> &Token {
         if self.cached_tokens.is_empty() {
             let next_token = self.lexer.next_token(self.lexer_mode());
@@ -50,12 +53,16 @@ impl Parser {
         self.cached_tokens.front().unwrap_or(&Token::EOF)
     }
 
+    /// Returns the next [`Token`] from the [`Lex`].
+    /// Tokens may be locally cached if peeked .
+    /// If the next token resides in the cache, it is also removed from the cache.
     fn next_token(&mut self) -> Token {
         self.cached_tokens
             .pop_front()
             .unwrap_or_else(|| self.lexer.next_token(self.lexer_mode()))
     }
 
+    /// Set the current [`Lex`] mode.
     fn push_lexer_mode(&mut self, lexer_mode: Mode) {
         if lexer_mode != self.lexer_mode() && !self.cached_tokens.is_empty() {
             unreachable!("The lexer mode should not be changed while peeked tokens are held!");
@@ -64,12 +71,14 @@ impl Parser {
         self.lexer_mode_stack.push(lexer_mode);
     }
 
+    // Restore the previous [`Lex`] mode.
     fn pop_lexer_mode(&mut self) {
         if self.lexer_mode_stack.is_empty() {
             unreachable!("An empty lexer mode stack should not be popped!");
         }
     }
 
+    /// Returns a parsed [`Program`].
     pub fn parse(&mut self) -> Result<Program, ParseError> {
         self.program()
     }
