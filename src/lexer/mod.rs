@@ -3,13 +3,14 @@ mod single_quoted_mode;
 mod unquoted_mode;
 
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::cursor::Cursor;
 use crate::options::Options;
 use crate::token::Token;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
     /// Default mode of operation.
     Unquoted,
@@ -18,6 +19,16 @@ pub enum Mode {
     /// Surrounded by double quotes.
     InDoubleQuotes,
     // Arithmetic,
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Mode::Unquoted => write!(f, "unquoted"),
+            Mode::InSingleQuotes => write!(f, "single-quoted"),
+            Mode::InDoubleQuotes => write!(f, "double-quoted"),
+        }
+    }
 }
 
 pub trait Lex {
@@ -47,7 +58,7 @@ impl Lex for Lexer {
         };
 
         if self.options.borrow().debug_lexing {
-            eprintln!("[pjsh::lexer] [{:?}] {}", mode, token);
+            eprintln!("[pjsh::lexer] {} mode: {}", mode, token);
         }
 
         token
