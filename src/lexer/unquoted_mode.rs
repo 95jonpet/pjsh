@@ -132,188 +132,188 @@ pub(crate) fn next_unquoted_token(cursor: &mut Cursor) -> Token {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::{cell::RefCell, rc::Rc};
+// #[cfg(test)]
+// mod tests {
+//     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{
-        input::InputLines,
-        lexer::{Lex, Lexer, Mode},
-        options::Options,
-    };
+//     use crate::{
+//         input::InputLines,
+//         lexer::{Lex, Lexer, Mode},
+//         options::Options,
+//     };
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn it_ignores_comments() {
-        assert_eq!(
-            lex("code # comment."),
-            vec![Token::Word("code".to_string())]
-        );
-        assert_eq!(
-            lex("code # Newline is kept\ntest"),
-            vec![
-                Token::Word("code".to_string()),
-                Token::Newline,
-                Token::Word("test".to_string()),
-            ]
-        );
-    }
+//     #[test]
+//     fn it_ignores_comments() {
+//         assert_eq!(
+//             lex("code # comment."),
+//             vec![Token::Word("code".to_string())]
+//         );
+//         assert_eq!(
+//             lex("code # Newline is kept\ntest"),
+//             vec![
+//                 Token::Word("code".to_string()),
+//                 Token::Newline,
+//                 Token::Word("test".to_string()),
+//             ]
+//         );
+//     }
 
-    #[test]
-    fn it_splits_words_on_spaces() {
-        assert_eq!(
-            lex("first second"),
-            vec![
-                Token::Word("first".to_string()),
-                Token::Word("second".to_string())
-            ]
-        );
-        assert_eq!(
-            lex("first    second"),
-            vec![
-                Token::Word("first".to_string()),
-                Token::Word("second".to_string())
-            ]
-        );
-    }
+//     #[test]
+//     fn it_splits_words_on_spaces() {
+//         assert_eq!(
+//             lex("first second"),
+//             vec![
+//                 Token::Word("first".to_string()),
+//                 Token::Word("second".to_string())
+//             ]
+//         );
+//         assert_eq!(
+//             lex("first    second"),
+//             vec![
+//                 Token::Word("first".to_string()),
+//                 Token::Word("second".to_string())
+//             ]
+//         );
+//     }
 
-    #[test]
-    fn it_splits_words_on_tabs() {
-        assert_eq!(
-            lex("first\tsecond"),
-            vec![
-                Token::Word("first".to_string()),
-                Token::Word("second".to_string())
-            ]
-        );
-        assert_eq!(
-            lex("first\t\tsecond"),
-            vec![
-                Token::Word("first".to_string()),
-                Token::Word("second".to_string())
-            ]
-        );
-    }
+//     #[test]
+//     fn it_splits_words_on_tabs() {
+//         assert_eq!(
+//             lex("first\tsecond"),
+//             vec![
+//                 Token::Word("first".to_string()),
+//                 Token::Word("second".to_string())
+//             ]
+//         );
+//         assert_eq!(
+//             lex("first\t\tsecond"),
+//             vec![
+//                 Token::Word("first".to_string()),
+//                 Token::Word("second".to_string())
+//             ]
+//         );
+//     }
 
-    #[test]
-    fn it_identifies_io_number_tokens() {
-        assert_eq!(lex("2>"), vec![Token::IoNumber(2), Token::Great]);
-        assert_eq!(
-            lex("1< file"),
-            vec![
-                Token::IoNumber(1),
-                Token::Less,
-                Token::Word(String::from("file"))
-            ]
-        );
-    }
+//     #[test]
+//     fn it_identifies_io_number_tokens() {
+//         assert_eq!(lex("2>"), vec![Token::IoNumber(2), Token::Great]);
+//         assert_eq!(
+//             lex("1< file"),
+//             vec![
+//                 Token::IoNumber(1),
+//                 Token::Less,
+//                 Token::Word(String::from("file"))
+//             ]
+//         );
+//     }
 
-    #[test]
-    fn it_identifies_pipe_tokens() {
-        assert_eq!(lex("|"), vec![Token::Pipe]);
-    }
+//     #[test]
+//     fn it_identifies_pipe_tokens() {
+//         assert_eq!(lex("|"), vec![Token::Pipe]);
+//     }
 
-    #[test]
-    fn it_identifies_lparen_tokens() {
-        assert_eq!(lex("("), vec![Token::LParen]);
-    }
+//     #[test]
+//     fn it_identifies_lparen_tokens() {
+//         assert_eq!(lex("("), vec![Token::LParen]);
+//     }
 
-    #[test]
-    fn it_identifies_rparen_tokens() {
-        assert_eq!(lex(")"), vec![Token::RParen]);
-    }
+//     #[test]
+//     fn it_identifies_rparen_tokens() {
+//         assert_eq!(lex(")"), vec![Token::RParen]);
+//     }
 
-    #[test]
-    fn it_identifies_less_tokens() {
-        assert_eq!(lex("<"), vec![Token::Less]);
-    }
+//     #[test]
+//     fn it_identifies_less_tokens() {
+//         assert_eq!(lex("<"), vec![Token::Less]);
+//     }
 
-    #[test]
-    fn it_identifies_great_tokens() {
-        assert_eq!(lex(">"), vec![Token::Great]);
-    }
+//     #[test]
+//     fn it_identifies_great_tokens() {
+//         assert_eq!(lex(">"), vec![Token::Great]);
+//     }
 
-    #[test]
-    fn it_identifies_and_tokens() {
-        assert_eq!(lex("&"), vec![Token::And]);
-    }
+//     #[test]
+//     fn it_identifies_and_tokens() {
+//         assert_eq!(lex("&"), vec![Token::And]);
+//     }
 
-    #[test]
-    fn it_identifies_semi_tokens() {
-        assert_eq!(lex(";"), vec![Token::Semi]);
-    }
+//     #[test]
+//     fn it_identifies_semi_tokens() {
+//         assert_eq!(lex(";"), vec![Token::Semi]);
+//     }
 
-    #[test]
-    fn it_identifies_andif_tokens() {
-        assert_eq!(lex("&&"), vec![Token::AndIf]);
-    }
+//     #[test]
+//     fn it_identifies_andif_tokens() {
+//         assert_eq!(lex("&&"), vec![Token::AndIf]);
+//     }
 
-    #[test]
-    fn it_identifies_orif_tokens() {
-        assert_eq!(lex("||"), vec![Token::OrIf]);
-    }
+//     #[test]
+//     fn it_identifies_orif_tokens() {
+//         assert_eq!(lex("||"), vec![Token::OrIf]);
+//     }
 
-    #[test]
-    fn it_identifies_dsemi_tokens() {
-        assert_eq!(lex(";;"), vec![Token::DSemi]);
-    }
+//     #[test]
+//     fn it_identifies_dsemi_tokens() {
+//         assert_eq!(lex(";;"), vec![Token::DSemi]);
+//     }
 
-    #[test]
-    fn it_identifies_dless_tokens() {
-        assert_eq!(lex("<<"), vec![Token::DLess]);
-    }
+//     #[test]
+//     fn it_identifies_dless_tokens() {
+//         assert_eq!(lex("<<"), vec![Token::DLess]);
+//     }
 
-    #[test]
-    fn it_identifies_dgreat_tokens() {
-        assert_eq!(lex(">>"), vec![Token::DGreat]);
-    }
+//     #[test]
+//     fn it_identifies_dgreat_tokens() {
+//         assert_eq!(lex(">>"), vec![Token::DGreat]);
+//     }
 
-    #[test]
-    fn it_identifies_lessand_tokens() {
-        assert_eq!(lex("<&"), vec![Token::LessAnd]);
-    }
+//     #[test]
+//     fn it_identifies_lessand_tokens() {
+//         assert_eq!(lex("<&"), vec![Token::LessAnd]);
+//     }
 
-    #[test]
-    fn it_identifies_greatand_tokens() {
-        assert_eq!(lex(">&"), vec![Token::GreatAnd]);
-    }
+//     #[test]
+//     fn it_identifies_greatand_tokens() {
+//         assert_eq!(lex(">&"), vec![Token::GreatAnd]);
+//     }
 
-    #[test]
-    fn it_identifies_lessgreat_tokens() {
-        assert_eq!(lex("<>"), vec![Token::LessGreat]);
-    }
+//     #[test]
+//     fn it_identifies_lessgreat_tokens() {
+//         assert_eq!(lex("<>"), vec![Token::LessGreat]);
+//     }
 
-    #[test]
-    fn it_identifies_dlessdash_tokens() {
-        assert_eq!(lex("<<-"), vec![Token::DLessDash]);
-    }
+//     #[test]
+//     fn it_identifies_dlessdash_tokens() {
+//         assert_eq!(lex("<<-"), vec![Token::DLessDash]);
+//     }
 
-    #[test]
-    fn it_identifies_clobber_tokens() {
-        assert_eq!(lex(">|"), vec![Token::Clobber]);
-    }
+//     #[test]
+//     fn it_identifies_clobber_tokens() {
+//         assert_eq!(lex(">|"), vec![Token::Clobber]);
+//     }
 
-    fn lex(input: &str) -> Vec<Token> {
-        let mut tokens = Vec::new();
-        let options = Rc::new(RefCell::new(Options::default()));
-        let mut lexer = Lexer {
-            cursor: Cursor::new(
-                InputLines::Single(Some(String::from(input))),
-                false,
-                options.clone(),
-            ),
-            options: options.clone(),
-        };
+//     fn lex(input: &str) -> Vec<Token> {
+//         let mut tokens = Vec::new();
+//         let options = Rc::new(RefCell::new(Options::default()));
+//         let mut lexer = Lexer {
+//             cursor: Cursor::new(
+//                 InputLines::Single(Some(String::from(input))),
+//                 false,
+//                 options.clone(),
+//             ),
+//             options: options.clone(),
+//         };
 
-        loop {
-            let token = lexer.next_token(Mode::Unquoted);
-            if token == Token::EOF {
-                break;
-            }
-            tokens.push(token);
-        }
+//         loop {
+//             let token = lexer.next_token(Mode::Unquoted);
+//             if token == Token::EOF {
+//                 break;
+//             }
+//             tokens.push(token);
+//         }
 
-        tokens
-    }
-}
+//         tokens
+//     }
+// }

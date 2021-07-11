@@ -1,4 +1,5 @@
 mod double_quoted_mode;
+mod new_lexer;
 mod single_quoted_mode;
 mod unquoted_mode;
 
@@ -9,6 +10,8 @@ use std::rc::Rc;
 use crate::cursor::Cursor;
 use crate::options::Options;
 use crate::token::Token;
+
+use self::new_lexer::NewLexer;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
@@ -41,21 +44,34 @@ pub trait Lex {
 pub struct Lexer {
     cursor: Cursor,
     options: Rc<RefCell<Options>>,
+    new_lexer: NewLexer,
 }
 
 impl Lexer {
     pub fn new(cursor: Cursor, options: Rc<RefCell<Options>>) -> Self {
-        Self { cursor, options }
+        Self {
+            cursor,
+            options,
+            new_lexer: NewLexer::new(),
+        }
     }
 }
 
 impl Lex for Lexer {
     fn next_token(&mut self, mode: Mode) -> Token {
-        let token = match mode {
-            Mode::InDoubleQuotes => double_quoted_mode::next_double_quoted_token(&mut self.cursor),
-            Mode::InSingleQuotes => single_quoted_mode::next_single_quoted_token(&mut self.cursor),
-            Mode::Unquoted => unquoted_mode::next_unquoted_token(&mut self.cursor),
-        };
+        // let token = match mode {
+        //     Mode::InDoubleQuotes => double_quoted_mode::next_double_quoted_token(&mut self.cursor),
+        //     Mode::InSingleQuotes => single_quoted_mode::next_single_quoted_token(&mut self.cursor),
+        //     Mode::Unquoted => unquoted_mode::next_unquoted_token(&mut self.cursor),
+        // };
+
+        let mut token = self.new_lexer.next_token(&mut self.cursor);
+
+        if self.cursor.is_interactive() && token == Token::Newline {
+            token = Token::EOF;
+        }
+
+        eprintln!("Token: {:?}", token);
 
         if self.options.borrow().debug_lexing {
             eprintln!("[pjsh::lexer] {} mode: {}", mode, token);
