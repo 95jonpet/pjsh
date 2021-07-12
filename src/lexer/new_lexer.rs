@@ -96,36 +96,22 @@ impl NewLexer {
 
             let mut joined = self.current_token.clone();
             joined.push(current);
-            let can_form_operator = self.forming_operator || self.current_token.is_empty();
+            let potential_operator = self.forming_operator || self.current_token.is_empty();
             match current {
                 // 1. If the end of input is recognized, the current token (if any) shall be delimited.
                 EOF_CHAR => {
-                    self.forming_operator = false;
-
-                    if self.current_token.is_empty() || self.current_token == "\r" {
-                        return Token::EOF;
-                    } else {
-                        self.token_queue.push_back(Token::EOF);
-                        return self.delimit_current_token(can_form_operator);
-                    }
+                    return self.delimit_token_before_eof(potential_operator);
                 }
 
                 // 2. If the previous character was used as part of an operator and the current character is not quoted and can be used with the previous characters to form an operator, it shall be used as part of that (operator) token.
-                _ if can_form_operator && self.is_operator_prefix(&joined) => {
+                _ if potential_operator && self.is_operator_prefix(&joined) => {
                     self.forming_operator = true;
                     self.current_token = joined;
                 }
 
                 // 3. If the previous character was used as part of an operator and the current character cannot be used with the previous characters to form an operator, the operator containing the previous character shall be delimited.
                 ch if self.forming_operator && !self.is_operator_prefix(&joined) => {
-                    let operator = self
-                        .operators
-                        .get(&self.current_token)
-                        .expect("the current token should be an operator")
-                        .to_owned();
-                    self.current_token = ch.to_string();
-                    self.forming_operator = false;
-                    return operator;
+                    return self.delimit_operator_token_before_non_operator_char(ch);
                 }
 
                 // 4. If the current character is <backslash>, single-quote, or double-quote and it is not quoted, it shall affect quoting for subsequent characters up to the end of the quoted text. The rules for quoting are as described in Quoting . During token recognition no substitutions shall be actually performed, and the result token shall contain exactly the characters that appear in the input (except for <newline> joining), unmodified, including any embedded or enclosing quotes or substitution operators, between the <quotation-mark> and the end of the quoted text. The token shall not be delimited by the end of the quoted field.
@@ -139,7 +125,7 @@ impl NewLexer {
                     && !self.is_operator_prefix(&self.current_token)
                     && self.is_operator_prefix(&ch.to_string()) =>
                 {
-                    let token = self.delimit_current_token(can_form_operator);
+                    let token = self.delimit_current_token(potential_operator);
                     self.forming_operator = true;
                     self.current_token = ch.to_string();
                     return token;
@@ -150,13 +136,9 @@ impl NewLexer {
                     if !self.current_token.is_empty() {
                         if self.forming_operator {
                             self.forming_operator = false;
-                            return self
-                                .operators
-                                .get(&self.current_token)
-                                .expect("the current token should be an operator")
-                                .to_owned();
+                            return self.delimit_operator_token(&self.current_token);
                         }
-                        return self.delimit_current_token(can_form_operator);
+                        return self.delimit_current_token(potential_operator);
                     }
                 }
 
@@ -179,6 +161,32 @@ impl NewLexer {
                 }
             }
         }
+    }
+
+    fn delimit_operator_token(&self, operator: &String) -> Token {
+        return self
+            .operators
+            .get(operator)
+            .expect("the current token should be an operator")
+            .to_owned();
+    }
+
+    fn delimit_token_before_eof(&mut self, potential_operator: bool) -> Token {
+        self.forming_operator = false;
+
+        if self.current_token.is_empty() || self.current_token == "\r" {
+            return Token::EOF;
+        } else {
+            self.token_queue.push_back(Token::EOF);
+            return self.delimit_current_token(potential_operator);
+        }
+    }
+
+    fn delimit_operator_token_before_non_operator_char(&mut self, ch: char) -> Token {
+        let operator = self.delimit_operator_token(&self.current_token);
+        self.current_token = ch.to_string();
+        self.forming_operator = false;
+        return operator;
     }
 }
 
