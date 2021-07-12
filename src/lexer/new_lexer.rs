@@ -69,6 +69,7 @@ impl NewLexer {
         Token::Word(take(&mut self.current_token))
     }
 
+    /// Returns `true` if the input string is a prefix, or complete, operator definition.
     fn is_operator_prefix(&self, string: &str) -> bool {
         self.operators
             .keys()
@@ -76,6 +77,7 @@ impl NewLexer {
     }
 
     pub(crate) fn next_token(&mut self, cursor: &mut Cursor) -> Token {
+        // Return already queued tokens if such exist.
         if let Some(token) = self.token_queue.pop_front() {
             return token;
         }
@@ -104,7 +106,10 @@ impl NewLexer {
                 // character cannot be used with the previous characters to form an operator,
                 // the operator containing the previous character shall be delimited.
                 ch if self.forming_operator && !self.is_operator_prefix(&joined) => {
-                    return self.delimit_operator_token_before_non_operator_char(ch);
+                    let operator = self.delimit_operator_token(&self.current_token);
+                    self.current_token = ch.to_string();
+                    self.forming_operator = false;
+                    return operator;
                 }
 
                 // 4. If the current character is <backslash>, single-quote, or double-quote and
@@ -202,6 +207,7 @@ impl NewLexer {
         }
     }
 
+    /// Delimits an operator [`Token`].
     fn delimit_operator_token(&self, operator: &String) -> Token {
         return self
             .operators
@@ -210,6 +216,7 @@ impl NewLexer {
             .to_owned();
     }
 
+    /// Delimits a [`Token`] that exists right before EOF.
     fn delimit_token_before_eof(&mut self, potential_operator: bool) -> Token {
         self.forming_operator = false;
 
@@ -219,13 +226,6 @@ impl NewLexer {
             self.token_queue.push_back(Token::EOF);
             return self.delimit_current_token(potential_operator);
         }
-    }
-
-    fn delimit_operator_token_before_non_operator_char(&mut self, ch: char) -> Token {
-        let operator = self.delimit_operator_token(&self.current_token);
-        self.current_token = ch.to_string();
-        self.forming_operator = false;
-        return operator;
     }
 }
 
