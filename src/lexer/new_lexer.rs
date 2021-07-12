@@ -81,46 +81,62 @@ impl NewLexer {
         }
 
         loop {
-            // Read the next character from the cursor.
-            // In interactive mode, unquoted newlines are translated into EOF characters.
-            let current = match cursor.next() {
-                '\n' if self.mode == Mode::Unquoted && cursor.is_interactive() => EOF_CHAR,
-                '\r' if self.mode == Mode::Unquoted
-                    && cursor.peek() == &'\n'
-                    && cursor.is_interactive() =>
-                {
-                    EOF_CHAR
-                }
-                ch => ch,
-            };
-
+            let current = Self::read_char(cursor, self.mode);
             let mut joined = self.current_token.clone();
             joined.push(current);
             let potential_operator = self.forming_operator || self.current_token.is_empty();
             match current {
-                // 1. If the end of input is recognized, the current token (if any) shall be delimited.
+                // 1. If the end of input is recognized, the current token (if any) shall be
+                // delimited.
                 EOF_CHAR => {
                     return self.delimit_token_before_eof(potential_operator);
                 }
 
-                // 2. If the previous character was used as part of an operator and the current character is not quoted and can be used with the previous characters to form an operator, it shall be used as part of that (operator) token.
+                // 2. If the previous character was used as part of an operator and the current
+                // character is not quoted and can be used with the previous characters to form
+                // an operator, it shall be used as part of that (operator) token.
                 _ if potential_operator && self.is_operator_prefix(&joined) => {
                     self.forming_operator = true;
                     self.current_token = joined;
                 }
 
-                // 3. If the previous character was used as part of an operator and the current character cannot be used with the previous characters to form an operator, the operator containing the previous character shall be delimited.
+                // 3. If the previous character was used as part of an operator and the current
+                // character cannot be used with the previous characters to form an operator,
+                // the operator containing the previous character shall be delimited.
                 ch if self.forming_operator && !self.is_operator_prefix(&joined) => {
                     return self.delimit_operator_token_before_non_operator_char(ch);
                 }
 
-                // 4. If the current character is <backslash>, single-quote, or double-quote and it is not quoted, it shall affect quoting for subsequent characters up to the end of the quoted text. The rules for quoting are as described in Quoting . During token recognition no substitutions shall be actually performed, and the result token shall contain exactly the characters that appear in the input (except for <newline> joining), unmodified, including any embedded or enclosing quotes or substitution operators, between the <quotation-mark> and the end of the quoted text. The token shall not be delimited by the end of the quoted field.
+                // 4. If the current character is <backslash>, single-quote, or double-quote and
+                // it is not quoted, it shall affect quoting for subsequent characters up to
+                // the end of the quoted text.
+                // During token recognition no substitutions shall be actually performed, and
+                // the result token shall contain exactly the characters that appear in the input
+                // (except for <newline> joining), unmodified, including any embedded or enclosing
+                // quotes or substitution operators, between the <quotation-mark> and the end of
+                // the quoted text. The token shall not be delimited by the end of the quoted field.
                 // TODO: Implement multiple modes.
 
-                // 5. If the current character is an unquoted '$' or '`', the shell shall identify the start of any candidates for parameter expansion (Parameter Expansion), command substitution (Command Substitution), or arithmetic expansion (Arithmetic Expansion) from their introductory unquoted character sequences: '$' or "${", "$(" or '`', and "$((", respectively. The shell shall read sufficient input to determine the end of the unit to be expanded (as explained in the cited sections). While processing the characters, if instances of expansions or quoting are found nested within the substitution, the shell shall recursively process them in the manner specified for the construct that is found. The characters found from the beginning of the substitution to its end, allowing for any recursion necessary to recognize embedded constructs, shall be included unmodified in the result token, including any embedded or enclosing substitution operators or quotes. The token shall not be delimited by the end of the substitution.
+                // 5. If the current character is an unquoted '$' or '`', the shell shall identify
+                // the start of any candidates for parameter expansion (Parameter Expansion),
+                // command substitution (Command Substitution), or arithmetic expansion
+                // (Arithmetic Expansion) from their introductory unquoted character sequences:
+                // '$' or "${", "$(" or '`', and "$((", respectively.
+                // The shell shall read sufficient input to determine the end of the unit to be
+                // expanded.
+                // While processing the characters, if instances of expansions or quoting are found
+                // nested within the substitution, the shell shall recursively process them in the
+                // manner specified for the construct that is found.
+                // The characters found from the beginning of the substitution to its end, allowing
+                // for any recursion necessary to recognize embedded constructs, shall be included
+                // unmodified in the result token, including any embedded or enclosing substitution
+                // operators or quotes. The token shall not be delimited by the end of the
+                // substitution.
                 // TODO: Handle expansion and substitution syntax.
 
-                // 6. If the current character is not quoted and can be used as the first character of a new operator, the current token (if any) shall be delimited. The current character shall be used as the beginning of the next (operator) token.
+                // 6. If the current character is not quoted and can be used as the first character
+                // of a new operator, the current token (if any) shall be delimited.
+                // The current character shall be used as the beginning of the next operator token.
                 ch if self.mode == Mode::Unquoted
                     && !self.is_operator_prefix(&self.current_token)
                     && self.is_operator_prefix(&ch.to_string()) =>
@@ -131,7 +147,8 @@ impl NewLexer {
                     return token;
                 }
 
-                // 7. If the current character is an unquoted <blank>, any token containing the previous character is delimited and the current character shall be discarded.
+                // 7. If the current character is an unquoted <blank>, any token containing the
+                // previous character is delimited and the current character shall be discarded.
                 ch if self.mode == Mode::Unquoted && self.whitespace_chars.contains(&ch) => {
                     if !self.current_token.is_empty() {
                         if self.forming_operator {
@@ -142,14 +159,17 @@ impl NewLexer {
                     }
                 }
 
-                // 9. If the current character is a '#', it and all subsequent characters up to, but excluding, the next <newline> shall be discarded as a comment. The <newline> that ends the line is not considered part of the comment.
+                // 9. If the current character is a '#', it and all subsequent characters up to,
+                // but excluding, the next <newline> shall be discarded as a comment.
+                // The <newline> that ends the line is not considered part of the comment.
                 '#' => {
                     while cursor.peek() != &'\n' {
                         cursor.next();
                     }
                 }
 
-                // 8. If the previous character was part of a word, the current character shall be appended to that word.
+                // 8. If the previous character was part of a word, the current character shall be
+                // appended to that word.
                 _ if !self.current_token.is_empty() => {
                     self.current_token = joined;
                 }
@@ -160,6 +180,25 @@ impl NewLexer {
                     self.current_token = ch.to_string();
                 }
             }
+        }
+    }
+
+    /// Reads the next [`char`] from the a [`Cursor`].
+    ///
+    /// Unquoted newlines are translated into EOF characters if the cursor is interactive.
+    fn read_char(cursor: &mut Cursor, mode: Mode) -> char {
+        let current = cursor.next();
+
+        // Non-interactive mode, return the current character.
+        if !cursor.is_interactive() {
+            return current;
+        }
+
+        // Interactive mode, convert newlines to EOF.
+        match current {
+            '\n' if mode == Mode::Unquoted => EOF_CHAR, // LF newline.
+            '\r' if mode == Mode::Unquoted && cursor.peek() == &'\n' => EOF_CHAR, // CRLF newline.
+            ch => ch,
         }
     }
 
