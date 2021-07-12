@@ -174,7 +174,7 @@ impl NewLexer {
     fn delimit_token_before_eof(&mut self, potential_operator: bool) -> Token {
         self.forming_operator = false;
 
-        if self.current_token.is_empty() || self.current_token == "\r" {
+        if self.current_token.is_empty() {
             return Token::EOF;
         } else {
             self.token_queue.push_back(Token::EOF);
