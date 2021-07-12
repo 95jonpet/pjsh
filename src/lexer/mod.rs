@@ -71,8 +71,6 @@ impl Lex for Lexer {
             token = Token::EOF;
         }
 
-        eprintln!("Token: {:?}", token);
-
         if self.options.borrow().debug_lexing {
             eprintln!("[pjsh::lexer] {} mode: {}", mode, token);
         }

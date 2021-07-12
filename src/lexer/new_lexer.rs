@@ -81,7 +81,19 @@ impl NewLexer {
         }
 
         loop {
-            let current = cursor.next();
+            // Read the next character from the cursor.
+            // In interactive mode, unquoted newlines are translated into EOF characters.
+            let current = match cursor.next() {
+                '\n' if self.mode == Mode::Unquoted && cursor.is_interactive() => EOF_CHAR,
+                '\r' if self.mode == Mode::Unquoted
+                    && cursor.peek() == &'\n'
+                    && cursor.is_interactive() =>
+                {
+                    EOF_CHAR
+                }
+                ch => ch,
+            };
+
             let mut joined = self.current_token.clone();
             joined.push(current);
             let can_form_operator = self.forming_operator || self.current_token.is_empty();
@@ -90,7 +102,7 @@ impl NewLexer {
                 EOF_CHAR => {
                     self.forming_operator = false;
 
-                    if self.current_token.is_empty() {
+                    if self.current_token.is_empty() || self.current_token == "\r" {
                         return Token::EOF;
                     } else {
                         self.token_queue.push_back(Token::EOF);
