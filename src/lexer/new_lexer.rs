@@ -208,7 +208,7 @@ impl NewLexer {
     }
 
     /// Delimits an operator [`Token`].
-    fn delimit_operator_token(&self, operator: &String) -> Token {
+    fn delimit_operator_token(&self, operator: &str) -> Token {
         return self
             .operators
             .get(operator)
@@ -221,10 +221,10 @@ impl NewLexer {
         self.forming_operator = false;
 
         if self.current_token.is_empty() {
-            return Token::EOF;
+            Token::EOF
         } else {
             self.token_queue.push_back(Token::EOF);
-            return self.delimit_current_token(potential_operator);
+            self.delimit_current_token(potential_operator)
         }
     }
 }

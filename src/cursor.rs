@@ -92,23 +92,20 @@ impl Cursor {
     /// Moves the iterator to the next line of input.
     fn advance_line(&mut self) {
         if self.is_interactive() {
-            print!("{}", "$ ");
+            print!("$ ");
             io::stdout().flush().unwrap();
         }
 
-        match self.input.next() {
-            Some(line) => {
-                // Print read input to stderr if requested.
-                if self.options.borrow().print_input {
-                    eprint!("{}", line); // Is expected to contain a newline.
-                }
-
-                self.line = line.chars().collect::<Vec<_>>().into_iter().peekable();
-                self.line_buffer = line;
-                self.line_number += 1;
-                self.line_offset = 0;
+        if let Some(line) = self.input.next() {
+            // Print read input to stderr if requested.
+            if self.options.borrow().print_input {
+                eprint!("{}", line); // Is expected to contain a newline.
             }
-            None => (),
+
+            self.line = line.chars().collect::<Vec<_>>().into_iter().peekable();
+            self.line_buffer = line;
+            self.line_number += 1;
+            self.line_offset = 0;
         }
     }
 }

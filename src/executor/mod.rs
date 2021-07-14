@@ -70,7 +70,7 @@ impl Executor {
         separator_op: &SeparatorOp,
     ) -> Result<ExitStatus, ExecError> {
         let AndOr(parts) = and_or;
-        let mut part_iterator = parts.into_iter();
+        let mut part_iterator = parts.iter();
         let mut status = match part_iterator.next() {
             Some(AndOrPart::Start(pipeline)) => self.execute_pipeline(pipeline)?,
             _ => return Err(ExecError::MalformedPipeline),
@@ -121,30 +121,24 @@ impl Executor {
         // TODO: Handle redirects.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
-            let envs = maybe_prefix.as_ref().map_or_else(
-                || HashMap::new(),
-                |prefix| {
-                    let CmdPrefix(assignments, _) = prefix;
-                    assignments
-                        .into_iter()
-                        .map(|AssignmentWord(key, value)| (key, value))
-                        .collect()
-                },
-            );
-            let arguments = maybe_suffix.as_ref().map_or_else(
-                || Vec::new(),
-                |suffix| {
-                    let CmdSuffix(Wordlist(words), _) = suffix;
-                    let argument_list: Vec<String> = words
-                        .iter()
-                        .map(|word| {
-                            let Word(argument) = word;
-                            argument.clone()
-                        })
-                        .collect();
-                    argument_list
-                },
-            );
+            let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
+                let CmdPrefix(assignments, _) = prefix;
+                assignments
+                    .iter()
+                    .map(|AssignmentWord(key, value)| (key, value))
+                    .collect()
+            });
+            let arguments = maybe_suffix.as_ref().map_or_else(Vec::new, |suffix| {
+                let CmdSuffix(Wordlist(words), _) = suffix;
+                let argument_list: Vec<String> = words
+                    .iter()
+                    .map(|word| {
+                        let Word(argument) = word;
+                        argument.clone()
+                    })
+                    .collect();
+                argument_list
+            });
 
             match command_name.as_str() {
                 "set" => {

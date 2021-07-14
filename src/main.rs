@@ -47,7 +47,7 @@ fn main() {
     let cursor = Cursor::new(input, interactive, options.clone());
     let lexer = Lexer::new(cursor, options.clone());
     let mut parser = Parser::new(Box::new(lexer), options.clone());
-    let executor = Executor::new(options.clone());
+    let executor = Executor::new(options);
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.

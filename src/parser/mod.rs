@@ -308,11 +308,8 @@ impl Parser {
     //                  ;
     fn wordlist(&mut self) -> Result<Wordlist, ParseError> {
         let mut words = Vec::new();
-        loop {
-            match self.eat_word() {
-                Ok(word) => words.push(word),
-                _ => break,
-            }
+        while let Ok(word) = self.eat_word() {
+            words.push(word);
         }
 
         if words.is_empty() {
@@ -427,11 +424,8 @@ impl Parser {
     //                  ;
     fn redirect_list(&mut self) -> Result<RedirectList, ParseError> {
         let mut redirects = Vec::new();
-        loop {
-            match self.io_redirect() {
-                Ok(redirect) => redirects.push(redirect),
-                _ => break,
-            }
+        while let Ok(redirect) = self.io_redirect() {
+            redirects.push(redirect);
         }
 
         if redirects.is_empty() {
@@ -448,13 +442,9 @@ impl Parser {
     //                  ;
     fn io_redirect(&mut self) -> Result<IoRedirect, ParseError> {
         let mut io_number: Option<u8> = None;
-        match self.peek_token() {
-            Token::IoNumber(_) => {
-                if let Token::IoNumber(number) = self.next_token() {
-                    io_number = Some(number);
-                }
-            }
-            _ => (),
+        if let Token::IoNumber(number) = self.peek_token() {
+            io_number = Some(*number);
+            self.next_token();
         }
 
         if let Ok(io_file) = self.io_file() {

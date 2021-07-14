@@ -88,7 +88,6 @@ impl Display for Token {
             Token::DLessDash => write!(f, "<<-"),
             Token::Clobber => write!(f, ">|"),
             Token::EOF => write!(f, "<EOF>"),
-            token => write!(f, "{:?}", token),
         }
     }
 }
