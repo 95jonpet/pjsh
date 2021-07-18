@@ -22,6 +22,9 @@ pub struct Cursor {
 /// Character representing the end of file/input.
 pub(crate) const EOF_CHAR: char = '\0';
 
+pub(crate) static PS1: &str = "$ ";
+pub(crate) static PS2: &str = "> ";
+
 impl Cursor {
     /// Creates a new cursor for iterating over a char stream.
     pub fn new(input: InputLines, interactive: bool, options: Rc<RefCell<Options>>) -> Self {
@@ -39,10 +42,6 @@ impl Cursor {
     /// Returns the next [`char`] from the input stream without consuming it.
     /// If the input has been fully consumed, [`EOF_CHAR`] is returned.
     pub fn peek(&mut self) -> &char {
-        if self.line_offset >= self.line_buffer.len() {
-            self.advance_line();
-        }
-
         self.line.peek().unwrap_or(&EOF_CHAR)
     }
 
@@ -50,17 +49,17 @@ impl Cursor {
     /// If the current line ends, the iterator moves to the next line.
     /// If the input has been fully consumed, [`EOF_CHAR`] is returned.
     pub fn next(&mut self) -> char {
-        if self.line_offset >= self.line_buffer.len() {
-            self.advance_line();
+        if let Some(ch) = self.line.next() {
+            self.line_offset += 1;
+            return ch;
         }
 
-        match self.line.next() {
-            Some(ch) => {
-                self.line_offset += 1;
-                ch
-            }
-            None => EOF_CHAR,
-        }
+        EOF_CHAR
+    }
+
+    fn is_eol_reached(&self) -> bool {
+        eprintln!("EOL: {}", self.line_offset >= self.line_buffer.len());
+        self.line_offset >= self.line_buffer.len()
     }
 
     /// Returns a [`String`] of all characters until a predicate `P` holds.
@@ -90,9 +89,9 @@ impl Cursor {
     }
 
     /// Moves the iterator to the next line of input.
-    fn advance_line(&mut self) {
+    pub(crate) fn advance_line(&mut self, prompt: &str) {
         if self.is_interactive() {
-            print!("$ ");
+            print!("{}", prompt);
             io::stdout().flush().unwrap();
         }
 

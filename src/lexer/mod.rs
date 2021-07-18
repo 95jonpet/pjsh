@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::cursor::Cursor;
+use crate::cursor::{Cursor, PS2};
 use crate::options::Options;
 use crate::token::Token;
 
@@ -38,17 +38,19 @@ pub trait Lex {
     /// Returns the next [`Token`] from the [`Cursor`].
     /// A special [`Mode`] of operaction can be used to control the behavior.
     fn next_token(&mut self, mode: Mode) -> Token;
+
+    fn advance_line(&mut self);
 }
 
 /// Converts a [`char`] stream from a [`Cursor`] into a [`Token`] stream.
 pub struct Lexer {
-    cursor: Cursor,
+    cursor: Rc<RefCell<Cursor>>,
     options: Rc<RefCell<Options>>,
     new_lexer: NewLexer,
 }
 
 impl Lexer {
-    pub fn new(cursor: Cursor, options: Rc<RefCell<Options>>) -> Self {
+    pub fn new(cursor: Rc<RefCell<Cursor>>, options: Rc<RefCell<Options>>) -> Self {
         Self {
             cursor,
             options,
@@ -65,16 +67,16 @@ impl Lex for Lexer {
         //     Mode::Unquoted => unquoted_mode::next_unquoted_token(&mut self.cursor),
         // };
 
-        let mut token = self.new_lexer.next_token(&mut self.cursor);
-
-        if self.cursor.is_interactive() && token == Token::Newline {
-            token = Token::EOF;
-        }
+        let token = self.new_lexer.next_token(&mut self.cursor.borrow_mut());
 
         if self.options.borrow().debug_lexing {
             eprintln!("[pjsh::lexer] {} mode: {}", mode, token);
         }
 
         token
+    }
+
+    fn advance_line(&mut self) {
+        self.cursor.borrow_mut().advance_line(PS2)
     }
 }

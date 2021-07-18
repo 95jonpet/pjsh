@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    mem::take,
-};
+use std::{collections::HashMap, mem::take};
 
 use crate::{
     cursor::{Cursor, EOF_CHAR},
@@ -15,7 +12,6 @@ pub(crate) struct NewLexer {
     forming_operator: bool,
     operators: HashMap<String, Token>,
     mode: Mode,
-    token_queue: VecDeque<Token>,
     whitespace_chars: Vec<char>,
 }
 
@@ -49,7 +45,6 @@ impl NewLexer {
             forming_operator: false,
             mode: Mode::Unquoted,
             operators,
-            token_queue: VecDeque::new(),
             whitespace_chars: vec![' ', '\t'],
         }
     }
@@ -77,13 +72,8 @@ impl NewLexer {
     }
 
     pub(crate) fn next_token(&mut self, cursor: &mut Cursor) -> Token {
-        // Return already queued tokens if such exist.
-        if let Some(token) = self.token_queue.pop_front() {
-            return token;
-        }
-
         loop {
-            let current = Self::read_char(cursor, self.mode);
+            let current = cursor.next();
             let mut joined = self.current_token.clone();
             joined.push(current);
             let potential_operator = self.forming_operator || self.current_token.is_empty();
@@ -108,7 +98,7 @@ impl NewLexer {
                 ch if self.forming_operator && !self.is_operator_prefix(&joined) => {
                     let operator = self.delimit_operator_token(&self.current_token);
                     self.current_token = ch.to_string();
-                    self.forming_operator = false;
+                    self.forming_operator = self.is_operator_prefix(&self.current_token);
                     return operator;
                 }
 
@@ -188,25 +178,6 @@ impl NewLexer {
         }
     }
 
-    /// Reads the next [`char`] from the a [`Cursor`].
-    ///
-    /// Unquoted newlines are translated into EOF characters if the cursor is interactive.
-    fn read_char(cursor: &mut Cursor, mode: Mode) -> char {
-        let current = cursor.next();
-
-        // Non-interactive mode, return the current character.
-        if !cursor.is_interactive() {
-            return current;
-        }
-
-        // Interactive mode, convert newlines to EOF.
-        match current {
-            '\n' if mode == Mode::Unquoted => EOF_CHAR, // LF newline.
-            '\r' if mode == Mode::Unquoted && cursor.peek() == &'\n' => EOF_CHAR, // CRLF newline.
-            ch => ch,
-        }
-    }
-
     /// Delimits an operator [`Token`].
     fn delimit_operator_token(&self, operator: &str) -> Token {
         return self
@@ -223,7 +194,6 @@ impl NewLexer {
         if self.current_token.is_empty() {
             Token::EOF
         } else {
-            self.token_queue.push_back(Token::EOF);
             self.delimit_current_token(potential_operator)
         }
     }

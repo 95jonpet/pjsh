@@ -65,6 +65,15 @@ impl Parser {
             .unwrap_or_else(|| self.lexer.next_token(self.lexer_mode()))
     }
 
+    fn advance_line(&mut self) {
+        if self.cached_tokens.iter().any(|token| token != &Token::EOF) {
+            unreachable!();
+        }
+
+        self.cached_tokens.clear();
+        self.lexer.advance_line()
+    }
+
     /// Set the current [`Lex`] mode.
     fn push_lexer_mode(&mut self, lexer_mode: Mode) {
         if lexer_mode != self.lexer_mode() && !self.cached_tokens.is_empty() {
@@ -82,7 +91,7 @@ impl Parser {
     }
 
     /// Returns a parsed [`Program`].
-    pub fn parse(&mut self) -> Result<Program, ParseError> {
+    pub fn parse_program(&mut self) -> Result<Program, ParseError> {
         let maybe_program = self.program();
 
         // Verify that no cached non-EOF tokens remain.
@@ -102,6 +111,31 @@ impl Parser {
         }
 
         maybe_program
+    }
+
+    /// Returns a parsed [`CompleteCommand`].
+    pub fn parse_complete_command(&mut self) -> Result<CompleteCommand, ParseError> {
+        let maybe_complete_command = self.complete_command();
+
+        // Verify that no cached non-EOF tokens remain.
+        // If such tokens are present, parsing is incomplete.
+        loop {
+            match self.cached_tokens.pop_front() {
+                Some(Token::Newline | Token::EOF) => (), // The order is not checked.
+                Some(token) => return Err(ParseError::UnconsumedToken(token)),
+                _ => break,
+            }
+        }
+
+        // Ensure that the cache is clear if the parser is reused.
+        self.cached_tokens.clear();
+
+        // Allow the parsed complete_command to be verbosely written to stderr when requested.
+        if self.options.borrow().debug_parsing {
+            eprintln!("[pjsh::parser] {:?}", maybe_complete_command);
+        }
+
+        maybe_complete_command
     }
 
     fn assignment_word(&mut self) -> Result<AssignmentWord, ParseError> {
@@ -157,7 +191,7 @@ impl Parser {
     // complete_command : list separator_op
     //                  | list
     //                  ;
-    fn complete_command(&mut self) -> Result<CompleteCommand, ParseError> {
+    pub fn complete_command(&mut self) -> Result<CompleteCommand, ParseError> {
         let list = self.list()?;
         match self.separator_op() {
             Ok(separator_op) => Ok(CompleteCommand(list, Some(separator_op))),
@@ -205,18 +239,22 @@ impl Parser {
             match self.peek_token() {
                 Token::AndIf => {
                     self.next_token();
+                    self.linebreak()?;
                     if let Ok(pipeline) = self.pipeline() {
                         parts.push(AndOrPart::And(pipeline));
                     } else {
-                        self.cached_tokens.push_front(Token::AndIf);
+                        self.cached_tokens.push_front(Token::AndIf); // TODO: Avoid this.
+                        break;
                     }
                 }
                 Token::OrIf => {
                     self.next_token();
+                    self.linebreak()?;
                     if let Ok(pipeline) = self.pipeline() {
                         parts.push(AndOrPart::Or(pipeline));
                     } else {
-                        self.cached_tokens.push_front(Token::OrIf);
+                        self.cached_tokens.push_front(Token::OrIf); // TODO: Avoid this.
+                        break;
                     }
                 }
                 _ => break,
@@ -531,12 +569,18 @@ impl Parser {
     //                  | newline_list NEWLINE
     //                  ;
     fn newline_list(&mut self) -> Result<(), ParseError> {
-        match self.peek_token() {
-            Token::Newline => {
-                self.next_token();
-                self.newline_list()
-            }
-            _ => Ok(()),
+        let mut newline_seen = false;
+
+        while let Token::Newline = self.peek_token() {
+            self.next_token();
+            self.advance_line();
+            newline_seen = true;
+        }
+
+        if newline_seen {
+            Ok(())
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek_token().clone()))
         }
     }
 
@@ -638,6 +682,10 @@ mod tests {
     impl Lex for MockLexer {
         fn next_token(&mut self, _mode: Mode) -> Token {
             self.tokens.pop().unwrap_or(Token::EOF)
+        }
+
+        fn advance_line(&mut self) {
+            unreachable!()
         }
     }
 
