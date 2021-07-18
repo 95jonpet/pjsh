@@ -203,7 +203,7 @@ impl PosixLexer {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{input::InputLines, options::Options};
+    use crate::{cursor::PS1, input::InputLines, options::Options};
 
     use super::*;
 
@@ -214,6 +214,7 @@ mod tests {
             vec![
                 Token::Word(String::from("ls")),
                 Token::Word(String::from("-lah")),
+                Token::Newline,
             ]
         );
     }
@@ -227,6 +228,7 @@ mod tests {
             options.clone(),
         );
         let mut lexer = PosixLexer::new();
+        cursor.advance_line(PS1);
 
         loop {
             let token = lexer.next_token(&mut cursor);

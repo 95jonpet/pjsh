@@ -684,9 +684,7 @@ mod tests {
             self.tokens.pop().unwrap_or(Token::EOF)
         }
 
-        fn advance_line(&mut self) {
-            unreachable!()
-        }
+        fn advance_line(&mut self) {}
     }
 
     fn parser(tokens: Vec<Token>) -> Parser {

@@ -57,30 +57,6 @@ impl Cursor {
         EOF_CHAR
     }
 
-    fn is_eol_reached(&self) -> bool {
-        eprintln!("EOL: {}", self.line_offset >= self.line_buffer.len());
-        self.line_offset >= self.line_buffer.len()
-    }
-
-    /// Returns a [`String`] of all characters until a predicate `P` holds.
-    /// All returned [`char`] elements inside the string are consumed.
-    pub fn read_until<P>(&mut self, predicate: P) -> String
-    where
-        P: Fn(&char) -> bool,
-    {
-        let mut result = String::new();
-        loop {
-            match self.peek() {
-                ch if !predicate(ch) && ch != &EOF_CHAR => {
-                    let c = self.next();
-                    result.push(c);
-                }
-                _ => break,
-            }
-        }
-        result
-    }
-
     /// Returns `true` if the cursor is interactive.
     /// In interactive mode, each line should be parsed and executed immediately.
     #[inline]
