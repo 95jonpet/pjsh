@@ -7,7 +7,7 @@ use crate::{
 
 use super::Mode;
 
-pub(crate) struct NewLexer {
+pub(crate) struct PosixLexer {
     current_token: String,
     forming_operator: bool,
     operators: HashMap<String, Token>,
@@ -15,7 +15,7 @@ pub(crate) struct NewLexer {
     whitespace_chars: Vec<char>,
 }
 
-impl NewLexer {
+impl PosixLexer {
     pub(crate) fn new() -> Self {
         let mut operators = HashMap::new();
         operators.insert(String::from("\n"), Token::Newline);
@@ -226,7 +226,7 @@ mod tests {
             false,
             options.clone(),
         );
-        let mut lexer = NewLexer::new();
+        let mut lexer = PosixLexer::new();
 
         loop {
             let token = lexer.next_token(&mut cursor);
