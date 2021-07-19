@@ -231,9 +231,7 @@ impl Parser {
     fn and_or(&mut self) -> Result<AndOr, ParseError> {
         let mut parts = Vec::new();
 
-        if let Ok(pipeline) = self.pipeline() {
-            parts.push(AndOrPart::Start(pipeline));
-        }
+        parts.push(AndOrPart::Start(self.pipeline()?));
 
         loop {
             match self.peek_token() {
