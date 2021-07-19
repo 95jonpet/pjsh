@@ -208,7 +208,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn it_lexes_words() {
+        let mut test_cases = HashMap::new();
+        test_cases.insert("word1 word2", vec!["word1", "word2"]);
+        test_cases.insert("ls -lah", vec!["ls", "-lah"]);
+        test_cases.insert("cat /tmp/tmp_file", vec!["cat", "/tmp/tmp_file"]);
+
+        for (input, words) in test_cases {
+            let expected_tokens: Vec<Token> = words
+                .iter()
+                .map(|word| Token::Word(word.to_string()))
+                .collect();
+            assert_eq!(
+                lex(input),
+                expected_tokens,
+                "lexing {:?} should yield tokens {:?}",
+                input,
+                expected_tokens
+            )
+        }
+
         assert_eq!(
             lex("ls -lah\n"),
             vec![
