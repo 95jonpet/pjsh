@@ -205,16 +205,10 @@ impl Parser {
     fn list(&mut self) -> Result<List, ParseError> {
         let mut parts = Vec::new();
 
-        if let Ok(and_or) = self.and_or() {
-            parts.push(ListPart::Start(and_or));
-        }
+        parts.push(ListPart::Start(self.and_or()?));
 
         while let Ok(separator_op) = self.separator_op() {
-            if let Ok(and_or) = self.and_or() {
-                parts.push(ListPart::Tail(and_or, separator_op));
-            } else {
-                return Err(ParseError::UnexpectedToken(self.peek_token().clone()));
-            }
+            parts.push(ListPart::Tail(self.and_or()?, separator_op));
         }
 
         if parts.is_empty() {
@@ -288,16 +282,12 @@ impl Parser {
     fn pipe_sequence(&mut self) -> Result<PipeSequence, ParseError> {
         let mut commands = Vec::new();
 
-        if let Ok(command) = self.command() {
-            commands.push(command);
-        }
+        commands.push(self.command()?);
 
         while self.peek_token() == &Token::Pipe {
             self.next_token();
             if self.linebreak().is_ok() {
-                if let Ok(command) = self.command() {
-                    commands.push(command);
-                }
+                commands.push(self.command()?);
             }
         }
 
