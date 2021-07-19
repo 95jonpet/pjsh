@@ -219,6 +219,43 @@ mod tests {
         );
     }
 
+    #[test]
+    fn it_lexes_operators() {
+        let operators = PosixLexer::new().operators;
+        for (lexeme, token) in operators.iter() {
+            assert_eq!(
+                lex(&lexeme),
+                vec![token.clone()],
+                "lexing {:?} should yield token {:?}",
+                lexeme,
+                token
+            );
+        }
+    }
+
+    #[test]
+    fn it_lexes_operators_mixed_with_words() {
+        let mut test_cases = HashMap::new();
+        test_cases.insert(
+            "word>file",
+            vec![
+                Token::Word(String::from("word")),
+                Token::Great,
+                Token::Word(String::from("file")),
+            ],
+        );
+
+        for (lexeme, expected_tokens) in test_cases {
+            assert_eq!(
+                lex(&lexeme),
+                expected_tokens,
+                "lexing {:?} should yield tokens {:?}",
+                lexeme,
+                expected_tokens
+            );
+        }
+    }
+
     fn lex(input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
         let options = Rc::new(RefCell::new(Options::default()));
