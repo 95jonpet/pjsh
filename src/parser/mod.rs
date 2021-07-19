@@ -1,4 +1,6 @@
+mod adapter;
 mod error;
+mod word;
 
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
@@ -13,7 +15,13 @@ use crate::{
     token::Token,
 };
 
-use self::error::ParseError;
+use self::{adapter::LexerAdapter, error::ParseError};
+
+pub(crate) trait Parse {
+    type Item;
+
+    fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError>;
+}
 
 pub struct Parser {
     lexer: Box<dyn Lex>,
