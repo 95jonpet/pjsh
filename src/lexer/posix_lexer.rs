@@ -66,6 +66,10 @@ impl PosixLexer {
 
     /// Returns `true` if the input string is a prefix, or complete, operator definition.
     fn is_operator_prefix(&self, string: &str) -> bool {
+        if string.is_empty() {
+            return false;
+        }
+
         self.operators
             .keys()
             .any(|operator| operator.starts_with(string))
@@ -97,7 +101,13 @@ impl PosixLexer {
                 // the operator containing the previous character shall be delimited.
                 ch if self.forming_operator && !self.is_operator_prefix(&joined) => {
                     let operator = self.delimit_operator_token(&self.current_token);
-                    self.current_token = ch.to_string();
+
+                    if !self.whitespace_chars.contains(&ch) {
+                        self.current_token = ch.to_string();
+                    } else {
+                        self.current_token = String::new();
+                    }
+
                     self.forming_operator = self.is_operator_prefix(&self.current_token);
                     return operator;
                 }
@@ -180,11 +190,10 @@ impl PosixLexer {
 
     /// Delimits an operator [`Token`].
     fn delimit_operator_token(&self, operator: &str) -> Token {
-        return self
-            .operators
+        self.operators
             .get(operator)
             .expect("the current token should be an operator")
-            .to_owned();
+            .to_owned()
     }
 
     /// Delimits a [`Token`] that exists right before EOF.
@@ -261,6 +270,16 @@ mod tests {
                 Token::Word(String::from("word")),
                 Token::Great,
                 Token::Word(String::from("file")),
+            ],
+        );
+        test_cases.insert(
+            "echo 1 && echo 2",
+            vec![
+                Token::Word(String::from("echo")),
+                Token::Word(String::from("1")),
+                Token::AndIf,
+                Token::Word(String::from("echo")),
+                Token::Word(String::from("2")),
             ],
         );
 

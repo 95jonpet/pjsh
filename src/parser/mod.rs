@@ -238,22 +238,12 @@ impl Parser {
                 Token::AndIf => {
                     self.next_token();
                     self.linebreak()?;
-                    if let Ok(pipeline) = self.pipeline() {
-                        parts.push(AndOrPart::And(pipeline));
-                    } else {
-                        self.cached_tokens.push_front(Token::AndIf); // TODO: Avoid this.
-                        break;
-                    }
+                    parts.push(AndOrPart::And(self.pipeline()?));
                 }
                 Token::OrIf => {
                     self.next_token();
                     self.linebreak()?;
-                    if let Ok(pipeline) = self.pipeline() {
-                        parts.push(AndOrPart::Or(pipeline));
-                    } else {
-                        self.cached_tokens.push_front(Token::OrIf); // TODO: Avoid this.
-                        break;
-                    }
+                    parts.push(AndOrPart::Or(self.pipeline()?));
                 }
                 _ => break,
             }
