@@ -1,7 +1,7 @@
 use std::{collections::HashMap, mem::take};
 
 use crate::{
-    cursor::{Cursor, EOF_CHAR},
+    cursor::{Cursor, EOF_CHAR, PS2},
     token::Token,
 };
 
@@ -84,7 +84,8 @@ impl PosixLexer {
             match current {
                 // 1. If the end of input is recognized, the current token (if any) shall be
                 // delimited.
-                EOF_CHAR => {
+                EOF_CHAR if self.mode == Mode::InSingleQuotes => cursor.advance_line(PS2),
+                EOF_CHAR if self.mode == Mode::Unquoted => {
                     return self.delimit_token_before_eof(potential_operator);
                 }
 
@@ -121,6 +122,15 @@ impl PosixLexer {
                 // quotes or substitution operators, between the <quotation-mark> and the end of
                 // the quoted text. The token shall not be delimited by the end of the quoted field.
                 // TODO: Implement multiple modes.
+                '\'' if self.mode == Mode::Unquoted => {
+                    self.mode = Mode::InSingleQuotes;
+                    self.current_token = joined;
+                    self.forming_operator = false;
+                }
+                '\'' if self.mode == Mode::InSingleQuotes => {
+                    self.mode = Mode::Unquoted;
+                    self.current_token = joined;
+                }
 
                 // 5. If the current character is an unquoted '$' or '`', the shell shall identify
                 // the start of any candidates for parameter expansion (Parameter Expansion),
@@ -167,7 +177,7 @@ impl PosixLexer {
                 // 9. If the current character is a '#', it and all subsequent characters up to,
                 // but excluding, the next <newline> shall be discarded as a comment.
                 // The <newline> that ends the line is not considered part of the comment.
-                '#' => {
+                '#' if self.mode == Mode::Unquoted => {
                     while cursor.peek() != &'\n' {
                         cursor.next();
                     }
@@ -292,6 +302,22 @@ mod tests {
                 expected_tokens
             );
         }
+    }
+
+    #[test]
+    fn it_lexes_single_quoted_words() {
+        assert_eq!(
+            lex("'line 1\nline 2'"),
+            vec![Token::Word(String::from("'line 1\nline 2'"))]
+        );
+        assert_eq!(
+            lex("outside'inside'outside"),
+            vec![Token::Word(String::from("outside'inside'outside"))]
+        );
+        assert_eq!(
+            lex("'# not a comment'"),
+            vec![Token::Word(String::from("'# not a comment'"))]
+        );
     }
 
     fn lex(input: &str) -> Vec<Token> {
