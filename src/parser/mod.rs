@@ -1,4 +1,5 @@
 mod adapter;
+mod io;
 mod error;
 mod word;
 
