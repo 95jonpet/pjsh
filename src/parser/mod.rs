@@ -1,7 +1,10 @@
-mod adapter;
-mod io;
-mod error;
-mod word;
+pub(crate) mod adapter;
+pub(crate) mod command;
+pub(crate) mod error;
+pub(crate) mod io;
+pub(crate) mod meta;
+pub(crate) mod pipeline;
+pub(crate) mod word;
 
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
@@ -18,7 +21,7 @@ use crate::{
 
 use self::{adapter::LexerAdapter, error::ParseError};
 
-pub(crate) trait Parse {
+pub trait Parse {
     type Item;
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError>;

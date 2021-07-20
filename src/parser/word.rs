@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Word, Wordlist},
+    ast::{AssignmentWord, Word, Wordlist},
     token::Token,
 };
 
@@ -53,6 +53,30 @@ impl Parse for WordlistParser {
         }
 
         Ok(Wordlist(words))
+    }
+}
+
+pub(crate) struct AssignmentWordParser {}
+
+impl AssignmentWordParser {
+    pub fn new(word_parser: WordParser) -> Self {
+        Self {}
+    }
+}
+
+impl Parse for AssignmentWordParser {
+    type Item = AssignmentWord;
+
+    fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
+        match lexer.peek_token() {
+            Token::Word(word) if word.contains('=') => {
+                let split_index = word.find('=').unwrap();
+                let key = String::from(&word[..split_index]);
+                let value = String::from(&word[(split_index + 1)..]);
+                Ok(AssignmentWord(key, value))
+            }
+            token => Err(ParseError::UnexpectedToken(token.clone())),
+        }
     }
 }
 

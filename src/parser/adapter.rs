@@ -5,9 +5,11 @@ use crate::{
     token::Token,
 };
 
+use super::error::ParseError;
+
 const DEFAULT_LEXER_MODE_STACK_CAPACITY: usize = 10;
 
-pub(crate) struct LexerAdapter {
+pub struct LexerAdapter {
     lexer: Box<dyn Lex>,
     lexer_mode_stack: Vec<Mode>,
     cached_tokens: VecDeque<Token>,
@@ -23,6 +25,23 @@ impl LexerAdapter {
             lexer_mode_stack,
             cached_tokens: VecDeque::new(),
         }
+    }
+
+    pub fn clean(&mut self) -> Result<(), ParseError> {
+        // Verify that no cached non-EOF tokens remain.
+        // If such tokens are present, parsing is incomplete.
+        loop {
+            match self.cached_tokens.pop_front() {
+                Some(Token::Newline | Token::EOF) => (), // The order is not checked.
+                Some(token) => return Err(ParseError::UnconsumedToken(token)),
+                _ => break,
+            }
+        }
+
+        // Ensure that the cache is clear if the parser is reused.
+        self.cached_tokens.clear();
+
+        Ok(())
     }
 
     /// Returns the current [`Mode`] that should be used when performing lexical analysis.
