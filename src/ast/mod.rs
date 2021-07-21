@@ -1,7 +1,9 @@
+use crate::token::Unit;
+
 /// Represents a regular word/string of characters.
 /// Note that whitespace characters may be present.
 #[derive(Debug, PartialEq)]
-pub struct Word(pub String);
+pub struct Word(pub Vec<Unit>);
 
 /// Represents an assignment.
 #[derive(Debug, PartialEq)]
@@ -54,7 +56,7 @@ pub enum Command {
 #[derive(Debug, PartialEq)]
 pub struct SimpleCommand(
     pub Option<CmdPrefix>,
-    pub Option<String>,
+    pub Option<Word>,
     pub Option<CmdSuffix>,
 );
 
@@ -72,19 +74,19 @@ pub struct RedirectList(pub Vec<IoRedirect>);
 
 #[derive(Debug, PartialEq)]
 pub enum IoFile {
-    Less(String),
-    LessAnd(String),
-    Great(String),
-    GreatAnd(String),
-    DGreat(String),
-    LessGreat(String),
-    Clobber(String),
+    Less(Word),
+    LessAnd(Word),
+    Great(Word),
+    GreatAnd(Word),
+    DGreat(Word),
+    LessGreat(Word),
+    Clobber(Word),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum IoHere {
-    DLess(String),
-    DLessDash(String),
+    DLess(Word),
+    DLessDash(Word),
 }
 
 #[derive(Debug, PartialEq)]

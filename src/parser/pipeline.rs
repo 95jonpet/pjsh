@@ -1,6 +1,6 @@
 use crate::{
     ast::{AndOr, AndOrPart, List, ListPart, PipeSequence, Pipeline},
-    token::Token,
+    token::{Token, Unit},
 };
 
 use super::{
@@ -123,6 +123,18 @@ impl PipelineParser {
             pipe_sequence_parser,
         }
     }
+
+    fn is_bang(units: &Vec<Unit>) -> bool {
+        if units.len() != 1 {
+            return false;
+        }
+
+        if let Some(Unit::Literal(literal)) = units.first() {
+            return literal == "!";
+        }
+
+        false
+    }
 }
 
 impl Parse for PipelineParser {
@@ -130,7 +142,7 @@ impl Parse for PipelineParser {
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
         match lexer.peek_token() {
-            Token::Word(word) if &word == &"!" => {
+            Token::Word(units) if Self::is_bang(units) => {
                 lexer.next_token();
                 Ok(Pipeline::Bang(self.pipe_sequence_parser.parse(lexer)?))
             }

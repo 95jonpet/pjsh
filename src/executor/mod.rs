@@ -10,6 +10,7 @@ use crate::{
         SimpleCommand, Word, Wordlist,
     },
     options::Options,
+    token::Unit,
 };
 
 use self::{error::ExecError, exit_status::ExitStatus};
@@ -121,6 +122,7 @@ impl Executor {
         // TODO: Handle redirects.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
+            let expanded_command_name = Self::expand_word(command_name);
             let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
                 let CmdPrefix(assignments, _) = prefix;
                 assignments
@@ -130,17 +132,12 @@ impl Executor {
             });
             let arguments = maybe_suffix.as_ref().map_or_else(Vec::new, |suffix| {
                 let CmdSuffix(Wordlist(words), _) = suffix;
-                let argument_list: Vec<String> = words
-                    .iter()
-                    .map(|word| {
-                        let Word(argument) = word;
-                        argument.clone()
-                    })
-                    .collect();
+                let argument_list: Vec<String> =
+                    words.iter().map(|word| Self::expand_word(word)).collect();
                 argument_list
             });
 
-            match command_name.as_str() {
+            match expanded_command_name.as_str() {
                 "set" => {
                     let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
                     match command_args.as_slice() {
@@ -164,12 +161,26 @@ impl Executor {
 
                     match result {
                         Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
-                        Err(_) => Err(ExecError::UnknownCommand(command_name.to_string())),
+                        Err(_) => Err(ExecError::UnknownCommand(expanded_command_name)),
                     }
                 }
             }
         } else {
             Err(ExecError::MissingCommand)
         }
+    }
+
+    fn expand_word(word: &Word) -> String {
+        let mut expanded_word = String::new();
+        let Word(units) = word;
+
+        for unit in units {
+            match unit {
+                Unit::Literal(literal) => expanded_word.push_str(&literal),
+                _ => unimplemented!(),
+            }
+        }
+
+        expanded_word
     }
 }

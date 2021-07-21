@@ -7,7 +7,7 @@ pub enum Token {
     /* Fundamental symbols. */
     /// Generic word.
     /// This symbol may be resolved to other subtokens such as assignment words and names.
-    Word(String),
+    Word(Vec<Unit>),
     /// \n
     Newline,
     /// Integer preceding redirection operators.
@@ -65,7 +65,7 @@ pub enum Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Word(word) => write!(f, "{}", word),
+            Token::Word(units) => write!(f, "<word {:?}>", units),
             Token::Newline => write!(f, "<newline>"),
             Token::IoNumber(number) => write!(f, "<io {}>", number),
             Token::SQuote => write!(f, "'"),
@@ -90,4 +90,10 @@ impl Display for Token {
             Token::EOF => write!(f, "<EOF>"),
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Unit {
+    Literal(String),
+    Var(String),
 }

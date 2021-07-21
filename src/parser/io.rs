@@ -25,9 +25,8 @@ impl IoFileParser {
         Self { word_parser }
     }
 
-    fn filename(&mut self, lexer: &mut LexerAdapter) -> Result<String, ParseError> {
-        let Word(word) = self.word_parser.parse(lexer)?;
-        Ok(word)
+    fn filename(&mut self, lexer: &mut LexerAdapter) -> Result<Word, ParseError> {
+        self.word_parser.parse(lexer)
     }
 }
 
@@ -84,9 +83,8 @@ impl IoHereParser {
         Self { word_parser }
     }
 
-    fn here_end(&mut self, lexer: &mut LexerAdapter) -> Result<String, ParseError> {
-        let Word(word) = self.word_parser.parse(lexer)?;
-        Ok(word)
+    fn here_end(&mut self, lexer: &mut LexerAdapter) -> Result<Word, ParseError> {
+        self.word_parser.parse(lexer)
     }
 }
 

@@ -2,13 +2,14 @@ use std::{collections::HashMap, mem::take};
 
 use crate::{
     cursor::{Cursor, EOF_CHAR, PS2},
-    token::Token,
+    token::{Token, Unit},
 };
 
 use super::Mode;
 
 pub(crate) struct PosixLexer {
     current_token: String,
+    current_units: Vec<Unit>,
     forming_operator: bool,
     operators: HashMap<String, Token>,
     mode: Mode,
@@ -42,6 +43,7 @@ impl PosixLexer {
 
         Self {
             current_token: String::new(),
+            current_units: Vec::new(),
             forming_operator: false,
             mode: Mode::Unquoted,
             operators,
@@ -61,7 +63,9 @@ impl PosixLexer {
             }
         }
 
-        Token::Word(take(&mut self.current_token))
+        self.current_units
+            .push(Unit::Literal(take(&mut self.current_token)));
+        Token::Word(take(&mut self.current_units))
     }
 
     /// Returns `true` if the input string is a prefix, or complete, operator definition.
@@ -236,7 +240,7 @@ mod tests {
         for (input, words) in test_cases {
             let expected_tokens: Vec<Token> = words
                 .iter()
-                .map(|word| Token::Word(word.to_string()))
+                .map(|word| Token::Word(vec![Unit::Literal(word.to_string())]))
                 .collect();
             assert_eq!(
                 lex(input),
@@ -250,8 +254,8 @@ mod tests {
         assert_eq!(
             lex("ls -lah\n"),
             vec![
-                Token::Word(String::from("ls")),
-                Token::Word(String::from("-lah")),
+                Token::Word(vec![Unit::Literal(String::from("ls"))]),
+                Token::Word(vec![Unit::Literal(String::from("-lah"))]),
                 Token::Newline,
             ]
         );
@@ -277,19 +281,19 @@ mod tests {
         test_cases.insert(
             "word>file",
             vec![
-                Token::Word(String::from("word")),
+                Token::Word(vec![Unit::Literal(String::from("word"))]),
                 Token::Great,
-                Token::Word(String::from("file")),
+                Token::Word(vec![Unit::Literal(String::from("file"))]),
             ],
         );
         test_cases.insert(
             "echo 1 && echo 2",
             vec![
-                Token::Word(String::from("echo")),
-                Token::Word(String::from("1")),
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![Unit::Literal(String::from("1"))]),
                 Token::AndIf,
-                Token::Word(String::from("echo")),
-                Token::Word(String::from("2")),
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![Unit::Literal(String::from("2"))]),
             ],
         );
 
@@ -308,15 +312,21 @@ mod tests {
     fn it_lexes_single_quoted_words() {
         assert_eq!(
             lex("'line 1\nline 2'"),
-            vec![Token::Word(String::from("'line 1\nline 2'"))]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "'line 1\nline 2'"
+            ))])]
         );
         assert_eq!(
             lex("outside'inside'outside"),
-            vec![Token::Word(String::from("outside'inside'outside"))]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "outside'inside'outside"
+            ))])]
         );
         assert_eq!(
             lex("'# not a comment'"),
-            vec![Token::Word(String::from("'# not a comment'"))]
+            vec![Token::Word(vec![Unit::Literal(String::from(
+                "'# not a comment'"
+            ))])]
         );
     }
 

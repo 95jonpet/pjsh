@@ -251,14 +251,12 @@ impl SimpleCommandParser {
         }
     }
 
-    fn cmd_name(&mut self, lexer: &mut LexerAdapter) -> Result<String, ParseError> {
-        let Word(word) = self.word_parser.parse(lexer)?;
-        Ok(word)
+    fn cmd_name(&mut self, lexer: &mut LexerAdapter) -> Result<Word, ParseError> {
+        self.word_parser.parse(lexer)
     }
 
-    fn cmd_word(&mut self, lexer: &mut LexerAdapter) -> Result<String, ParseError> {
-        let Word(word) = self.word_parser.parse(lexer)?;
-        Ok(word)
+    fn cmd_word(&mut self, lexer: &mut LexerAdapter) -> Result<Word, ParseError> {
+        self.word_parser.parse(lexer)
     }
 }
 

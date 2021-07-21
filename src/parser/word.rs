@@ -1,6 +1,6 @@
 use crate::{
     ast::{AssignmentWord, Word, Wordlist},
-    token::Token,
+    token::{Token, Unit},
 };
 
 use super::{adapter::LexerAdapter, error::ParseError, Parse};
@@ -19,8 +19,8 @@ impl Parse for WordParser {
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
         match lexer.peek_token() {
             Token::Word(_) => {
-                if let Token::Word(word) = lexer.next_token() {
-                    return Ok(Word(word));
+                if let Token::Word(units) = lexer.next_token() {
+                    return Ok(Word(units));
                 }
                 unreachable!()
             }
@@ -62,6 +62,13 @@ impl AssignmentWordParser {
     pub fn new() -> Self {
         Self {}
     }
+
+    fn is_assignment(units: &Vec<Unit>) -> bool {
+        units.iter().any(|unit| match unit {
+            Unit::Literal(literal) => literal.contains("="),
+            _ => false,
+        })
+    }
 }
 
 impl Parse for AssignmentWordParser {
@@ -69,12 +76,15 @@ impl Parse for AssignmentWordParser {
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
         match lexer.peek_token() {
-            Token::Word(word) if word.contains('=') => {
-                let split_index = word.find('=').unwrap();
-                let key = String::from(&word[..split_index]);
-                let value = String::from(&word[(split_index + 1)..]);
-                Ok(AssignmentWord(key, value))
-            }
+            Token::Word(units) if Self::is_assignment(units) => match units.first() {
+                Some(Unit::Literal(literal)) => {
+                    let split_index = literal.find('=').unwrap();
+                    let key = String::from(&literal[..split_index]);
+                    let value = String::from(&literal[(split_index + 1)..]);
+                    Ok(AssignmentWord(key, value))
+                }
+                _ => unimplemented!(),
+            },
             token => Err(ParseError::UnexpectedToken(token.clone())),
         }
     }
@@ -82,7 +92,10 @@ impl Parse for AssignmentWordParser {
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::{Lex, Mode};
+    use crate::{
+        lexer::{Lex, Mode},
+        token::Unit,
+    };
 
     use super::*;
 
@@ -112,26 +125,26 @@ mod tests {
 
     #[test]
     fn it_parses_words() {
-        let tokens = vec![Token::Word(String::from("word"))];
+        let tokens = vec![Token::Word(vec![Unit::Literal(String::from("word"))])];
         let mut word_parser = WordParser::new();
         assert_eq!(
             word_parser.parse(&mut adapter(tokens)),
-            Ok(Word(String::from("word"))),
+            Ok(Word(vec![Unit::Literal(String::from("word"))])),
         );
     }
 
     #[test]
     fn it_parses_wordlists() {
         let tokens = vec![
-            Token::Word(String::from("word1")),
-            Token::Word(String::from("word2")),
+            Token::Word(vec![Unit::Literal(String::from("word1"))]),
+            Token::Word(vec![Unit::Literal(String::from("word2"))]),
         ];
         let mut wordlist_parser = WordlistParser::new(WordParser::new());
         assert_eq!(
             wordlist_parser.parse(&mut adapter(tokens)),
             Ok(Wordlist(vec![
-                Word(String::from("word1")),
-                Word(String::from("word2")),
+                Word(vec![Unit::Literal(String::from("word1"))]),
+                Word(vec![Unit::Literal(String::from("word2"))]),
             ])),
         );
     }
