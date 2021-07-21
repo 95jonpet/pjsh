@@ -53,7 +53,7 @@ impl PosixLexer {
 
     fn delimit_current_token(&mut self, allow_operator: bool) -> Token {
         if self.current_token.is_empty() {
-            unreachable!("the current token should not be empty")
+            return Token::Word(take(&mut self.current_units));
         }
 
         if allow_operator {
@@ -64,7 +64,8 @@ impl PosixLexer {
         }
 
         self.current_units
-            .push(Unit::Literal(take(&mut self.current_token)));
+            .push(self.delimit_unit(&self.current_token));
+        self.current_token = String::new();
         Token::Word(take(&mut self.current_units))
     }
 
@@ -128,12 +129,19 @@ impl PosixLexer {
                 // TODO: Implement multiple modes.
                 '\'' if self.mode == Mode::Unquoted => {
                     self.mode = Mode::InSingleQuotes;
-                    self.current_token = joined;
                     self.forming_operator = false;
+
+                    if !self.current_token.is_empty() {
+                        self.current_units
+                            .push(self.delimit_unit(&self.current_token));
+                    }
+
+                    self.current_token = String::new();
                 }
                 '\'' if self.mode == Mode::InSingleQuotes => {
                     self.mode = Mode::Unquoted;
-                    self.current_token = joined;
+                    self.current_units
+                        .push(Unit::Literal(take(&mut self.current_token)));
                 }
 
                 // 5. If the current character is an unquoted '$' or '`', the shell shall identify
@@ -214,10 +222,18 @@ impl PosixLexer {
     fn delimit_token_before_eof(&mut self, potential_operator: bool) -> Token {
         self.forming_operator = false;
 
-        if self.current_token.is_empty() {
+        if self.current_token.is_empty() && self.current_units.is_empty() {
             Token::EOF
         } else {
             self.delimit_current_token(potential_operator)
+        }
+    }
+
+    fn delimit_unit(&self, current_token: &str) -> Unit {
+        if let Some(var) = current_token.strip_prefix('$') {
+            Unit::Var(var.to_string())
+        } else {
+            Unit::Literal(current_token.to_string())
         }
     }
 }
@@ -313,20 +329,51 @@ mod tests {
         assert_eq!(
             lex("'line 1\nline 2'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
-                "'line 1\nline 2'"
+                "line 1\nline 2"
             ))])]
         );
         assert_eq!(
             lex("outside'inside'outside"),
-            vec![Token::Word(vec![Unit::Literal(String::from(
-                "outside'inside'outside"
-            ))])]
+            vec![Token::Word(vec![
+                Unit::Literal(String::from("outside")),
+                Unit::Literal(String::from("inside")),
+                Unit::Literal(String::from("outside")),
+            ])]
         );
         assert_eq!(
             lex("'# not a comment'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
-                "'# not a comment'"
+                "# not a comment"
             ))])]
+        );
+    }
+
+    #[test]
+    fn it_lexes_variables() {
+        let mut test_cases = HashMap::new();
+        test_cases.insert("$var", vec!["var"]);
+
+        for (input, words) in test_cases {
+            let expected_tokens: Vec<Token> = words
+                .iter()
+                .map(|word| Token::Word(vec![Unit::Var(word.to_string())]))
+                .collect();
+            assert_eq!(
+                lex(input),
+                expected_tokens,
+                "lexing {:?} should yield tokens {:?}",
+                input,
+                expected_tokens
+            )
+        }
+
+        assert_eq!(
+            lex("ls -lah\n"),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("ls"))]),
+                Token::Word(vec![Unit::Literal(String::from("-lah"))]),
+                Token::Newline,
+            ]
         );
     }
 

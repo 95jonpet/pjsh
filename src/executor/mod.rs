@@ -1,7 +1,7 @@
 mod error;
 mod exit_status;
 
-use std::{cell::RefCell, collections::HashMap, process::Stdio, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, env, process::Stdio, rc::Rc};
 
 use crate::{
     ast::{
@@ -177,7 +177,9 @@ impl Executor {
         for unit in units {
             match unit {
                 Unit::Literal(literal) => expanded_word.push_str(&literal),
-                _ => unimplemented!(),
+                Unit::Var(var) => {
+                    expanded_word.push_str(env::var(&var).unwrap_or(String::from("")).as_str())
+                }
             }
         }
 
