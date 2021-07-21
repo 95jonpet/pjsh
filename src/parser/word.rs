@@ -59,7 +59,7 @@ impl Parse for WordlistParser {
 pub(crate) struct AssignmentWordParser {}
 
 impl AssignmentWordParser {
-    pub fn new(word_parser: WordParser) -> Self {
+    pub fn new() -> Self {
         Self {}
     }
 }

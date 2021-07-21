@@ -41,7 +41,7 @@ impl PosixParser {
                                     IoFileParser::new(WordParser::new()),
                                     IoHereParser::new(WordParser::new()),
                                 ),
-                                AssignmentWordParser::new(WordParser::new()),
+                                AssignmentWordParser::new(),
                             ),
                             CmdSuffixParser::new(
                                 WordParser::new(),
@@ -73,7 +73,7 @@ impl PosixParser {
                                             IoFileParser::new(WordParser::new()),
                                             IoHereParser::new(WordParser::new()),
                                         ),
-                                        AssignmentWordParser::new(WordParser::new()),
+                                        AssignmentWordParser::new(),
                                     ),
                                     CmdSuffixParser::new(
                                         WordParser::new(),
