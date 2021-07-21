@@ -1,4 +1,4 @@
-mod posix_lexer;
+mod posix;
 
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -8,7 +8,7 @@ use crate::cursor::{Cursor, PS2};
 use crate::options::Options;
 use crate::token::Token;
 
-use self::posix_lexer::PosixLexer;
+use self::posix::PosixLexer;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
@@ -31,11 +31,13 @@ impl Display for Mode {
     }
 }
 
+/// An interface for dealing with lexers.
 pub trait Lex {
     /// Returns the next [`Token`] from the [`Cursor`].
     /// A special [`Mode`] of operaction can be used to control the behavior.
     fn next_token(&mut self, mode: Mode) -> Token;
 
+    /// Requests the next line of input.
     fn advance_line(&mut self);
 }
 
