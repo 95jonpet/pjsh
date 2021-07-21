@@ -1,10 +1,11 @@
-pub(crate) mod adapter;
-pub(crate) mod command;
-pub(crate) mod error;
-pub(crate) mod io;
-pub(crate) mod meta;
-pub(crate) mod pipeline;
-pub(crate) mod word;
+mod adapter;
+mod command;
+mod error;
+mod io;
+mod meta;
+mod pipeline;
+mod word;
+pub(crate) mod posix;
 
 use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
