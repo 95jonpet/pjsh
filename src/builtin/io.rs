@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::executor::exit_status::ExitStatus;
+use crate::execution::exit_status::ExitStatus;
 
 use super::Builtin;
 
@@ -26,7 +26,7 @@ impl Cd {
 }
 
 impl Builtin for Cd {
-    fn execute(&self, args: &Vec<String>) -> crate::executor::exit_status::ExitStatus {
+    fn execute(&self, args: &Vec<String>) -> crate::execution::exit_status::ExitStatus {
         match &args[..] {
             [path] => Self::set_current_dir(path),
             [] => Self::set_current_dir(env::var("HOME").unwrap()),

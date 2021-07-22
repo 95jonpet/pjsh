@@ -1,7 +1,7 @@
 mod io;
 mod logic;
 
-use crate::executor::exit_status::ExitStatus;
+use crate::execution::exit_status::ExitStatus;
 
 pub(crate) trait Builtin {
     fn execute(&self, args: &Vec<String>) -> ExitStatus;

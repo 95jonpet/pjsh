@@ -1,7 +1,7 @@
 mod ast;
 mod builtin;
 mod cursor;
-mod executor;
+mod execution;
 mod input;
 mod lexer;
 pub(crate) mod options;
@@ -10,7 +10,7 @@ mod token;
 
 use clap::{crate_name, crate_version, Clap};
 use cursor::Cursor;
-use executor::Executor;
+use execution::Executor;
 use input::InputLines;
 use lexer::Lexer;
 use options::Options;
