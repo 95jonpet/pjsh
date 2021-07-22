@@ -252,6 +252,7 @@ mod tests {
         test_cases.insert("word1 word2", vec!["word1", "word2"]);
         test_cases.insert("ls -lah", vec!["ls", "-lah"]);
         test_cases.insert("cat /tmp/tmp_file", vec!["cat", "/tmp/tmp_file"]);
+        test_cases.insert("key=value", vec!["key=value"]);
 
         for (input, words) in test_cases {
             let expected_tokens: Vec<Token> = words

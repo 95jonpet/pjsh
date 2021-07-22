@@ -166,7 +166,23 @@ impl Executor {
                 }
             }
         } else {
-            Err(ExecError::MissingCommand)
+            let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
+                let CmdPrefix(assignments, _) = prefix;
+                assignments
+                    .iter()
+                    .map(|AssignmentWord(key, value)| (key, value))
+                    .collect()
+            });
+
+            if envs.is_empty() {
+                return Err(ExecError::MissingCommand);
+            }
+
+            for (key, value) in envs {
+                env::set_var(key, value);
+            }
+
+            Ok(ExitStatus::SUCCESS)
         }
     }
 

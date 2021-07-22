@@ -81,6 +81,7 @@ impl Parse for AssignmentWordParser {
                     let split_index = literal.find('=').unwrap();
                     let key = String::from(&literal[..split_index]);
                     let value = String::from(&literal[(split_index + 1)..]);
+                    lexer.next_token();
                     Ok(AssignmentWord(key, value))
                 }
                 _ => unimplemented!(),
