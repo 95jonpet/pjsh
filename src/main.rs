@@ -1,4 +1,5 @@
 mod ast;
+mod builtin;
 mod cursor;
 mod executor;
 mod input;

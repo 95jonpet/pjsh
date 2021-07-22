@@ -1,5 +1,5 @@
 mod error;
-mod exit_status;
+pub(crate) mod exit_status;
 
 use std::{cell::RefCell, collections::HashMap, env, process::Stdio, rc::Rc};
 
@@ -9,6 +9,7 @@ use crate::{
         CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp,
         SimpleCommand, Word, Wordlist,
     },
+    builtin::builtin,
     options::Options,
     token::Unit,
 };
@@ -136,6 +137,10 @@ impl Executor {
                     words.iter().map(|word| Self::expand_word(word)).collect();
                 argument_list
             });
+
+            if let Some(builtin) = builtin(&expanded_command_name) {
+                return Ok(builtin.execute(&arguments));
+            }
 
             match expanded_command_name.as_str() {
                 "set" => {
