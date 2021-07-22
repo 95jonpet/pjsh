@@ -1,9 +1,10 @@
 use std::{
+    borrow::BorrowMut,
     env,
     path::{Path, PathBuf},
 };
 
-use crate::execution::exit_status::ExitStatus;
+use crate::execution::{environment::ExecutionEnvironment, exit_status::ExitStatus};
 
 use super::Builtin;
 
@@ -26,7 +27,11 @@ impl Cd {
 }
 
 impl Builtin for Cd {
-    fn execute(&self, args: &Vec<String>) -> crate::execution::exit_status::ExitStatus {
+    fn execute(
+        &self,
+        args: &Vec<String>,
+        _env: &mut ExecutionEnvironment,
+    ) -> crate::execution::exit_status::ExitStatus {
         match &args[..] {
             [path] => Self::set_current_dir(path),
             [] => Self::set_current_dir(env::var("HOME").unwrap()),
@@ -37,7 +42,7 @@ impl Builtin for Cd {
 
 pub(super) struct Exit;
 impl Builtin for Exit {
-    fn execute(&self, args: &Vec<String>) -> ExitStatus {
+    fn execute(&self, args: &Vec<String>, _env: &mut ExecutionEnvironment) -> ExitStatus {
         match &args[..] {
             [code_str] => {
                 if let Ok(code) = code_str.parse() {
@@ -49,5 +54,16 @@ impl Builtin for Exit {
             [] => ExitStatus::new(0),
             _ => ExitStatus::new(1),
         }
+    }
+}
+
+pub(super) struct Unset;
+impl Builtin for Unset {
+    fn execute(&self, args: &Vec<String>, env: &mut ExecutionEnvironment) -> ExitStatus {
+        for variable_name in args {
+            env.borrow_mut().unset_var(variable_name);
+        }
+
+        ExitStatus::new(0)
     }
 }

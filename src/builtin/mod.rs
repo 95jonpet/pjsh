@@ -1,10 +1,10 @@
 mod io;
 mod logic;
 
-use crate::execution::exit_status::ExitStatus;
+use crate::execution::{environment::ExecutionEnvironment, exit_status::ExitStatus};
 
 pub(crate) trait Builtin {
-    fn execute(&self, args: &Vec<String>) -> ExitStatus;
+    fn execute(&self, args: &Vec<String>, env: &mut ExecutionEnvironment) -> ExitStatus;
 }
 
 pub(crate) fn builtin(program: &str) -> Option<Box<dyn Builtin>> {
@@ -13,6 +13,7 @@ pub(crate) fn builtin(program: &str) -> Option<Box<dyn Builtin>> {
         "exit" => Some(Box::new(io::Exit {})),
         "false" => Some(Box::new(logic::False {})),
         "true" => Some(Box::new(logic::True {})),
+        "unset" => Some(Box::new(io::Unset {})),
         _ => None,
     }
 }

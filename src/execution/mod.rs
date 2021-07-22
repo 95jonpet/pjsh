@@ -1,7 +1,8 @@
+pub(crate) mod environment;
 mod error;
 pub(crate) mod exit_status;
 
-use std::{cell::RefCell, collections::HashMap, env, process::Stdio, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, process::Stdio, rc::Rc};
 
 use crate::{
     ast::{
@@ -14,15 +15,19 @@ use crate::{
     token::Unit,
 };
 
-use self::{error::ExecError, exit_status::ExitStatus};
+use self::{environment::ExecutionEnvironment, error::ExecError, exit_status::ExitStatus};
 
 pub struct Executor {
+    env: Rc<RefCell<ExecutionEnvironment>>,
     options: Rc<RefCell<Options>>,
 }
 
 impl Executor {
     pub fn new(options: Rc<RefCell<Options>>) -> Self {
-        Self { options }
+        Self {
+            env: Rc::new(RefCell::new(ExecutionEnvironment::new())),
+            options,
+        }
     }
 
     pub fn execute(&self, program: Program) -> Result<ExitStatus, ExecError> {
@@ -123,7 +128,7 @@ impl Executor {
         // TODO: Handle redirects.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
-            let expanded_command_name = Self::expand_word(command_name);
+            let expanded_command_name = self.expand_word(command_name);
             let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
                 let CmdPrefix(assignments, _) = prefix;
                 assignments
@@ -134,12 +139,12 @@ impl Executor {
             let arguments = maybe_suffix.as_ref().map_or_else(Vec::new, |suffix| {
                 let CmdSuffix(Wordlist(words), _) = suffix;
                 let argument_list: Vec<String> =
-                    words.iter().map(|word| Self::expand_word(word)).collect();
+                    words.iter().map(|word| self.expand_word(word)).collect();
                 argument_list
             });
 
             if let Some(builtin) = builtin(&expanded_command_name) {
-                return Ok(builtin.execute(&arguments));
+                return Ok(builtin.execute(&arguments, &mut self.env.borrow_mut()));
             }
 
             match expanded_command_name.as_str() {
@@ -171,36 +176,34 @@ impl Executor {
                 }
             }
         } else {
-            let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
-                let CmdPrefix(assignments, _) = prefix;
-                assignments
-                    .iter()
-                    .map(|AssignmentWord(key, value)| (key, value))
-                    .collect()
-            });
+            if let Some(CmdPrefix(assignments, _)) = maybe_prefix {
+                if assignments.is_empty() {
+                    return Err(ExecError::MissingCommand);
+                }
 
-            if envs.is_empty() {
-                return Err(ExecError::MissingCommand);
-            }
-
-            for (key, value) in envs {
-                env::set_var(key, value);
+                for AssignmentWord(name, value) in assignments {
+                    self.env
+                        .borrow_mut()
+                        .set_var(name.to_owned(), value.to_owned());
+                }
             }
 
             Ok(ExitStatus::SUCCESS)
         }
     }
 
-    fn expand_word(word: &Word) -> String {
+    fn expand_word(&self, word: &Word) -> String {
         let mut expanded_word = String::new();
         let Word(units) = word;
 
         for unit in units {
             match unit {
                 Unit::Literal(literal) => expanded_word.push_str(&literal),
-                Unit::Var(var) => {
-                    expanded_word.push_str(env::var(&var).unwrap_or(String::from("")).as_str())
-                }
+                Unit::Var(var) => match self.env.borrow().var(var) {
+                    Some(value) => expanded_word.push_str(value),
+                    None if self.options.borrow().allow_unset_vars => (),
+                    _ => todo!("exit shell with error"),
+                },
             }
         }
 
