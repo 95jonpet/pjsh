@@ -16,12 +16,19 @@ impl Cd {
     {
         let path = PathBuf::from(env::current_dir().unwrap())
             .join(directory)
-            .canonicalize()
-            .unwrap();
-        if env::set_current_dir(path.clone()).is_ok() {
-            ExitStatus::new(0)
-        } else {
-            ExitStatus::new(1)
+            .canonicalize();
+
+        if let Err(error) = path {
+            eprintln!("pjsh: cd: {}", error);
+            return ExitStatus::new(1);
+        }
+
+        match env::set_current_dir(path.unwrap()) {
+            Ok(()) => ExitStatus::new(0),
+            Err(error) => {
+                eprintln!("pjsh: cd: {}", error);
+                ExitStatus::new(1)
+            }
         }
     }
 }
