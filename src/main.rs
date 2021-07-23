@@ -5,7 +5,7 @@ mod execution;
 mod input;
 mod lexer;
 pub(crate) mod options;
-mod parser;
+mod parse;
 mod token;
 
 use clap::{crate_name, crate_version, Clap};
@@ -14,7 +14,7 @@ use execution::Executor;
 use input::InputLines;
 use lexer::Lexer;
 use options::Options;
-use parser::posix::PosixParser;
+use parse::posix::PosixParser;
 use std::cell::RefCell;
 use std::io::BufReader;
 use std::path::PathBuf;

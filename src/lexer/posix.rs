@@ -190,7 +190,7 @@ impl PosixLexer {
                 // but excluding, the next <newline> shall be discarded as a comment.
                 // The <newline> that ends the line is not considered part of the comment.
                 '#' if self.mode == Mode::Unquoted => {
-                    while cursor.peek() != &'\n' {
+                    while cursor.peek() != &'\n' && cursor.peek() != &EOF_CHAR {
                         cursor.next();
                     }
                 }
@@ -374,6 +374,19 @@ mod tests {
                 Token::Word(vec![Unit::Literal(String::from("ls"))]),
                 Token::Word(vec![Unit::Literal(String::from("-lah"))]),
                 Token::Newline,
+            ]
+        );
+    }
+
+    #[test]
+    fn it_skips_comments() {
+        assert_eq!(lex("# Comment"), vec![]);
+        assert_eq!(lex("# Comment\n"), vec![Token::Newline]);
+        assert_eq!(
+            lex("# Comment\nword"),
+            vec![
+                Token::Newline,
+                Token::Word(vec![Unit::Literal(String::from("word"))])
             ]
         );
     }
