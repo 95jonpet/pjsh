@@ -74,20 +74,6 @@ pub(crate) struct SeparatorParser {
     newline_list_parser: NewlineListParser,
 }
 
-impl SeparatorParser {
-    pub fn new(
-        separator_op_parser: SeparatorOpParser,
-        linebreak_parser: LinebreakParser,
-        newline_list_parser: NewlineListParser,
-    ) -> Self {
-        Self {
-            separator_op_parser,
-            linebreak_parser,
-            newline_list_parser,
-        }
-    }
-}
-
 impl Parse for SeparatorParser {
     type Item = ();
 

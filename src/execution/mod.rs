@@ -74,7 +74,7 @@ impl Executor {
     fn execute_and_or(
         &self,
         and_or: &AndOr,
-        separator_op: &SeparatorOp,
+        _separator_op: &SeparatorOp,
     ) -> Result<ExitStatus, ExecError> {
         let AndOr(parts) = and_or;
         let mut part_iterator = parts.iter();

@@ -13,12 +13,6 @@ pub enum Token {
     /// Integer preceding redirection operators.
     IoNumber(u8),
 
-    /* Delimiters. */
-    /// '
-    SQuote,
-    /// "
-    DQuote,
-
     /* Operators containing a single character. */
     /// |
     Pipe,
@@ -68,8 +62,6 @@ impl Display for Token {
             Token::Word(units) => write!(f, "<word {:?}>", units),
             Token::Newline => write!(f, "<newline>"),
             Token::IoNumber(number) => write!(f, "<io {}>", number),
-            Token::SQuote => write!(f, "'"),
-            Token::DQuote => write!(f, "\""),
             Token::Pipe => write!(f, "|"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),

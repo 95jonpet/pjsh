@@ -67,19 +67,19 @@ impl LexerAdapter {
         self.lexer.advance_line()
     }
 
-    /// Set the current [`Lex`] mode.
-    pub fn push_lexer_mode(&mut self, lexer_mode: Mode) {
-        if lexer_mode != self.lexer_mode() && !self.cached_tokens.is_empty() {
-            unreachable!("The lexer mode should not be changed while peeked tokens are held!");
-        }
+    // /// Set the current [`Lex`] mode.
+    // pub fn push_lexer_mode(&mut self, lexer_mode: Mode) {
+    //     if lexer_mode != self.lexer_mode() && !self.cached_tokens.is_empty() {
+    //         unreachable!("The lexer mode should not be changed while peeked tokens are held!");
+    //     }
 
-        self.lexer_mode_stack.push(lexer_mode);
-    }
+    //     self.lexer_mode_stack.push(lexer_mode);
+    // }
 
-    /// Restore the previous [`Lex`] mode.
-    pub fn pop_lexer_mode(&mut self) {
-        self.lexer_mode_stack
-            .pop()
-            .expect("an empty lexer mode stack should not be popped");
-    }
+    // /// Restore the previous [`Lex`] mode.
+    // pub fn pop_lexer_mode(&mut self) {
+    //     self.lexer_mode_stack
+    //         .pop()
+    //         .expect("an empty lexer mode stack should not be popped");
+    // }
 }

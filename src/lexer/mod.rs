@@ -16,9 +16,6 @@ pub enum Mode {
     Unquoted,
     /// Surrounded by single quotes.
     InSingleQuotes,
-    /// Surrounded by double quotes.
-    InDoubleQuotes,
-    // Arithmetic,
 }
 
 impl Display for Mode {
@@ -26,7 +23,6 @@ impl Display for Mode {
         match self {
             Mode::Unquoted => write!(f, "unquoted"),
             Mode::InSingleQuotes => write!(f, "single-quoted"),
-            Mode::InDoubleQuotes => write!(f, "double-quoted"),
         }
     }
 }
