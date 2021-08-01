@@ -80,6 +80,11 @@ impl PosixLexer {
             .any(|operator| operator.starts_with(string))
     }
 
+    /// Returns `true` if the input character is a prefix, or complete, redirection operator definition.
+    fn is_redirection_operator_prefix(&self, ch: char) -> bool {
+        return ch == '<' || ch == '>';
+    }
+
     pub(crate) fn next_token(&mut self, cursor: &mut Cursor) -> Token {
         loop {
             let current = cursor.next();
@@ -168,6 +173,15 @@ impl PosixLexer {
                     && !self.is_operator_prefix(&self.current_token)
                     && self.is_operator_prefix(&ch.to_string()) =>
                 {
+                    // Allow IO_NUMBER tokens to be found.
+                    if self.is_redirection_operator_prefix(ch) {
+                        if let Ok(number) = u8::from_str_radix(&self.current_token, 10) {
+                            self.forming_operator = true;
+                            self.current_token = ch.to_string();
+                            return Token::IoNumber(number);
+                        }
+                    }
+
                     let token = self.delimit_current_token(potential_operator);
                     self.forming_operator = true;
                     self.current_token = ch.to_string();
@@ -276,6 +290,11 @@ mod tests {
                 Token::Newline,
             ]
         );
+    }
+
+    #[test]
+    fn it_lexes_io_numbers() {
+        assert_eq!(lex("2>"), vec![Token::IoNumber(2), Token::Great]);
     }
 
     #[test]
