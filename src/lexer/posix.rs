@@ -1,4 +1,7 @@
-use std::{collections::HashMap, mem::take};
+use std::{
+    collections::{HashMap, VecDeque},
+    mem::take,
+};
 
 use crate::{
     cursor::{Cursor, EOF_CHAR, PS2},
@@ -14,15 +17,18 @@ pub(crate) struct PosixLexer {
     operators: HashMap<String, Token>,
     mode: Mode,
     whitespace_chars: Vec<char>,
+    cached_tokens: VecDeque<Token>,
 }
 
 impl PosixLexer {
     pub(crate) fn new() -> Self {
         let mut operators = HashMap::new();
+
+        // Treat newlines as operators.
+        // Both Unix (LF) and Windows (CRLF) are recognized as newlines.
         operators.insert(String::from("\n"), Token::Newline);
         operators.insert(String::from("\r\n"), Token::Newline);
-        // operators.insert(String::from("'"), Token::SQuote);
-        // operators.insert(String::from("\""), Token::DQuote);
+
         operators.insert(String::from("|"), Token::Pipe);
         operators.insert(String::from("("), Token::LParen);
         operators.insert(String::from(")"), Token::RParen);
@@ -48,6 +54,7 @@ impl PosixLexer {
             mode: Mode::Unquoted,
             operators,
             whitespace_chars: vec![' ', '\t'],
+            cached_tokens: VecDeque::new(),
         }
     }
 
@@ -59,7 +66,13 @@ impl PosixLexer {
         if allow_operator {
             if let Some(token) = self.operators.get(&self.current_token) {
                 self.current_token = String::new();
-                return token.clone();
+
+                if !self.current_units.is_empty() {
+                    self.cached_tokens.push_back(token.clone());
+                    return Token::Word(take(&mut self.current_units));
+                } else {
+                    return token.clone();
+                }
             }
         }
 
@@ -86,6 +99,10 @@ impl PosixLexer {
     }
 
     pub(crate) fn next_token(&mut self, cursor: &mut Cursor) -> Token {
+        if let Some(cached_token) = self.cached_tokens.pop_front() {
+            return cached_token;
+        }
+
         loop {
             let current = cursor.next();
             let mut joined = self.current_token.clone();
@@ -148,6 +165,24 @@ impl PosixLexer {
                     self.current_units
                         .push(Unit::Literal(take(&mut self.current_token)));
                 }
+                '"' if self.mode == Mode::Unquoted => {
+                    self.mode = Mode::InDoubleQuotes;
+                    self.forming_operator = false;
+
+                    if !self.current_token.is_empty() {
+                        self.current_units
+                            .push(self.delimit_unit(&self.current_token));
+                    }
+
+                    self.current_token = String::new();
+                }
+                '"' if self.mode == Mode::InDoubleQuotes => {
+                    self.mode = Mode::Unquoted;
+                    self.current_units
+                        .push(self.delimit_unit(&self.current_token));
+
+                    self.current_token = String::new();
+                }
 
                 // 5. If the current character is an unquoted '$' or '`', the shell shall identify
                 // the start of any candidates for parameter expansion (Parameter Expansion),
@@ -191,13 +226,16 @@ impl PosixLexer {
                 // 7. If the current character is an unquoted <blank>, any token containing the
                 // previous character is delimited and the current character shall be discarded.
                 ch if self.mode == Mode::Unquoted && self.whitespace_chars.contains(&ch) => {
-                    if !self.current_token.is_empty() {
-                        if self.forming_operator {
-                            self.forming_operator = false;
-                            return self.delimit_operator_token(&self.current_token);
-                        }
-                        return self.delimit_current_token(potential_operator);
+                    if self.current_token.is_empty() && self.current_units.is_empty() {
+                        continue;
                     }
+
+                    if self.forming_operator {
+                        self.forming_operator = false;
+                        return self.delimit_operator_token(&self.current_token);
+                    }
+
+                    return self.delimit_current_token(potential_operator);
                 }
 
                 // 9. If the current character is a '#', it and all subsequent characters up to,
@@ -346,6 +384,23 @@ mod tests {
 
     #[test]
     fn it_lexes_single_quoted_words() {
+        assert_eq!(
+            lex("echo 'quoted'\n"),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![Unit::Literal(String::from("quoted"))]),
+                Token::Newline,
+            ]
+        );
+        assert_eq!(
+            lex("echo 'quoted' unquoted\n"),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![Unit::Literal(String::from("quoted"))]),
+                Token::Word(vec![Unit::Literal(String::from("unquoted"))]),
+                Token::Newline,
+            ]
+        );
         assert_eq!(
             lex("'line 1\nline 2'"),
             vec![Token::Word(vec![Unit::Literal(String::from(
