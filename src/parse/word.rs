@@ -33,12 +33,6 @@ pub(crate) struct WordlistParser {
     word_parser: WordParser,
 }
 
-impl WordlistParser {
-    pub fn new(word_parser: WordParser) -> Self {
-        Self { word_parser }
-    }
-}
-
 impl Parse for WordlistParser {
     type Item = Wordlist;
 
@@ -140,7 +134,9 @@ mod tests {
             Token::Word(vec![Unit::Literal(String::from("word1"))]),
             Token::Word(vec![Unit::Literal(String::from("word2"))]),
         ];
-        let mut wordlist_parser = WordlistParser::new(WordParser::new());
+        let mut wordlist_parser = WordlistParser {
+            word_parser: WordParser::new(),
+        };
         assert_eq!(
             wordlist_parser.parse(&mut adapter(tokens)),
             Ok(Wordlist(vec![
