@@ -1,6 +1,6 @@
 mod adapter;
 mod command;
-mod error;
+pub(crate) mod error;
 mod io;
 mod meta;
 mod pipeline;

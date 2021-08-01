@@ -23,6 +23,8 @@ use std::{env, fs, io};
 
 use crate::ast::{CompleteCommands, Program};
 use crate::cursor::PS1;
+use crate::parse::error::ParseError;
+use crate::token::Token;
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
@@ -70,6 +72,8 @@ fn main() {
                         eprintln!("pjsh: {}", exec_error);
                     }
                 }
+                // Allow empty no-op lines in input.
+                Err(ParseError::UnexpectedToken(Token::Newline)) => (),
                 Err(parse_error) => eprintln!("pjsh: {}", parse_error),
             }
         } else {
