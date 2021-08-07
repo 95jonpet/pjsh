@@ -12,7 +12,7 @@ use crate::{
     },
     builtin::builtin,
     options::Options,
-    token::Unit,
+    token::{Expression, Unit},
 };
 
 use self::{environment::ExecutionEnvironment, error::ExecError, exit_status::ExitStatus};
@@ -199,11 +199,13 @@ impl Executor {
         for unit in units {
             match unit {
                 Unit::Literal(literal) => expanded_word.push_str(&literal),
-                Unit::Var(var) => match self.env.borrow().var(var) {
-                    Some(value) => expanded_word.push_str(value),
-                    None if self.options.borrow().allow_unset_vars => (),
-                    _ => todo!("exit shell with error"),
-                },
+                Unit::Expression(Expression::Parameter(var)) | Unit::Var(var) => {
+                    match self.env.borrow().var(var) {
+                        Some(value) => expanded_word.push_str(value),
+                        None if self.options.borrow().allow_unset_vars => (),
+                        _ => todo!("exit shell with error"),
+                    }
+                }
             }
         }
 

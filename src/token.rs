@@ -88,4 +88,10 @@ impl Display for Token {
 pub enum Unit {
     Literal(String),
     Var(String),
+    Expression(Expression),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Expression {
+    Parameter(String),
 }

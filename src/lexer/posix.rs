@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     cursor::{Cursor, EOF_CHAR, PS2},
-    token::{Token, Unit},
+    token::{Expression, Token, Unit},
 };
 
 use super::Mode;
@@ -200,6 +200,29 @@ impl PosixLexer {
                 // operators or quotes. The token shall not be delimited by the end of the
                 // substitution.
                 // TODO: Handle expansion and substitution syntax.
+                '$' if self.mode == Mode::Unquoted || self.mode == Mode::InDoubleQuotes => {
+                    match cursor.peek() {
+                        '{' => {
+                            cursor.next(); // Skip {.
+                            let mut word = String::new();
+                            while cursor.peek() != &'}' && cursor.peek() != &EOF_CHAR {
+                                word.push(cursor.next());
+                            }
+                            cursor.next(); // Skip }.
+                            self.current_units
+                                .push(Unit::Expression(Expression::Parameter(word)));
+                        }
+                        _ => {
+                            let mut word = String::new();
+                            while !self.whitespace_chars.contains(cursor.peek())
+                                && cursor.peek() != &EOF_CHAR
+                            {
+                                word.push(cursor.next());
+                            }
+                            self.current_units.push(Unit::Var(word));
+                        }
+                    }
+                }
 
                 // 6. If the current character is not quoted and can be used as the first character
                 // of a new operator, the current token (if any) shall be delimited.
@@ -282,8 +305,16 @@ impl PosixLexer {
     }
 
     fn delimit_unit(&self, current_token: &str) -> Unit {
-        if let Some(var) = current_token.strip_prefix('$') {
-            Unit::Var(var.to_string())
+        // TODO: Remove unreachable code.
+        if let Some(_expression) = current_token
+            .strip_prefix("${")
+            .and_then(|s| s.strip_suffix('}'))
+        {
+            unreachable!();
+            // Unit::Expression(expression.to_string())
+        } else if let Some(_var) = current_token.strip_prefix('$') {
+            unreachable!();
+            // Unit::Var(var.to_string())
         } else {
             Unit::Literal(current_token.to_string())
         }
@@ -441,15 +472,31 @@ mod tests {
                 expected_tokens
             )
         }
+    }
 
-        assert_eq!(
-            lex("ls -lah\n"),
-            vec![
-                Token::Word(vec![Unit::Literal(String::from("ls"))]),
-                Token::Word(vec![Unit::Literal(String::from("-lah"))]),
-                Token::Newline,
-            ]
-        );
+    #[test]
+    fn it_lexes_epressions() {
+        let mut test_cases = HashMap::new();
+        test_cases.insert("${expression}", vec!["expression"]);
+        test_cases.insert("${first_second}", vec!["first_second"]);
+
+        for (input, words) in test_cases {
+            let expected_tokens: Vec<Token> = words
+                .iter()
+                .map(|word| {
+                    Token::Word(vec![Unit::Expression(Expression::Parameter(
+                        word.to_string(),
+                    ))])
+                })
+                .collect();
+            assert_eq!(
+                lex(input),
+                expected_tokens,
+                "lexing {:?} should yield tokens {:?}",
+                input,
+                expected_tokens
+            )
+        }
     }
 
     #[test]
