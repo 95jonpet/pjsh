@@ -497,6 +497,14 @@ mod tests {
                 expected_tokens
             )
         }
+
+        assert_eq!(
+            lex("${a}b"),
+            vec![Token::Word(vec![
+                Unit::Expression(Expression::Parameter(String::from("a"))),
+                Unit::Literal(String::from("b"))
+            ])]
+        );
     }
 
     #[test]
