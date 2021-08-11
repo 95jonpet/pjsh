@@ -199,6 +199,21 @@ impl Executor {
         for unit in units {
             match unit {
                 Unit::Literal(literal) => expanded_word.push_str(&literal),
+                Unit::Expression(Expression::AssignDefaultValues(var, default, unset_or_null)) => {
+                    let mut env = self.env.borrow_mut();
+                    match env.var(&var) {
+                        None => {
+                            env.set_var(var.to_string(), default.to_string());
+                            expanded_word.push_str(&default)
+                        }
+                        Some(str) if str.is_empty() && !*unset_or_null => (),
+                        Some(str) if str.is_empty() && *unset_or_null => {
+                            env.set_var(var.to_string(), default.to_string());
+                            expanded_word.push_str(&default)
+                        }
+                        Some(value) => expanded_word.push_str(value),
+                    }
+                }
                 Unit::Expression(Expression::Parameter(var)) | Unit::Var(var) => {
                     match self.env.borrow().var(var) {
                         Some(value) => expanded_word.push_str(value),
@@ -206,6 +221,17 @@ impl Executor {
                         _ => todo!("exit shell with error"),
                     }
                 }
+                Unit::Expression(Expression::UseDefaultValues(var, default, unset_or_null)) => {
+                    match self.env.borrow().var(&var) {
+                        None => expanded_word.push_str(&default),
+                        Some(str) if str.is_empty() && !*unset_or_null => (),
+                        Some(str) if str.is_empty() && *unset_or_null => {
+                            expanded_word.push_str(&default)
+                        }
+                        Some(value) => expanded_word.push_str(value),
+                    }
+                }
+                _ => unimplemented!("Undefined expansion for unit {:?}", unit),
             }
         }
 

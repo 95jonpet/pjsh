@@ -57,6 +57,16 @@ impl Cursor {
         EOF_CHAR
     }
 
+    /// Skips a specific [`char`].
+    /// Panics if the next character is not the expected character.
+    pub fn skip(&mut self, ch: char) {
+        if &ch != self.peek() {
+            panic!("expected character '{}' but saw '{}'", ch, self.peek(),);
+        }
+
+        self.next();
+    }
+
     /// Returns `true` if the cursor is interactive.
     /// In interactive mode, each line should be parsed and executed immediately.
     #[inline]

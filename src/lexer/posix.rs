@@ -53,7 +53,7 @@ impl PosixLexer {
             forming_operator: false,
             mode: Mode::Unquoted,
             operators,
-            whitespace_chars: vec![' ', '\t'],
+            whitespace_chars: vec![' ', '\t', '\r', '\n'],
             cached_tokens: VecDeque::new(),
         }
     }
@@ -178,8 +178,11 @@ impl PosixLexer {
                 }
                 '"' if self.mode == Mode::InDoubleQuotes => {
                     self.mode = Mode::Unquoted;
-                    self.current_units
-                        .push(self.delimit_unit(&self.current_token));
+
+                    if !self.current_token.is_empty() {
+                        self.current_units
+                            .push(self.delimit_unit(&self.current_token));
+                    }
 
                     self.current_token = String::new();
                 }
@@ -201,27 +204,12 @@ impl PosixLexer {
                 // substitution.
                 // TODO: Handle expansion and substitution syntax.
                 '$' if self.mode == Mode::Unquoted || self.mode == Mode::InDoubleQuotes => {
-                    match cursor.peek() {
-                        '{' => {
-                            cursor.next(); // Skip {.
-                            let mut word = String::new();
-                            while cursor.peek() != &'}' && cursor.peek() != &EOF_CHAR {
-                                word.push(cursor.next());
-                            }
-                            cursor.next(); // Skip }.
-                            self.current_units
-                                .push(Unit::Expression(Expression::Parameter(word)));
-                        }
-                        _ => {
-                            let mut word = String::new();
-                            while !self.whitespace_chars.contains(cursor.peek())
-                                && cursor.peek() != &EOF_CHAR
-                            {
-                                word.push(cursor.next());
-                            }
-                            self.current_units.push(Unit::Var(word));
-                        }
+                    if !self.current_token.is_empty() {
+                        self.current_units
+                            .push(Unit::Literal(take(&mut self.current_token)));
                     }
+
+                    self.current_units.push(self.next_expandable_unit(cursor));
                 }
 
                 // 6. If the current character is not quoted and can be used as the first character
@@ -281,6 +269,113 @@ impl PosixLexer {
                     self.forming_operator = false;
                     self.current_token = ch.to_string();
                 }
+            }
+        }
+    }
+
+    /// Reads characters from a [`Cursor`] until a predicate holds.
+    /// Returns a [`String`] containing all characters that were passed.
+    fn read_until<P>(&self, cursor: &mut Cursor, advance_lines: bool, predicate: P) -> String
+    where
+        P: Fn(&char) -> bool,
+    {
+        let can_advance_lines = advance_lines && cursor.is_interactive();
+        let mut result = String::new();
+        loop {
+            match cursor.peek() {
+                &EOF_CHAR if can_advance_lines => cursor.advance_line(PS2),
+                &EOF_CHAR => break,
+                '\\' => {
+                    cursor.skip('\\');
+                    match cursor.next() {
+                        '$' => result.push('$'),
+                        '`' => result.push('`'),
+                        '"' => result.push('"'),
+                        '\\' => result.push('\\'),
+                        '\n' => (), // Escaped newline.
+                        '\r' => {
+                            // Escape Windows newline.
+                            if cursor.peek() == &'\n' {
+                                cursor.next();
+                            } else {
+                                result.push('\\');
+                                result.push('\r');
+                            }
+                        }
+                        ch => {
+                            result.push('\\');
+                            result.push(ch);
+                        }
+                    }
+                }
+                ch if !predicate(ch) => result.push(cursor.next()),
+                _ => break,
+            }
+        }
+        result
+    }
+
+    /// Lex the next expandable [`Unit`].
+    fn next_expandable_unit(&self, cursor: &mut Cursor) -> Unit {
+        match cursor.peek() {
+            '{' => {
+                cursor.skip('{');
+                let parameter_separators = ":-=?+}";
+                let parameter =
+                    self.read_until(cursor, true, |ch| parameter_separators.contains(*ch));
+
+                let unset_or_null = cursor.peek() == &':';
+                if unset_or_null {
+                    cursor.skip(':');
+                }
+
+                match cursor.peek() {
+                    &'-' => {
+                        cursor.skip('-');
+                        let word = self.read_until(cursor, true, |ch| ch == &'}');
+                        cursor.skip('}');
+                        Unit::Expression(Expression::UseDefaultValues(
+                            parameter,
+                            word,
+                            unset_or_null,
+                        ))
+                    }
+                    &'=' => {
+                        cursor.skip('=');
+                        let word = self.read_until(cursor, true, |ch| ch == &'}');
+                        cursor.skip('}');
+                        Unit::Expression(Expression::AssignDefaultValues(
+                            parameter,
+                            word,
+                            unset_or_null,
+                        ))
+                    }
+                    &'?' => {
+                        cursor.skip('?');
+                        let word = self.read_until(cursor, true, |ch| ch == &'}');
+                        cursor.skip('}');
+                        Unit::Expression(Expression::IndicateError(parameter, word, unset_or_null))
+                    }
+                    &'+' => {
+                        cursor.skip('+');
+                        let word = self.read_until(cursor, true, |ch| ch == &'}');
+                        cursor.skip('}');
+                        Unit::Expression(Expression::UseAlternativeValue(
+                            parameter,
+                            word,
+                            unset_or_null,
+                        ))
+                    }
+                    &'}' if !unset_or_null => {
+                        cursor.skip('}');
+                        Unit::Expression(Expression::Parameter(parameter))
+                    }
+                    ch => todo!("unexpected character '{}'", ch),
+                }
+            }
+            _ => {
+                let word = self.read_until(cursor, false, |ch| self.whitespace_chars.contains(ch));
+                Unit::Var(word)
             }
         }
     }
@@ -475,19 +570,81 @@ mod tests {
     }
 
     #[test]
-    fn it_lexes_epressions() {
+    fn it_lexes_expressions() {
         let mut test_cases = HashMap::new();
-        test_cases.insert("${expression}", vec!["expression"]);
-        test_cases.insert("${first_second}", vec!["first_second"]);
+        test_cases.insert(
+            "${parameter}",
+            vec![Expression::Parameter(String::from("parameter"))],
+        );
+        test_cases.insert(
+            "${parameter-word}",
+            vec![Expression::UseDefaultValues(
+                String::from("parameter"),
+                String::from("word"),
+                false,
+            )],
+        );
+        test_cases.insert(
+            "${parameter:-word}",
+            vec![Expression::UseDefaultValues(
+                String::from("parameter"),
+                String::from("word"),
+                true,
+            )],
+        );
+        test_cases.insert(
+            "${parameter=word}",
+            vec![Expression::AssignDefaultValues(
+                String::from("parameter"),
+                String::from("word"),
+                false,
+            )],
+        );
+        test_cases.insert(
+            "${parameter:=word}",
+            vec![Expression::AssignDefaultValues(
+                String::from("parameter"),
+                String::from("word"),
+                true,
+            )],
+        );
+        test_cases.insert(
+            "${parameter?word}",
+            vec![Expression::IndicateError(
+                String::from("parameter"),
+                String::from("word"),
+                false,
+            )],
+        );
+        test_cases.insert(
+            "${parameter:?word}",
+            vec![Expression::IndicateError(
+                String::from("parameter"),
+                String::from("word"),
+                true,
+            )],
+        );
+        test_cases.insert(
+            "${parameter+word}",
+            vec![Expression::UseAlternativeValue(
+                String::from("parameter"),
+                String::from("word"),
+                false,
+            )],
+        );
+        test_cases.insert(
+            "${parameter:+word}",
+            vec![Expression::UseAlternativeValue(
+                String::from("parameter"),
+                String::from("word"),
+                true,
+            )],
+        );
 
         for (input, words) in test_cases {
             let expected_tokens: Vec<Token> = words
                 .iter()
-                .map(|word| {
-                    Token::Word(vec![Unit::Expression(Expression::Parameter(
-                        word.to_string(),
-                    ))])
-                })
+                .map(|expression| Token::Word(vec![Unit::Expression(expression.clone())]))
                 .collect();
             assert_eq!(
                 lex(input),
@@ -505,6 +662,21 @@ mod tests {
                 Unit::Literal(String::from("b"))
             ])]
         );
+
+        assert_eq!(
+            lex("echo \"Hello, ${name:-Mr Smith}\""),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![
+                    Unit::Literal(String::from("Hello, ")),
+                    Unit::Expression(Expression::UseDefaultValues(
+                        String::from("name"),
+                        String::from("Mr Smith"),
+                        true,
+                    ))
+                ]),
+            ]
+        )
     }
 
     #[test]

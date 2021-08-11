@@ -93,5 +93,14 @@ pub enum Unit {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
+    /// parameter: ${parameter}
     Parameter(String),
+    /// parameter, word, unset_or_null: ${parameter:-[word]}
+    UseDefaultValues(String, String, bool),
+    /// parameter, word, unset_or_null: ${parameter:=[word]}
+    AssignDefaultValues(String, String, bool),
+    /// parameter, word, unset_or_null: ${parameter:?[word]}
+    IndicateError(String, String, bool),
+    /// parameter, word, unset_or_null: ${parameter:+[word]}
+    UseAlternativeValue(String, String, bool),
 }
