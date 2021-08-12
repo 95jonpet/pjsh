@@ -375,7 +375,9 @@ impl PosixLexer {
                 }
             }
             _ => {
-                let word = self.read_until(cursor, false, |ch| self.whitespace_chars.contains(ch));
+                let word = self.read_until(cursor, false, |ch| {
+                    self.whitespace_chars.contains(ch) || ch == &'"' || ch == &'\''
+                });
                 Unit::Var(word)
             }
         }
@@ -547,6 +549,17 @@ mod tests {
             vec![Token::Word(vec![Unit::Literal(String::from(
                 "# not a comment"
             ))])]
+        );
+    }
+
+    #[test]
+    fn it_lexes_double_quoted_words() {
+        assert_eq!(
+            lex("echo \"$var\""),
+            vec![
+                Token::Word(vec![Unit::Literal(String::from("echo"))]),
+                Token::Word(vec![Unit::Var(String::from("var"))]),
+            ]
         );
     }
 
