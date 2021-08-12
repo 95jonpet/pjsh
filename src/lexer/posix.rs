@@ -107,11 +107,12 @@ impl PosixLexer {
             let current = cursor.next();
             let mut joined = self.current_token.clone();
             joined.push(current);
-            let potential_operator = self.forming_operator || self.current_token.is_empty();
+            let potential_operator = self.forming_operator
+                || (self.current_token.is_empty() && self.mode == Mode::Unquoted);
             match current {
                 // 1. If the end of input is recognized, the current token (if any) shall be
                 // delimited.
-                EOF_CHAR if self.mode == Mode::InSingleQuotes => cursor.advance_line(PS2),
+                EOF_CHAR if self.mode != Mode::Unquoted => cursor.advance_line(PS2),
                 EOF_CHAR if self.mode == Mode::Unquoted => {
                     return self.delimit_token_before_eof(potential_operator);
                 }
