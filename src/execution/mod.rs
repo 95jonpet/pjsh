@@ -181,7 +181,7 @@ impl Executor {
                                 eprintln!(
                                     "which: no {} in ({})",
                                     program,
-                                    self.env.borrow().var("PATH").unwrap_or(&String::new())
+                                    self.env.borrow().var("PATH").unwrap_or_default()
                                 );
                                 Ok(ExitStatus::new(1))
                             }
@@ -249,12 +249,12 @@ impl Executor {
                             env.set_var(var.to_string(), default.to_string());
                             expanded_word.push_str(&default)
                         }
-                        Some(value) => expanded_word.push_str(value),
+                        Some(value) => expanded_word.push_str(&value),
                     }
                 }
                 Unit::Expression(Expression::Parameter(var)) | Unit::Var(var) => {
                     match self.env.borrow().var(var) {
-                        Some(value) => expanded_word.push_str(value),
+                        Some(value) => expanded_word.push_str(&value),
                         None if self.options.borrow().allow_unset_vars => (),
                         _ => todo!("exit shell with error"),
                     }
@@ -266,7 +266,7 @@ impl Executor {
                         Some(str) if str.is_empty() && *unset_or_null => {
                             expanded_word.push_str(&default)
                         }
-                        Some(value) => expanded_word.push_str(value),
+                        Some(value) => expanded_word.push_str(&value),
                     }
                 }
                 _ => unimplemented!("Undefined expansion for unit {:?}", unit),
