@@ -1,8 +1,4 @@
-use std::{
-    borrow::BorrowMut,
-    env,
-    path::{Path, PathBuf},
-};
+use std::{borrow::BorrowMut, env, path::Path};
 
 use crate::execution::{environment::ExecutionEnvironment, exit_status::ExitStatus};
 
@@ -14,9 +10,7 @@ impl Cd {
     where
         P: AsRef<Path>,
     {
-        let path = PathBuf::from(env::current_dir().unwrap())
-            .join(directory)
-            .canonicalize();
+        let path = env::current_dir().unwrap().join(directory).canonicalize();
 
         if let Err(error) = path {
             eprintln!("pjsh: cd: {}", error);
@@ -36,10 +30,10 @@ impl Cd {
 impl Builtin for Cd {
     fn execute(
         &self,
-        args: &Vec<String>,
+        args: &[String],
         _env: &mut ExecutionEnvironment,
     ) -> crate::execution::exit_status::ExitStatus {
-        match &args[..] {
+        match args {
             [path] => Self::set_current_dir(path),
             [] => Self::set_current_dir(env::var("HOME").unwrap()),
             _ => ExitStatus::new(0),
@@ -49,8 +43,8 @@ impl Builtin for Cd {
 
 pub(super) struct Exit;
 impl Builtin for Exit {
-    fn execute(&self, args: &Vec<String>, _env: &mut ExecutionEnvironment) -> ExitStatus {
-        match &args[..] {
+    fn execute(&self, args: &[String], _env: &mut ExecutionEnvironment) -> ExitStatus {
+        match args {
             [code_str] => {
                 if let Ok(code) = code_str.parse() {
                     return ExitStatus::new(code);
@@ -66,7 +60,7 @@ impl Builtin for Exit {
 
 pub(super) struct Unset;
 impl Builtin for Unset {
-    fn execute(&self, args: &Vec<String>, env: &mut ExecutionEnvironment) -> ExitStatus {
+    fn execute(&self, args: &[String], env: &mut ExecutionEnvironment) -> ExitStatus {
         for variable_name in args {
             env.borrow_mut().unset_var(variable_name);
         }

@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, mem::replace};
+use std::{collections::VecDeque, mem::take};
 
 use crate::{
     lexer::{Lex, Mode},
@@ -27,7 +27,7 @@ impl LexerAdapter {
 
     /// Returns all cached tokens and clears the cache.
     pub fn clear_cache(&mut self) -> VecDeque<Token> {
-        replace(&mut self.cached_tokens, VecDeque::new())
+        take(&mut self.cached_tokens)
     }
 
     /// Returns the current [`Mode`] that should be used when performing lexical analysis.

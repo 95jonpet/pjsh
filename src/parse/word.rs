@@ -57,9 +57,9 @@ impl AssignmentWordParser {
         Self {}
     }
 
-    fn is_assignment(units: &Vec<Unit>) -> bool {
+    fn is_assignment(units: &[Unit]) -> bool {
         units.iter().any(|unit| match unit {
-            Unit::Literal(literal) => literal.contains("="),
+            Unit::Literal(literal) => literal.contains('='),
             _ => false,
         })
     }

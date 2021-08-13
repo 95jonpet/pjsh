@@ -4,7 +4,7 @@ mod logic;
 use crate::execution::{environment::ExecutionEnvironment, exit_status::ExitStatus};
 
 pub(crate) trait Builtin {
-    fn execute(&self, args: &Vec<String>, env: &mut ExecutionEnvironment) -> ExitStatus;
+    fn execute(&self, args: &[String], env: &mut ExecutionEnvironment) -> ExitStatus;
 }
 
 pub(crate) fn builtin(program: &str) -> Option<Box<dyn Builtin>> {

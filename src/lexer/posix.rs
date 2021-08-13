@@ -95,7 +95,7 @@ impl PosixLexer {
 
     /// Returns `true` if the input character is a prefix, or complete, redirection operator definition.
     fn is_redirection_operator_prefix(&self, ch: char) -> bool {
-        return ch == '<' || ch == '>';
+        ch == '<' || ch == '>'
     }
 
     pub(crate) fn next_token(&mut self, cursor: &mut Cursor) -> Token {
@@ -222,7 +222,7 @@ impl PosixLexer {
                 {
                     // Allow IO_NUMBER tokens to be found.
                     if self.is_redirection_operator_prefix(ch) {
-                        if let Ok(number) = u8::from_str_radix(&self.current_token, 10) {
+                        if let Ok(number) = self.current_token.parse::<u8>() {
                             self.forming_operator = true;
                             self.current_token = ch.to_string();
                             return Token::IoNumber(number);

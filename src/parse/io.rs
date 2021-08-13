@@ -37,31 +37,31 @@ impl Parse for IoFileParser {
         match lexer.peek_token() {
             Token::Less => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::Less(file))
+                self.filename(lexer).map(IoFile::Less)
             }
             Token::LessAnd => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::LessAnd(file))
+                self.filename(lexer).map(IoFile::LessAnd)
             }
             Token::Great => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::Great(file))
+                self.filename(lexer).map(IoFile::Great)
             }
             Token::GreatAnd => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::GreatAnd(file))
+                self.filename(lexer).map(IoFile::GreatAnd)
             }
             Token::DGreat => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::DGreat(file))
+                self.filename(lexer).map(IoFile::DGreat)
             }
             Token::LessGreat => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::LessGreat(file))
+                self.filename(lexer).map(IoFile::LessGreat)
             }
             Token::Clobber => {
                 lexer.next_token();
-                self.filename(lexer).map(|file| IoFile::Clobber(file))
+                self.filename(lexer).map(IoFile::Clobber)
             }
             _ => Err(ParseError::UnexpectedToken(lexer.peek_token().clone())),
         }
@@ -95,11 +95,11 @@ impl Parse for IoHereParser {
         match lexer.peek_token() {
             Token::DLess => {
                 lexer.next_token();
-                self.here_end(lexer).map(|end| IoHere::DLess(end))
+                self.here_end(lexer).map(IoHere::DLess)
             }
             Token::DLessDash => {
                 lexer.next_token();
-                self.here_end(lexer).map(|end| IoHere::DLessDash(end))
+                self.here_end(lexer).map(IoHere::DLessDash)
             }
             _ => Err(ParseError::UnexpectedToken(lexer.peek_token().clone())),
         }

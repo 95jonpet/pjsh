@@ -36,9 +36,7 @@ impl Parse for AndOrParser {
     type Item = AndOr;
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
-        let mut parts = Vec::new();
-
-        parts.push(AndOrPart::Start(self.pipeline_parser.parse(lexer)?));
+        let mut parts = vec![AndOrPart::Start(self.pipeline_parser.parse(lexer)?)];
 
         loop {
             match lexer.peek_token() {
@@ -88,9 +86,7 @@ impl Parse for ListParser {
     type Item = List;
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
-        let mut parts = Vec::new();
-
-        parts.push(ListPart::Start(self.and_or_parser.parse(lexer)?));
+        let mut parts = vec![ListPart::Start(self.and_or_parser.parse(lexer)?)];
 
         while let Ok(separator_op) = self.separator_op_parser.parse(lexer) {
             parts.push(ListPart::Tail(
@@ -124,7 +120,7 @@ impl PipelineParser {
         }
     }
 
-    fn is_bang(units: &Vec<Unit>) -> bool {
+    fn is_bang(units: &[Unit]) -> bool {
         if units.len() != 1 {
             return false;
         }
@@ -175,9 +171,7 @@ impl Parse for PipeSequenceParser {
     type Item = PipeSequence;
 
     fn parse(&mut self, lexer: &mut LexerAdapter) -> Result<Self::Item, ParseError> {
-        let mut commands = Vec::new();
-
-        commands.push(self.command_parser.parse(lexer)?);
+        let mut commands = vec![self.command_parser.parse(lexer)?];
 
         while lexer.peek_token() == &Token::Pipe {
             lexer.next_token();
