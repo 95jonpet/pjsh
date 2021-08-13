@@ -2,7 +2,7 @@ pub(crate) mod environment;
 mod error;
 pub(crate) mod exit_status;
 
-use std::{cell::RefCell, collections::HashMap, path::PathBuf, process::Stdio, rc::Rc, vec};
+use std::{cell::RefCell, collections::HashMap, process::Stdio, rc::Rc};
 
 use crate::{
     ast::{
@@ -10,22 +10,25 @@ use crate::{
         CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp,
         SimpleCommand, Word, Wordlist,
     },
-    builtin::builtin,
     options::Options,
     token::{Expression, Unit},
 };
 
-use self::{environment::ExecutionEnvironment, error::ExecError, exit_status::ExitStatus};
+use self::{
+    environment::{Environment, WindowsEnvironment},
+    error::ExecError,
+    exit_status::ExitStatus,
+};
 
 pub struct Executor {
-    env: Rc<RefCell<ExecutionEnvironment>>,
+    env: Rc<RefCell<dyn Environment>>,
     options: Rc<RefCell<Options>>,
 }
 
 impl Executor {
     pub fn new(options: Rc<RefCell<Options>>) -> Self {
         Self {
-            env: Rc::new(RefCell::new(ExecutionEnvironment::default())),
+            env: Rc::new(RefCell::new(WindowsEnvironment::default())),
             options,
         }
     }
@@ -143,11 +146,14 @@ impl Executor {
                 argument_list
             });
 
-            if let Some(builtin) = builtin(&expanded_command_name) {
-                return Ok(builtin.execute(&arguments, &mut self.env.borrow_mut()));
-            }
-
             match expanded_command_name.as_str() {
+                // Builtins.
+                // TODO: Add builtins.
+                // "cd" => Ok((builtin::io::Cd {}).execute(&arguments, &mut self.env)),
+                // "exit" => Ok((builtin::io::Exit {}).execute(&arguments, &mut, env)),
+                // "false" => Ok((builtin::logic::False {}).execute(&arguments, &mut, env)),
+                // "true" => Ok((builtin::logic::True {}).execute(&arguments, &mut, env)),
+                // "unset" => Ok((builtin::io::Unset {}).execute(&arguments, &mut, env)),
                 "set" => {
                     let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
                     match command_args.as_slice() {
@@ -161,8 +167,39 @@ impl Executor {
                     }
                     Ok(ExitStatus::SUCCESS)
                 }
+
+                "which" => {
+                    let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
+                    match command_args.as_slice() {
+                        [program] => {
+                            if let Some(path) = self.env.borrow().find_program(program) {
+                                let mut pretty_path = path.to_string_lossy().to_string();
+                                pretty_path = pretty_path.trim_start_matches(r#"\\?\"#).to_string();
+                                println!("{}", pretty_path);
+                                Ok(ExitStatus::SUCCESS)
+                            } else {
+                                eprintln!(
+                                    "which: no {} in ({})",
+                                    program,
+                                    self.env.borrow().var("PATH").unwrap_or(&String::new())
+                                );
+                                Ok(ExitStatus::new(1))
+                            }
+                        }
+                        args => {
+                            eprintln!("set: unknown arguments {:?}", args);
+                            Ok(ExitStatus::new(1))
+                        }
+                    }
+                }
+
                 program => {
-                    let program_path = self.find_program(program);
+                    let program_path = self
+                        .env
+                        .borrow()
+                        .find_program(program)
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_else(|| program.to_string());
                     let result = std::process::Command::new(program_path)
                         .args(arguments)
                         .envs(envs)
@@ -237,32 +274,5 @@ impl Executor {
         }
 
         expanded_word
-    }
-
-    /// Finds a program's path by searching through the `PATH` environment variable.
-    /// Returns the program name if no relevant path is found.
-    fn find_program(&self, program: &str) -> String {
-        // TODO: Refactor into trait.
-        // TODO: PATHEXT is Windows-specific.
-        let env = self.env.borrow();
-        if let Some(path_env) = env.var("PATH") {
-            let mut extensions = vec![""];
-            if let Some(ext_env) = env.var("PATHEXT") {
-                extensions.extend(ext_env.split(';'));
-            }
-
-            for path in path_env.split(';') {
-                for extension in &extensions {
-                    // TODO: Use colon on non-Windows system or translate semicolon to colon on Windows.
-                    let program_path: PathBuf =
-                        [path, &(program.to_string() + extension)].iter().collect();
-                    if program_path.exists() {
-                        return program_path.to_string_lossy().to_string();
-                    }
-                }
-            }
-        }
-
-        program.to_string()
     }
 }

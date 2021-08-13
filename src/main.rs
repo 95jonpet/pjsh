@@ -1,5 +1,5 @@
 mod ast;
-mod builtin;
+pub(crate) mod builtin;
 mod cursor;
 mod execution;
 mod input;
