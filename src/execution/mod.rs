@@ -2,7 +2,7 @@ pub(crate) mod environment;
 mod error;
 pub(crate) mod exit_status;
 
-use std::{cell::RefCell, collections::HashMap, process::Stdio, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, process::Stdio, rc::Rc, vec};
 
 use crate::{
     ast::{
@@ -25,7 +25,7 @@ pub struct Executor {
 impl Executor {
     pub fn new(options: Rc<RefCell<Options>>) -> Self {
         Self {
-            env: Rc::new(RefCell::new(ExecutionEnvironment::new())),
+            env: Rc::new(RefCell::new(ExecutionEnvironment::default())),
             options,
         }
     }
@@ -162,7 +162,8 @@ impl Executor {
                     Ok(ExitStatus::SUCCESS)
                 }
                 program => {
-                    let result = std::process::Command::new(program)
+                    let program_path = self.find_program(program);
+                    let result = std::process::Command::new(program_path)
                         .args(arguments)
                         .envs(envs)
                         .stdout(Stdio::inherit())
@@ -236,5 +237,32 @@ impl Executor {
         }
 
         expanded_word
+    }
+
+    /// Finds a program's path by searching through the `PATH` environment variable.
+    /// Returns the program name if no relevant path is found.
+    fn find_program(&self, program: &str) -> String {
+        // TODO: Refactor into trait.
+        // TODO: PATHEXT is Windows-specific.
+        let env = self.env.borrow();
+        if let Some(path_env) = env.var("PATH") {
+            let mut extensions = vec![""];
+            if let Some(ext_env) = env.var("PATHEXT") {
+                extensions.extend(ext_env.split(';'));
+            }
+
+            for path in path_env.split(';') {
+                for extension in &extensions {
+                    // TODO: Use colon on non-Windows system or translate semicolon to colon on Windows.
+                    let program_path: PathBuf =
+                        [path, &(program.to_string() + extension)].iter().collect();
+                    if program_path.exists() {
+                        return program_path.to_string_lossy().to_string();
+                    }
+                }
+            }
+        }
+
+        program.to_string()
     }
 }

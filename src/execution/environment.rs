@@ -5,12 +5,6 @@ pub(crate) struct ExecutionEnvironment {
 }
 
 impl ExecutionEnvironment {
-    pub fn new() -> Self {
-        Self {
-            vars: HashMap::new(),
-        }
-    }
-
     pub fn var(&self, name: &str) -> Option<&String> {
         self.vars.get(name)
     }
@@ -21,5 +15,13 @@ impl ExecutionEnvironment {
 
     pub fn unset_var(&mut self, name: &str) -> Option<String> {
         self.vars.remove(name)
+    }
+}
+
+impl Default for ExecutionEnvironment {
+    fn default() -> Self {
+        Self {
+            vars: std::env::vars().collect(),
+        }
     }
 }
