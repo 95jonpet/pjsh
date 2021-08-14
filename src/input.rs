@@ -33,3 +33,27 @@ impl Iterator for InputLines {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn it_can_get_the_next_line_from_a_line_buffer() {
+        let input = vec!["first\n", "second\n"];
+        let io_cursor = io::Cursor::new(input.join(""));
+        let mut lines = InputLines::Buffered(Box::new(io_cursor));
+        assert_eq!(lines.next(), Some(input[0].to_string()), "first line");
+        assert_eq!(lines.next(), Some(input[1].to_string()), "second line");
+        assert_eq!(lines.next(), None, "no more lines");
+    }
+
+    #[test]
+    fn it_can_get_the_next_line_from_single_line_input() {
+        let line = String::from("input\n");
+        let mut lines = InputLines::Single(Some(line.clone()));
+        assert_eq!(lines.next(), Some(line), "return the complete input");
+        assert_eq!(lines.next(), None, "no more lines");
+    }
+}
