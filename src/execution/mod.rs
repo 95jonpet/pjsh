@@ -231,6 +231,7 @@ impl Executor {
     }
 
     fn expand_word(&self, word: &Word) -> String {
+        // TODO: Return Result<String, String>.
         let mut expanded_word = String::new();
         let Word(units) = word;
 
@@ -248,6 +249,20 @@ impl Executor {
                         Some(str) if str.is_empty() && *unset_or_null => {
                             env.set_var(var.to_string(), default.to_string());
                             expanded_word.push_str(&default)
+                        }
+                        Some(value) => expanded_word.push_str(&value),
+                    }
+                }
+                Unit::Expression(Expression::IndicateError(var, message, unset_or_null)) => {
+                    match self.env.borrow().var(&var) {
+                        None => {
+                            eprintln!("pjsh: {}: {}", var, message);
+                            // TODO: Exit with non-success code.
+                        }
+                        Some(str) if str.is_empty() && !*unset_or_null => (),
+                        Some(str) if str.is_empty() && *unset_or_null => {
+                            eprintln!("pjsh: {}: {}", var, message);
+                            // TODO: Exit with non-success code.
                         }
                         Some(value) => expanded_word.push_str(&value),
                     }
