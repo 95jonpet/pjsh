@@ -91,7 +91,7 @@ pub enum Unit {
     Expression(Expression),
 }
 
-// TODO: Use Token::Word for second arguments to allow word expansions.
+// TODO: Use Option<Token::Word> for optional word arguments to allow word expansion.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     /// parameter: ${parameter}

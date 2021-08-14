@@ -131,7 +131,7 @@ impl Executor {
         // TODO: Handle redirects.
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
-            let expanded_command_name = self.expand_word(command_name);
+            let expanded_command_name = self.expand_word(command_name)?;
             let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
                 let CmdPrefix(assignments, _) = prefix;
                 assignments
@@ -139,12 +139,13 @@ impl Executor {
                     .map(|AssignmentWord(key, value)| (key, value))
                     .collect()
             });
-            let arguments = maybe_suffix.as_ref().map_or_else(Vec::new, |suffix| {
+            let mut arguments = Vec::new();
+            if let Some(suffix) = maybe_suffix {
                 let CmdSuffix(Wordlist(words), _) = suffix;
-                let argument_list: Vec<String> =
-                    words.iter().map(|word| self.expand_word(word)).collect();
-                argument_list
-            });
+                for word in words {
+                    arguments.push(self.expand_word(word)?);
+                }
+            }
 
             match expanded_command_name.as_str() {
                 // Builtins.
@@ -230,8 +231,7 @@ impl Executor {
         }
     }
 
-    fn expand_word(&self, word: &Word) -> String {
-        // TODO: Return Result<String, String>.
+    fn expand_word(&self, word: &Word) -> Result<String, ExecError> {
         let mut expanded_word = String::new();
         let Word(units) = word;
 
@@ -256,13 +256,17 @@ impl Executor {
                 Unit::Expression(Expression::IndicateError(var, message, unset_or_null)) => {
                     match self.env.borrow().var(&var) {
                         None => {
-                            eprintln!("pjsh: {}: {}", var, message);
-                            // TODO: Exit with non-success code.
+                            return Err(ExecError::ParameterNullOrNotSet(
+                                var.to_owned(),
+                                Some(message.to_owned()),
+                            ))
                         }
                         Some(str) if str.is_empty() && !*unset_or_null => (),
                         Some(str) if str.is_empty() && *unset_or_null => {
-                            eprintln!("pjsh: {}: {}", var, message);
-                            // TODO: Exit with non-success code.
+                            return Err(ExecError::ParameterNullOrNotSet(
+                                var.to_owned(),
+                                Some(message.to_owned()),
+                            ))
                         }
                         Some(value) => expanded_word.push_str(&value),
                     }
@@ -288,6 +292,6 @@ impl Executor {
             }
         }
 
-        expanded_word
+        Ok(expanded_word)
     }
 }
