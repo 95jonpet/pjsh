@@ -77,7 +77,7 @@ impl Environment for WindowsEnvironment {
             extensions.extend(ext_env.split(';').map(str::to_owned));
         }
 
-        if let Some(path_env) = self.var("PATH") {
+        if let Some(path_env) = self.var("Path").or_else(|| env::var("Path").ok()) {
             // Define all possible paths using paths in PATH combined with all possible extensions.
             let possible_paths = path_env.split(';').flat_map(|directory| {
                 extensions
@@ -103,15 +103,7 @@ impl Environment for WindowsEnvironment {
     }
 
     fn var(&self, name: &str) -> Option<String> {
-        if let Some(value) = self.vars.get(name) {
-            return Some(value.to_owned());
-        }
-
-        if let Ok(value) = env::var(name) {
-            return Some(value);
-        }
-
-        None
+        self.vars.get(name).map(String::to_owned)
     }
 
     fn set_var(&mut self, name: String, value: String) -> Option<String> {
