@@ -1,12 +1,18 @@
 use std::{collections::HashMap, env, path::PathBuf};
 
+/// An execution environment.
 pub(crate) trait Environment {
+    /// Finds the path for a program.
     fn find_program(&self, program: &str) -> Option<PathBuf>;
+    /// Returns the value of a named variable.
     fn var(&self, name: &str) -> Option<String>;
+    /// Sets the value of a named variable.
     fn set_var(&mut self, name: String, value: String) -> Option<String>;
+    /// Clears the value of a named variable.
     fn unset_var(&mut self, name: &str) -> Option<String>;
 }
 
+/// An execution environment suitable for Unix systems.
 pub(crate) struct UnixEnvironment {
     vars: HashMap<String, String>,
 }
@@ -57,6 +63,7 @@ impl Environment for UnixEnvironment {
     }
 }
 
+/// An execution environment suitable for Windows systems.
 pub(crate) struct WindowsEnvironment {
     vars: HashMap<String, String>,
 }

@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+/// Represents an error during execution.
 pub enum ExecError {
     /// Illegal pipeline definition.
     MalformedPipeline,
