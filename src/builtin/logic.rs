@@ -7,7 +7,7 @@ impl Builtin for False {
     fn execute(
         &self,
         _args: &[String],
-        _env: &mut impl Environment,
+        _env: &mut dyn Environment,
     ) -> crate::execution::exit_status::ExitStatus {
         ExitStatus::new(1)
     }
@@ -18,7 +18,7 @@ impl Builtin for True {
     fn execute(
         &self,
         _args: &[String],
-        _env: &mut impl Environment,
+        _env: &mut dyn Environment,
     ) -> crate::execution::exit_status::ExitStatus {
         ExitStatus::new(0)
     }

@@ -10,6 +10,7 @@ mod token;
 
 use clap::{crate_name, crate_version, Clap};
 use cursor::Cursor;
+use execution::environment::WindowsEnvironment;
 use execution::Executor;
 use input::InputLines;
 use lexer::Lexer;
@@ -57,7 +58,8 @@ fn main() {
     )));
     let lexer = Lexer::new(cursor.clone(), options.clone());
     let mut parser = PosixParser::new(Box::new(lexer), options.clone());
-    let executor = Executor::new(options);
+    let env = Rc::new(RefCell::new(WindowsEnvironment::default()));
+    let executor = Executor::new(env, options);
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.

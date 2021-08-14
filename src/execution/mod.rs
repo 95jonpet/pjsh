@@ -10,25 +10,42 @@ use crate::{
         CompleteCommands, List, ListPart, PipeSequence, Pipeline, Program, SeparatorOp,
         SimpleCommand, Word, Wordlist,
     },
+    builtin::{self, Builtin},
     options::Options,
     token::{Expression, Unit},
 };
 
-use self::{
-    environment::{Environment, WindowsEnvironment},
-    error::ExecError,
-    exit_status::ExitStatus,
-};
+use self::{environment::Environment, error::ExecError, exit_status::ExitStatus};
 
-pub struct Executor {
-    env: Rc<RefCell<dyn Environment>>,
+pub(crate) struct Executor<Env>
+where
+    Env: Environment,
+{
+    builtins: HashMap<String, Box<dyn Builtin>>,
+    env: Rc<RefCell<Env>>,
     options: Rc<RefCell<Options>>,
 }
 
-impl Executor {
-    pub fn new(options: Rc<RefCell<Options>>) -> Self {
+impl<Env> Executor<Env>
+where
+    Env: Environment,
+{
+    pub fn new(env: Rc<RefCell<Env>>, options: Rc<RefCell<Options>>) -> Self {
+        let mut builtins: HashMap<String, Box<dyn Builtin>> = HashMap::new();
+        builtins.insert(String::from("cd"), Box::new(builtin::io::Cd {}));
+        builtins.insert(String::from("exit"), Box::new(builtin::io::Exit {}));
+        builtins.insert(String::from("false"), Box::new(builtin::logic::False {}));
+        builtins.insert(
+            String::from("set"),
+            Box::new(builtin::io::Set::new(options.clone())),
+        );
+        builtins.insert(String::from("true"), Box::new(builtin::logic::True {}));
+        builtins.insert(String::from("unset"), Box::new(builtin::io::Unset {}));
+        builtins.insert(String::from("which"), Box::new(builtin::io::Which {}));
+
         Self {
-            env: Rc::new(RefCell::new(WindowsEnvironment::default())),
+            builtins,
+            env,
             options,
         }
     }
@@ -132,13 +149,6 @@ impl Executor {
         let SimpleCommand(maybe_prefix, maybe_command_name, maybe_suffix) = simple_command;
         if let Some(command_name) = maybe_command_name {
             let expanded_command_name = self.expand_word(command_name)?;
-            let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
-                let CmdPrefix(assignments, _) = prefix;
-                assignments
-                    .iter()
-                    .map(|AssignmentWord(key, value)| (key, value))
-                    .collect()
-            });
             let mut arguments = Vec::new();
             if let Some(suffix) = maybe_suffix {
                 let CmdSuffix(Wordlist(words), _) = suffix;
@@ -147,72 +157,35 @@ impl Executor {
                 }
             }
 
-            match expanded_command_name.as_str() {
-                // Builtins.
-                // TODO: Add builtins.
-                // "cd" => Ok((builtin::io::Cd {}).execute(&arguments, &mut self.env)),
-                // "exit" => Ok((builtin::io::Exit {}).execute(&arguments, &mut, env)),
-                // "false" => Ok((builtin::logic::False {}).execute(&arguments, &mut, env)),
-                // "true" => Ok((builtin::logic::True {}).execute(&arguments, &mut, env)),
-                // "unset" => Ok((builtin::io::Unset {}).execute(&arguments, &mut, env)),
-                "set" => {
-                    let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
-                    match command_args.as_slice() {
-                        ["-o", "xlex"] => self.options.borrow_mut().debug_lexing = true,
-                        ["-o", "xparse"] => self.options.borrow_mut().debug_parsing = true,
-                        ["-v"] | ["-o", "verbose"] => self.options.borrow_mut().print_input = true,
-                        args => {
-                            eprintln!("set: unknown arguments {:?}", args);
-                            return Ok(ExitStatus::new(1));
-                        }
-                    }
-                    Ok(ExitStatus::SUCCESS)
-                }
+            // Execute builtin command if applicable.
+            if let Some(builtin) = self.builtins.get(&expanded_command_name) {
+                return Ok(builtin.execute(&arguments, &mut *self.env.borrow_mut()));
+            }
 
-                "which" => {
-                    let command_args: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
-                    match command_args.as_slice() {
-                        [program] => {
-                            if let Some(path) = self.env.borrow().find_program(program) {
-                                let mut pretty_path = path.to_string_lossy().to_string();
-                                pretty_path = pretty_path.trim_start_matches(r#"\\?\"#).to_string();
-                                println!("{}", pretty_path);
-                                Ok(ExitStatus::SUCCESS)
-                            } else {
-                                eprintln!(
-                                    "which: no {} in ({})",
-                                    program,
-                                    self.env.borrow().var("PATH").unwrap_or_default()
-                                );
-                                Ok(ExitStatus::new(1))
-                            }
-                        }
-                        args => {
-                            eprintln!("set: unknown arguments {:?}", args);
-                            Ok(ExitStatus::new(1))
-                        }
-                    }
-                }
+            // Resolve a regular program's path and spawn a process.
+            let program_path = self
+                .env
+                .borrow()
+                .find_program(&expanded_command_name)
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|| expanded_command_name.clone());
+            let envs = maybe_prefix.as_ref().map_or_else(HashMap::new, |prefix| {
+                let CmdPrefix(assignments, _) = prefix;
+                assignments
+                    .iter()
+                    .map(|AssignmentWord(key, value)| (key, value))
+                    .collect()
+            });
+            let result = std::process::Command::new(program_path)
+                .args(arguments)
+                .envs(envs)
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status();
 
-                program => {
-                    let program_path = self
-                        .env
-                        .borrow()
-                        .find_program(program)
-                        .map(|path| path.to_string_lossy().to_string())
-                        .unwrap_or_else(|| program.to_string());
-                    let result = std::process::Command::new(program_path)
-                        .args(arguments)
-                        .envs(envs)
-                        .stdout(Stdio::inherit())
-                        .stderr(Stdio::inherit())
-                        .status();
-
-                    match result {
-                        Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
-                        Err(_) => Err(ExecError::UnknownCommand(expanded_command_name)),
-                    }
-                }
+            match result {
+                Ok(status) => Ok(ExitStatus::new(status.code().unwrap())),
+                Err(_) => Err(ExecError::UnknownCommand(expanded_command_name)),
             }
         } else {
             if let Some(CmdPrefix(assignments, _)) = maybe_prefix {
