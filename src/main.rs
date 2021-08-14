@@ -10,7 +10,6 @@ mod token;
 
 use clap::{crate_name, crate_version, Clap};
 use cursor::Cursor;
-use execution::environment::WindowsEnvironment;
 use execution::Executor;
 use input::InputLines;
 use lexer::Lexer;
@@ -24,6 +23,7 @@ use std::{env, fs, io};
 
 use crate::ast::{CompleteCommands, Program};
 use crate::cursor::PS1;
+use crate::execution::environment::Environment;
 use crate::parse::error::ParseError;
 use crate::token::Token;
 
@@ -58,7 +58,7 @@ fn main() {
     )));
     let lexer = Lexer::new(cursor.clone(), options.clone());
     let mut parser = PosixParser::new(Box::new(lexer), options.clone());
-    let env = Rc::new(RefCell::new(WindowsEnvironment::default()));
+    let env = Rc::new(RefCell::new(environment()));
     let executor = Executor::new(env, options);
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
@@ -93,5 +93,15 @@ fn main() {
             // Non-interactive mode. Don't loop.
             break;
         }
+    }
+
+    #[cfg(not(target_family = "windows"))]
+    fn environment() -> impl Environment {
+        crate::execution::environment::UnixEnvironment::default()
+    }
+
+    #[cfg(target_family = "windows")]
+    fn environment() -> impl Environment {
+        crate::execution::environment::WindowsEnvironment::default()
     }
 }
