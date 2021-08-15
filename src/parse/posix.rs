@@ -111,7 +111,7 @@ impl PosixParser {
         // Verify that no cached non-EOF tokens remain.
         // If such tokens are present, parsing is incomplete.
         for cached_token in self.lexer_adapter.clear_cache() {
-            if cached_token != Token::EOF {
+            if cached_token != Token::Eof {
                 return Err(ParseError::UnconsumedToken(cached_token));
             }
         }
@@ -132,7 +132,7 @@ impl PosixParser {
         // If such tokens are present, parsing is incomplete.
         for token in self.lexer_adapter.clear_cache() {
             // TODO: Check that newline is not after EOF.
-            if token != Token::Newline && token != Token::EOF {
+            if token != Token::Newline && token != Token::Eof {
                 return Err(ParseError::UnconsumedToken(token));
             }
         }

@@ -53,7 +53,7 @@ pub enum Token {
 
     /* Pseudotokens. */
     /// End of file. Typically \0.
-    EOF,
+    Eof,
 }
 
 impl Display for Token {
@@ -79,7 +79,7 @@ impl Display for Token {
             Token::LessGreat => write!(f, "<>"),
             Token::DLessDash => write!(f, "<<-"),
             Token::Clobber => write!(f, ">|"),
-            Token::EOF => write!(f, "<EOF>"),
+            Token::Eof => write!(f, "<EOF>"),
         }
     }
 }

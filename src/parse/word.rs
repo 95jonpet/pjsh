@@ -107,7 +107,7 @@ mod tests {
 
     impl Lex for MockLexer {
         fn next_token(&mut self, _mode: Mode) -> Token {
-            self.tokens.pop().unwrap_or(Token::EOF)
+            self.tokens.pop().unwrap_or(Token::Eof)
         }
 
         fn advance_line(&mut self) {}

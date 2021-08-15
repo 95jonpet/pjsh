@@ -408,7 +408,7 @@ impl PosixLexer {
         self.forming_operator = false;
 
         if self.current_token.is_empty() && self.current_units.is_empty() {
-            Token::EOF
+            Token::Eof
         } else {
             self.delimit_current_token(potential_operator)
         }
@@ -733,7 +733,7 @@ mod tests {
 
         loop {
             let token = lexer.next_token(&mut cursor);
-            if token == Token::EOF {
+            if token == Token::Eof {
                 break;
             }
             tokens.push(token);

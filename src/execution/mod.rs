@@ -210,24 +210,24 @@ where
 
         for unit in units {
             match unit {
-                Unit::Literal(literal) => expanded_word.push_str(&literal),
+                Unit::Literal(literal) => expanded_word.push_str(literal),
                 Unit::Expression(Expression::AssignDefaultValues(var, default, unset_or_null)) => {
                     let mut env = self.env.borrow_mut();
-                    match env.var(&var) {
+                    match env.var(var) {
                         None => {
                             env.set_var(var.to_string(), default.to_string());
-                            expanded_word.push_str(&default)
+                            expanded_word.push_str(default)
                         }
                         Some(str) if str.is_empty() && !*unset_or_null => (),
                         Some(str) if str.is_empty() && *unset_or_null => {
                             env.set_var(var.to_string(), default.to_string());
-                            expanded_word.push_str(&default)
+                            expanded_word.push_str(default)
                         }
                         Some(value) => expanded_word.push_str(&value),
                     }
                 }
                 Unit::Expression(Expression::IndicateError(var, message, unset_or_null)) => {
-                    match self.env.borrow().var(&var) {
+                    match self.env.borrow().var(var) {
                         None => {
                             return Err(ExecError::ParameterNullOrNotSet(
                                 var.to_owned(),
@@ -252,11 +252,11 @@ where
                     }
                 }
                 Unit::Expression(Expression::UseDefaultValues(var, default, unset_or_null)) => {
-                    match self.env.borrow().var(&var) {
-                        None => expanded_word.push_str(&default),
+                    match self.env.borrow().var(var) {
+                        None => expanded_word.push_str(default),
                         Some(str) if str.is_empty() && !*unset_or_null => (),
                         Some(str) if str.is_empty() && *unset_or_null => {
-                            expanded_word.push_str(&default)
+                            expanded_word.push_str(default)
                         }
                         Some(value) => expanded_word.push_str(&value),
                     }

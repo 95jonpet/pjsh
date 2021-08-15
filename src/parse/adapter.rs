@@ -46,7 +46,7 @@ impl LexerAdapter {
             self.cached_tokens.push_back(next_token);
         }
 
-        self.cached_tokens.front().unwrap_or(&Token::EOF)
+        self.cached_tokens.front().unwrap_or(&Token::Eof)
     }
 
     /// Returns the next [`Token`] from the [`Lex`].
@@ -59,7 +59,7 @@ impl LexerAdapter {
     }
 
     pub fn advance_line(&mut self) {
-        if self.cached_tokens.iter().any(|token| token != &Token::EOF) {
+        if self.cached_tokens.iter().any(|token| token != &Token::Eof) {
             unreachable!();
         }
 
