@@ -1,16 +1,20 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, VecDeque},
     mem::take,
+    rc::Rc,
 };
 
 use crate::{
-    cursor::{Cursor, EOF_CHAR, PS2},
+    cursor::{Cursor, EOF_CHAR},
+    execution::environment::Environment,
     token::{Expression, Token, Unit},
 };
 
 use super::Mode;
 
 pub(crate) struct PosixLexer {
+    env: Rc<RefCell<dyn Environment>>,
     current_token: String,
     current_units: Vec<Unit>,
     forming_operator: bool,
@@ -21,7 +25,7 @@ pub(crate) struct PosixLexer {
 }
 
 impl PosixLexer {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(env: Rc<RefCell<dyn Environment>>) -> Self {
         let mut operators = HashMap::new();
 
         // Treat newlines as operators.
@@ -48,6 +52,7 @@ impl PosixLexer {
         operators.insert(String::from(">|"), Token::Clobber);
 
         Self {
+            env,
             current_token: String::new(),
             current_units: Vec::new(),
             forming_operator: false,
@@ -112,7 +117,7 @@ impl PosixLexer {
             match current {
                 // 1. If the end of input is recognized, the current token (if any) shall be
                 // delimited.
-                EOF_CHAR if self.mode != Mode::Unquoted => cursor.advance_line(PS2),
+                EOF_CHAR if self.mode != Mode::Unquoted => cursor.advance_line(&self.ps2()),
                 EOF_CHAR if self.mode == Mode::Unquoted => {
                     return self.delimit_token_before_eof(potential_operator);
                 }
@@ -284,7 +289,7 @@ impl PosixLexer {
         let mut result = String::new();
         loop {
             match cursor.peek() {
-                &EOF_CHAR if can_advance_lines => cursor.advance_line(PS2),
+                &EOF_CHAR if can_advance_lines => cursor.advance_line(&self.ps2()),
                 &EOF_CHAR => break,
                 '\\' => {
                     cursor.skip('\\');
@@ -383,6 +388,13 @@ impl PosixLexer {
         }
     }
 
+    fn ps2(&self) -> String {
+        self.env
+            .borrow()
+            .var("PS2")
+            .unwrap_or_else(|| String::from("> "))
+    }
+
     /// Delimits an operator [`Token`].
     fn delimit_operator_token(&self, operator: &str) -> Token {
         self.operators
@@ -423,7 +435,7 @@ impl PosixLexer {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{input::InputLines, options::Options};
+    use crate::{execution::environment::UnixEnvironment, input::InputLines, options::Options};
 
     use super::*;
 
@@ -466,7 +478,8 @@ mod tests {
 
     #[test]
     fn it_lexes_operators() {
-        let operators = PosixLexer::new().operators;
+        let env = Rc::new(RefCell::new(UnixEnvironment::default()));
+        let operators = PosixLexer::new(env).operators;
         for (lexeme, token) in operators.iter() {
             assert_eq!(
                 lex(&lexeme),
@@ -714,7 +727,8 @@ mod tests {
             false,
             options.clone(),
         );
-        let mut lexer = PosixLexer::new();
+        let env = Rc::new(RefCell::new(UnixEnvironment::default()));
+        let mut lexer = PosixLexer::new(env);
         cursor.advance_line("$ ");
 
         loop {

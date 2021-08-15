@@ -4,7 +4,8 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::cursor::{Cursor, PS2};
+use crate::cursor::Cursor;
+use crate::execution::environment::Environment;
 use crate::options::Options;
 use crate::token::Token;
 
@@ -41,18 +42,24 @@ pub trait Lex {
 }
 
 /// Converts a [`char`] stream from a [`Cursor`] into a [`Token`] stream.
-pub struct Lexer {
+pub(crate) struct Lexer {
     cursor: Rc<RefCell<Cursor>>,
+    env: Rc<RefCell<dyn Environment>>,
     options: Rc<RefCell<Options>>,
     posix_lexer: PosixLexer,
 }
 
 impl Lexer {
-    pub fn new(cursor: Rc<RefCell<Cursor>>, options: Rc<RefCell<Options>>) -> Self {
+    pub(crate) fn new(
+        cursor: Rc<RefCell<Cursor>>,
+        env: Rc<RefCell<dyn Environment>>,
+        options: Rc<RefCell<Options>>,
+    ) -> Self {
         Self {
             cursor,
+            env: env.clone(),
             options,
-            posix_lexer: PosixLexer::new(),
+            posix_lexer: PosixLexer::new(env),
         }
     }
 }
@@ -69,6 +76,12 @@ impl Lex for Lexer {
     }
 
     fn advance_line(&mut self) {
-        self.cursor.borrow_mut().advance_line(PS2)
+        self.cursor.borrow_mut().advance_line(
+            &self
+                .env
+                .borrow()
+                .var("PS2")
+                .unwrap_or_else(|| String::from("> ")),
+        )
     }
 }

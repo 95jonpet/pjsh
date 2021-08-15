@@ -55,8 +55,6 @@ fn main() {
         interactive,
         options.clone(),
     )));
-    let lexer = Lexer::new(cursor.clone(), options.clone());
-    let mut parser = PosixParser::new(Box::new(lexer), options.clone());
     let env = {
         let mut environment = environment();
         if let Err(error) = initialize_environment(&mut environment) {
@@ -64,15 +62,19 @@ fn main() {
         }
         Rc::new(RefCell::new(environment))
     };
+    let lexer = Lexer::new(cursor.clone(), env.clone(), options.clone());
+    let mut parser = PosixParser::new(Box::new(lexer), options.clone());
 
     let executor = Executor::new(env.clone(), options);
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.
     loop {
-        cursor
-            .borrow_mut()
-            .advance_line(&env.borrow().var("PS1").unwrap_or(String::from("$ ")));
+        cursor.borrow_mut().advance_line(
+            &env.borrow()
+                .var("PS1")
+                .unwrap_or_else(|| String::from("$ ")),
+        );
 
         if interactive {
             match parser.parse_complete_command() {

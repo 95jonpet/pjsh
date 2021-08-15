@@ -22,8 +22,6 @@ pub struct Cursor {
 /// Character representing the end of file/input.
 pub(crate) const EOF_CHAR: char = '\0';
 
-pub(crate) static PS2: &str = "> ";
-
 impl Cursor {
     /// Creates a new cursor for iterating over a char stream.
     pub fn new(input: InputLines, interactive: bool, options: Rc<RefCell<Options>>) -> Self {
