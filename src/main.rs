@@ -22,7 +22,6 @@ use std::rc::Rc;
 use std::{env, fs, io};
 
 use crate::ast::{CompleteCommands, Program};
-use crate::cursor::PS1;
 use crate::execution::environment::Environment;
 use crate::parse::error::ParseError;
 use crate::token::Token;
@@ -58,13 +57,22 @@ fn main() {
     )));
     let lexer = Lexer::new(cursor.clone(), options.clone());
     let mut parser = PosixParser::new(Box::new(lexer), options.clone());
-    let env = Rc::new(RefCell::new(environment()));
-    let executor = Executor::new(env, options);
+    let env = {
+        let mut environment = environment();
+        if let Err(error) = initialize_environment(&mut environment) {
+            eprintln!("pjsh: failed to initialize environment: {}", error);
+        }
+        Rc::new(RefCell::new(environment))
+    };
+
+    let executor = Executor::new(env.clone(), options);
 
     // In interactive mode, multiple programs are accepted - typically one for each line of input.
     // In non-interactive mode, only one program, consisting of all input, should be accepted.
     loop {
-        cursor.borrow_mut().advance_line(PS1);
+        cursor
+            .borrow_mut()
+            .advance_line(&env.borrow().var("PS1").unwrap_or(String::from("$ ")));
 
         if interactive {
             match parser.parse_complete_command() {
@@ -93,6 +101,17 @@ fn main() {
             // Non-interactive mode. Don't loop.
             break;
         }
+    }
+
+    fn initialize_environment(env: &mut impl Environment) -> Result<(), io::Error> {
+        env.set_var(
+            String::from("PWD"),
+            env::current_dir()?.to_string_lossy().to_string(),
+        );
+        env.set_var(String::from("PS1"), String::from("$ "));
+        env.set_var(String::from("PS2"), String::from("> "));
+
+        Ok(())
     }
 
     #[cfg(not(target_family = "windows"))]

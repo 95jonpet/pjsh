@@ -22,7 +22,6 @@ pub struct Cursor {
 /// Character representing the end of file/input.
 pub(crate) const EOF_CHAR: char = '\0';
 
-pub(crate) static PS1: &str = "$ ";
 pub(crate) static PS2: &str = "> ";
 
 impl Cursor {

@@ -423,7 +423,7 @@ impl PosixLexer {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::{cursor::PS1, input::InputLines, options::Options};
+    use crate::{input::InputLines, options::Options};
 
     use super::*;
 
@@ -715,7 +715,7 @@ mod tests {
             options.clone(),
         );
         let mut lexer = PosixLexer::new();
-        cursor.advance_line(PS1);
+        cursor.advance_line("$ ");
 
         loop {
             let token = lexer.next_token(&mut cursor);
