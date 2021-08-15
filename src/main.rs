@@ -1,27 +1,30 @@
-mod builtin_utils;
-mod builtins;
-mod executor;
+mod ast;
+pub(crate) mod builtin;
+mod cursor;
+mod execution;
+mod input;
 mod lexer;
-mod parser;
-mod shell;
+pub(crate) mod options;
+mod parse;
 mod token;
 
-use executor::Executor;
-use lexer::Lexer;
-use parser::Cmd;
-use parser::Parser;
-use shell::Shell;
-
 use clap::{crate_name, crate_version, Clap};
+use cursor::Cursor;
+use execution::Executor;
+use input::InputLines;
+use lexer::Lexer;
+use options::Options;
+use parse::posix::PosixParser;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::env;
-use std::env::VarError;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::{env, fs, io, process};
 
-use crate::parser::Io;
-use crate::parser::SimpleCommand;
+use crate::ast::{CompleteCommands, Program};
+use crate::execution::environment::{path_to_lossy_string, Environment};
+use crate::parse::error::ParseError;
+use crate::token::Token;
 
 /// A shell for executing POSIX commands.
 #[derive(Clap, Debug)]
@@ -37,74 +40,106 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::parse();
+    let cli = Cli::parse();
+    let interactive = cli.command.is_none() && cli.script_file.is_none();
+    let options = Rc::new(RefCell::new(Options::default()));
+    let input = match cli {
+        conf if conf.command.is_some() => InputLines::Single(conf.command),
+        conf if conf.script_file.is_some() => InputLines::Buffered(Box::new(BufReader::new(
+            fs::File::open(conf.script_file.unwrap()).unwrap(),
+        ))),
+        _ => InputLines::Buffered(Box::new(BufReader::new(io::stdin()))),
+    };
+    let cursor = Rc::new(RefCell::new(Cursor::new(
+        input,
+        interactive,
+        options.clone(),
+    )));
+    let env = {
+        let mut environment = environment();
+        if let Err(error) = initialize_environment(&mut environment) {
+            eprintln!("pjsh: failed to initialize environment: {}", error);
+        }
+        Rc::new(RefCell::new(environment))
+    };
+    let lexer = Lexer::new(cursor.clone(), env.clone(), options.clone());
+    let mut parser = PosixParser::new(Box::new(lexer), options.clone());
 
-    let shell = create_shell(args);
-    let mut executor = Executor::new(Rc::clone(&shell));
-    executor.execute(perform_login(), false);
+    let executor = Executor::new(env.clone(), options);
 
+    // In interactive mode, multiple programs are accepted - typically one for each line of input.
+    // In non-interactive mode, only one program, consisting of all input, should be accepted.
     loop {
-        let input = shell.borrow_mut().next();
-        if let Some(line) = input {
-            let lexer = Lexer::new(&line, Rc::clone(&shell));
-            let mut parser = Parser::new(lexer, Rc::clone(&shell));
-            match parser.get() {
-                Ok(command) => {
-                    executor.execute(command, false);
+        cursor.borrow_mut().advance_line(
+            &env.borrow()
+                .var("PS1")
+                .unwrap_or_else(|| String::from("$ ")),
+        );
+
+        if interactive {
+            match parser.parse_complete_command() {
+                Ok(complete_command) => {
+                    let program = Program(CompleteCommands(vec![complete_command]));
+                    if let Err(exec_error) = executor.execute(program) {
+                        eprintln!("pjsh: {}", exec_error);
+                    }
                 }
-                Err(e) => {
-                    eprintln!("ERROR: {}", e);
-                }
+                // Allow empty no-op lines in input.
+                Err(ParseError::UnexpectedToken(Token::Newline)) => (),
+                Err(parse_error) => eprintln!("pjsh: {}", parse_error),
             }
         } else {
-            if shell.borrow().is_interactive() {
-                println!();
+            match parser.parse_program() {
+                Ok(program) => {
+                    let result = executor.execute(program);
+                    match result {
+                        Ok(_) => (),
+                        Err(exec_error) => eprintln!("pjsh: {}", exec_error),
+                    }
+                }
+                Err(parse_error) => eprintln!("pjsh: {}", parse_error),
             }
+
+            // Non-interactive mode. Don't loop.
             break;
         }
     }
-}
 
-fn perform_login() -> Cmd {
-    if let Ok(home_dir) = home_dir() {
-        let login_script_path: PathBuf = [&home_dir, ".pjshrc"].iter().collect();
+    /// Initializes an [`Environment`] with default values.
+    ///
+    /// The default values can be derived from the POSIX specification.
+    /// See https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html.
+    fn initialize_environment(env: &mut impl Environment) -> Result<(), io::Error> {
+        // TODO: Only set variables that are undefined.
+        env.set_var(
+            String::from("PWD"),
+            path_to_lossy_string(env::current_dir()?.canonicalize()?),
+        );
+        env.set_var(
+            String::from("HOME"),
+            home::home_dir()
+                .expect("could not determine home directory")
+                .canonicalize()?
+                .to_str()
+                .map(str::to_string)
+                .expect("malformed home directory path"),
+        );
+        env.set_var(String::from("PS1"), String::from("$ "));
+        env.set_var(String::from("PS2"), String::from("> "));
+        env.set_var(String::from("PS4"), String::from("+ "));
+        env.set_var(String::from("IFS"), String::from(" \t\n"));
+        env.set_var(String::from("PPID"), process::id().to_string());
 
-        if !login_script_path.is_file() {
-            return Cmd::NoOp;
-        }
-
-        if let Some(login_script_path_string) = login_script_path.to_str() {
-            return Cmd::Simple(SimpleCommand::new(
-                String::from("source"),
-                vec![login_script_path_string.to_owned()],
-                Io::new(),
-                HashMap::new(),
-            ));
-        }
+        Ok(())
     }
 
-    Cmd::NoOp
-}
+    #[cfg(not(target_family = "windows"))]
+    fn environment() -> impl Environment {
+        crate::execution::environment::UnixEnvironment::default()
+    }
 
-fn home_dir() -> Result<String, VarError> {
-    env::var("HOME").or_else(|_| {
-        let drive = env::var("HOMEDRIVE")?;
-        let path = env::var("HOMEPATH")?;
-
-        let mut home = drive;
-        home.push_str(&path);
-        home = home.replace("\\", "/");
-
-        Ok(home)
-    })
-}
-
-fn create_shell(args: Cli) -> Rc<RefCell<Shell>> {
-    let shell = match args {
-        conf if conf.command.is_some() => Shell::from_command(conf.command.unwrap()),
-        conf if conf.script_file.is_some() => Shell::from_file(conf.script_file.unwrap()),
-        _ => Shell::interactive(),
-    };
-
-    Rc::new(RefCell::new(shell))
+    #[cfg(target_family = "windows")]
+    fn environment() -> impl Environment {
+        crate::execution::environment::WindowsEnvironment::default()
+    }
 }
