@@ -19,10 +19,10 @@ use std::cell::RefCell;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::{env, fs, io};
+use std::{env, fs, io, process};
 
 use crate::ast::{CompleteCommands, Program};
-use crate::execution::environment::Environment;
+use crate::execution::environment::{path_to_lossy_string, Environment};
 use crate::parse::error::ParseError;
 use crate::token::Token;
 
@@ -105,13 +105,30 @@ fn main() {
         }
     }
 
+    /// Initializes an [`Environment`] with default values.
+    ///
+    /// The default values can be derived from the POSIX specification.
+    /// See https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html.
     fn initialize_environment(env: &mut impl Environment) -> Result<(), io::Error> {
+        // TODO: Only set variables that are undefined.
         env.set_var(
             String::from("PWD"),
-            env::current_dir()?.to_string_lossy().to_string(),
+            path_to_lossy_string(env::current_dir()?.canonicalize()?),
+        );
+        env.set_var(
+            String::from("HOME"),
+            home::home_dir()
+                .expect("could not determine home directory")
+                .canonicalize()?
+                .to_str()
+                .map(str::to_string)
+                .expect("malformed home directory path"),
         );
         env.set_var(String::from("PS1"), String::from("$ "));
         env.set_var(String::from("PS2"), String::from("> "));
+        env.set_var(String::from("PS4"), String::from("+ "));
+        env.set_var(String::from("IFS"), String::from(" \t\n"));
+        env.set_var(String::from("PPID"), process::id().to_string());
 
         Ok(())
     }

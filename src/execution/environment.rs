@@ -121,3 +121,10 @@ impl Environment for WindowsEnvironment {
         self.vars.remove(name)
     }
 }
+
+pub(crate) fn path_to_lossy_string(path: PathBuf) -> String {
+    path.to_string_lossy()
+        .to_string()
+        .trim_start_matches(r#"\\?\"#)
+        .to_string()
+}

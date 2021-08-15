@@ -1,7 +1,15 @@
-use std::{cell::RefCell, env, path::Path, rc::Rc};
+use std::{
+    cell::RefCell,
+    env,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use crate::{
-    execution::{environment::Environment, exit_status::ExitStatus},
+    execution::{
+        environment::{path_to_lossy_string, Environment},
+        exit_status::ExitStatus,
+    },
     options::Options,
 };
 
@@ -9,19 +17,29 @@ use super::Builtin;
 
 pub(crate) struct Cd;
 impl Cd {
-    fn set_current_dir<P>(directory: P) -> ExitStatus
+    fn set_current_dir<P>(directory: P, env: &mut dyn Environment) -> ExitStatus
     where
         P: AsRef<Path>,
     {
-        let path = env::current_dir().unwrap().join(directory).canonicalize();
+        let current_dir = env.var("PWD");
+        let path = current_dir
+            .map(PathBuf::from)
+            .unwrap_or_default()
+            .join(directory)
+            .canonicalize();
 
         if let Err(error) = path {
             eprintln!("pjsh: cd: {}", error);
             return ExitStatus::new(1);
         }
 
-        match env::set_current_dir(path.unwrap()) {
-            Ok(()) => ExitStatus::new(0),
+        let resolved_path = path.unwrap();
+        match env::set_current_dir(&resolved_path) {
+            Ok(()) => {
+                env.set_var(String::from("OLDPWD"), env.var("PWD").unwrap_or_default());
+                env.set_var(String::from("PWD"), path_to_lossy_string(resolved_path));
+                ExitStatus::SUCCESS
+            }
             Err(error) => {
                 eprintln!("pjsh: cd: {}", error);
                 ExitStatus::new(1)
@@ -34,12 +52,18 @@ impl Builtin for Cd {
     fn execute(
         &self,
         args: &[String],
-        _env: &mut dyn Environment,
+        env: &mut dyn Environment,
     ) -> crate::execution::exit_status::ExitStatus {
         match args {
-            [path] => Self::set_current_dir(path),
-            [] => Self::set_current_dir(env::var("HOME").unwrap()),
-            _ => ExitStatus::new(0),
+            [path] => Self::set_current_dir(path, env),
+            [] => {
+                if let Some(home) = env.var("HOME") {
+                    Self::set_current_dir(home, env)
+                } else {
+                    ExitStatus::new(1)
+                }
+            }
+            _ => ExitStatus::new(1),
         }
     }
 }
@@ -55,7 +79,7 @@ impl Builtin for Exit {
 
                 ExitStatus::new(1)
             }
-            [] => ExitStatus::new(0),
+            [] => ExitStatus::SUCCESS,
             _ => ExitStatus::new(1),
         }
     }
@@ -92,7 +116,7 @@ impl Builtin for Unset {
             env.unset_var(variable_name);
         }
 
-        ExitStatus::new(0)
+        ExitStatus::SUCCESS
     }
 }
 
@@ -102,9 +126,7 @@ impl Builtin for Which {
         match args {
             [program] => {
                 if let Some(path) = env.find_program(program) {
-                    let mut pretty_path = path.to_string_lossy().to_string();
-                    pretty_path = pretty_path.trim_start_matches(r#"\\?\"#).to_string();
-                    println!("{}", pretty_path);
+                    println!("{}", path_to_lossy_string(path));
                     ExitStatus::SUCCESS
                 } else {
                     eprintln!(
