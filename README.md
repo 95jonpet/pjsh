@@ -108,14 +108,14 @@ Distributed under the MIT License. See `LICENSE.md` for more information.
 
 Project Link: [https://github.com/95jonpet/pjsh](https://github.com/95jonpet/pjsh)
 
-[contributors-shield]: https://img.shields.io/github/contributors/95jonpet/pjsh.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/95jonpet/pjsh?style=for-the-badge
 [contributors-url]: https://github.com/95jonpet/pjsh/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/95jonpet/pjsh.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/95jonpet/pjsh?style=for-the-badge
 [forks-url]: https://github.com/95jonpet/pjsh/network/members
-[stars-shield]: https://img.shields.io/github/stars/95jonpet/pjsh.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/95jonpet/pjsh?style=for-the-badge
 [stars-url]: https://github.com/95jonpet/pjsh/stargazers
-[issues-shield]: https://img.shields.io/github/issues/95jonpet/pjsh.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/95jonpet/pjsh?style=for-the-badge
 [issues-url]: https://github.com/95jonpet/pjsh/issues
-[license-shield]: https://img.shields.io/github/license/95jonpet/pjsh.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/95jonpet/pjsh?style=for-the-badge
 [license-url]: https://github.com/95jonpet/pjsh/blob/main/LICENSE.md
 [product-screenshot]: images/screenshot.png
