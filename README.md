@@ -117,5 +117,5 @@ Project Link: [https://github.com/95jonpet/pjsh](https://github.com/95jonpet/pjs
 [issues-shield]: https://img.shields.io/github/issues/95jonpet/pjsh.svg?style=for-the-badge
 [issues-url]: https://github.com/95jonpet/pjsh/issues
 [license-shield]: https://img.shields.io/github/license/95jonpet/pjsh.svg?style=for-the-badge
-[license-url]: https://github.com/95jonpet/pjsh/blob/master/LICENSE.md
+[license-url]: https://github.com/95jonpet/pjsh/blob/main/LICENSE.md
 [product-screenshot]: images/screenshot.png
