@@ -1,9 +1,17 @@
 root = true
 
 [*]
-indent_style = space
-indent_size = 4
 end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.md]
+# Double whitespace at end of line denotes a line break in Markdown.
+trim_trailing_whitespace = false
+indent_size = 2
+
+[*.{pjsh,yml}]
+indent_size = 2

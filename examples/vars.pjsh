@@ -1,0 +1,9 @@
+#!/bin/pjsh
+
+# Print "Hello, World!" to stdout.
+message := "Hello, World!"
+echo $message
+
+# Print "Hello, <user>" to stdout.
+name := "<user>"
+echo $"Hello, $name"

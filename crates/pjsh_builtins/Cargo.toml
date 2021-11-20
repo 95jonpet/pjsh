@@ -1,0 +1,10 @@
+[package]
+name = "pjsh_builtins"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+dirs = "4.0"
+
+pjsh_core = { path = "../pjsh_core" }

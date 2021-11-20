@@ -1,0 +1,19 @@
+[package]
+name = "pjsh"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+clap = "3.0.0-beta.5"
+dirs = "4.0"
+lazy_static = "1.4.0"
+regex = "1"
+rustyline = "9.0"
+rustyline-derive = "0.5"
+
+pjsh_ast = { path = "../pjsh_ast" }
+pjsh_builtins = { path = "../pjsh_builtins" }
+pjsh_core = { path = "../pjsh_core" }
+pjsh_exec = { path = "../pjsh_exec" }
+pjsh_parse = { path = "../pjsh_parse" }

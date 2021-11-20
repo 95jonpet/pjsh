@@ -1,0 +1,7 @@
+#!/bin/pjsh
+# Print a list of all TOML files in a directory and its subdirectories.
+
+->| find $PWD -name "*.toml" -type f
+  | grep .toml
+  | sort
+  ;

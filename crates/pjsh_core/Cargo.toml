@@ -1,0 +1,8 @@
+[package]
+name = "pjsh_core"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+parking_lot = "0.11"

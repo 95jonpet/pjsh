@@ -1,0 +1,52 @@
+program = statements ;
+statements = statement eol { statement eol } ;
+statement =
+    | function_defintion
+    | conditional
+    | and_or
+    | assignment
+    ;
+
+body = "{" [ statements ] "}" ;
+function_defintion = "fn" word "(" { word } ")" body ;
+conditional =
+    | "if" condition body [ "else" body ]
+    | "switch" { "case" condition body } [ "default" body ]
+    | "until" condition body (* alias: while !condition body *)
+    | "while" condition body
+    ;
+condition = command ; (* True iff exit = 0. *)
+
+and_or =
+    | pipeline "&&" { eol } and_or
+    | pipeline "||" { eol } and_or
+    | pipeline
+    ;
+pipeline =
+    | pipline_segment { "|" pipline_segment }
+    | "->|" pipline_segment [ eol ] { "|" pipeline_segment { eol } } ";"
+    ;
+pipline_segment = command ;
+command = word { whitespace word } ;
+assignment = identifier whitespace ":=" whitespace word ;
+
+word =
+    | quoted
+    | variable
+    | literal
+    ;
+quoted =
+    | '"', { all_characters - '"' }, '"'
+    | "'", { all_characters - "'" }, "'"
+    ;
+variable =
+    | "${", all_characters, { all_characters }, "}"
+    | "$", all_characters, { all_characters }
+    ;
+literal = all_characters, { all_characters } ;
+
+(* Basic building blocks. *)
+all_characters  = ? all visible characters ? ;
+whitespace      = whitespace_char, { whitespace_char } ;
+whitespace_char = " " | "\t" ;
+eol             = "\r\n" | "\n" | ";" ;
