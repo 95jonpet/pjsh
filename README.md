@@ -9,6 +9,8 @@
 </div>
 
 ## About The Project
+![PJSH smart pipeline](doc/smart-pipeline.svg)
+
 _PJSH_ is a non-POSIX shell that aims to make the shell easier and more predictable to use. The syntax is mostly kept from the [POSIX Shell Specification](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html), but legacy implementation details are removed in order to increase the readability an usability of shell scripts.
 
 PJSH does not require heavy quoting around arguments as splitting is never done implicitly. If it looks like a word in code, it is also a word after expanding variables.
