@@ -59,6 +59,7 @@ fn parse_and_or_andif() {
                         command: Command {
                             program: Word::Literal("first"),
                             arguments: Vec::new(),
+                            redirects: Vec::new(),
                         }
                     },]
                 },
@@ -68,6 +69,7 @@ fn parse_and_or_andif() {
                         command: Command {
                             program: Word::Literal("second"),
                             arguments: Vec::new(),
+                            redirects: Vec::new(),
                         }
                     },]
                 }
@@ -95,6 +97,7 @@ fn parse_and_or_orif() {
                         command: Command {
                             program: Word::Literal("first"),
                             arguments: Vec::new(),
+                            redirects: Vec::new(),
                         }
                     },]
                 },
@@ -104,6 +107,7 @@ fn parse_and_or_orif() {
                         command: Command {
                             program: Word::Literal("second"),
                             arguments: Vec::new(),
+                            redirects: Vec::new(),
                         }
                     },]
                 }
@@ -129,12 +133,14 @@ fn parse_legacy_pipeline() {
                     command: Command {
                         program: Word::Literal("first"),
                         arguments: vec![Word::Literal("second")],
+                        redirects: Vec::new(),
                     }
                 },
                 PipelineSegment {
                     command: Command {
                         program: Word::Literal("third"),
-                        arguments: Vec::new()
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
                     }
                 }
             ]
@@ -156,6 +162,7 @@ fn parse_legacy_pipeline_async() {
                 command: Command {
                     program: Word::Literal("command"),
                     arguments: Vec::new(),
+                    redirects: Vec::new(),
                 }
             },]
         })
@@ -183,12 +190,14 @@ fn parse_smart_pipeline() {
                     command: Command {
                         program: Word::Literal("cmd1"),
                         arguments: Vec::new(),
+                        redirects: Vec::new(),
                     }
                 },
                 PipelineSegment {
                     command: Command {
                         program: Word::Literal("cmd2"),
-                        arguments: Vec::new()
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
                     }
                 }
             ]
@@ -212,6 +221,7 @@ fn parse_smart_async_pipeline() {
                 command: Command {
                     program: Word::Literal("command"),
                     arguments: Vec::new(),
+                    redirects: Vec::new(),
                 }
             },]
         })

@@ -19,6 +19,7 @@ pub struct Assignment<'a> {
 pub struct Command<'a> {
     pub program: Word<'a>,
     pub arguments: Vec<Word<'a>>,
+    pub redirects: Vec<Redirect>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,4 +58,24 @@ pub struct Pipeline<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct PipelineSegment<'a> {
     pub command: Command<'a>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Redirect {
+    pub source: FileDescriptor,
+    pub operator: RedirectOperator,
+    pub target: FileDescriptor,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum RedirectOperator {
+    Read,
+    Write,
+    Append,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum FileDescriptor {
+    Number(usize),
+    File(String),
 }

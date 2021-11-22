@@ -205,7 +205,11 @@ impl<'a> Parser<'a> {
             arguments.push(argument)
         }
 
-        Ok(Command { program, arguments })
+        Ok(Command {
+            program,
+            arguments,
+            redirects: Vec::new(),
+        })
     }
 
     /// Tries to parse a [`Statement`] from the next tokens of input.

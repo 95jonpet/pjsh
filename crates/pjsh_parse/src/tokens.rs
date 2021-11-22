@@ -42,6 +42,13 @@ pub enum TokenContents<'a> {
     /// ";"
     Semi,
 
+    /// "<"
+    FileRead,
+    /// ">"
+    FileWrite,
+    /// ">>"
+    FileAppend,
+
     /// ","
     Comma,
     /// "="
