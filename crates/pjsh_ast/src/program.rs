@@ -18,3 +18,9 @@ impl<'a> Program<'a> {
         self
     }
 }
+
+impl Default for Program<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
