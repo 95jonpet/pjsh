@@ -1,3 +1,7 @@
+mod command;
+
+pub use command::Command;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Program<'a> {
     pub statements: Vec<Statement<'a>>,
@@ -13,13 +17,6 @@ pub enum Statement<'a> {
 pub struct Assignment<'a> {
     pub key: Word<'a>,
     pub value: Word<'a>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Command<'a> {
-    pub program: Word<'a>,
-    pub arguments: Vec<Word<'a>>,
-    pub redirects: Vec<Redirect>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

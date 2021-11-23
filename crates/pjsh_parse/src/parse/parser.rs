@@ -197,19 +197,15 @@ impl<'a> Parser<'a> {
         Ok(PipelineSegment { command })
     }
 
+    /// Tries to parse a [`Command`] from the next tokens of input.
     pub fn parse_command(&mut self) -> Result<Command<'a>, ParseError<'a>> {
-        let program = self.parse_word()?;
-        let mut arguments = Vec::new();
+        let mut command = Command::new(self.parse_word()?);
 
         while let Ok(argument) = self.parse_word() {
-            arguments.push(argument)
+            command.arg(argument);
         }
 
-        Ok(Command {
-            program,
-            arguments,
-            redirects: Vec::new(),
-        })
+        Ok(command)
     }
 
     /// Tries to parse a [`Statement`] from the next tokens of input.
