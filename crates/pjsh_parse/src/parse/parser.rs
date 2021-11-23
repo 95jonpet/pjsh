@@ -1,11 +1,13 @@
-use std::{fmt::Display, iter::Peekable, vec::IntoIter};
+use std::fmt::Display;
 
-use crate::lex::lexer::{LexError, Span, Token};
+use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, InterpolationUnit, Pipeline, PipelineSegment, Program,
     Statement, Word,
 };
+
+use super::cursor::TokenCursor;
 
 pub fn parse(src: &str) -> Result<Program<'_>, ParseError<'_>> {
     match crate::lex(src) {
@@ -350,53 +352,6 @@ impl<'a> Display for ParseError<'a> {
             ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
             ParseError::UnexpectedToken(token) => {
                 write!(f, "unexpected token {:? }", token.contents)
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-struct TokenCursor<'a> {
-    eof_token: Token<'a>,
-    tokens: Peekable<IntoIter<Token<'a>>>,
-}
-
-impl<'a> TokenCursor<'a> {
-    pub fn new(tokens: Vec<Token<'a>>) -> Self {
-        Self {
-            eof_token: Token::new(TokenContents::Eof, Span::new(0, 0)),
-            tokens: tokens.into_iter().peekable(),
-        }
-    }
-
-    pub fn peek_token(&mut self) -> &Token<'a> {
-        loop {
-            let token = self.tokens.peek().unwrap_or(&self.eof_token);
-            if matches!(
-                token.contents,
-                TokenContents::Comment | TokenContents::Whitespace
-            ) {
-                self.tokens.next();
-            } else {
-                break;
-            }
-        }
-
-        self.tokens.peek().unwrap_or(&self.eof_token)
-    }
-
-    pub fn next_token(&mut self) -> Token<'a> {
-        loop {
-            let token = self.tokens.next().unwrap_or_else(|| self.eof_token.clone());
-            self.eof_token = Token::new(
-                TokenContents::Eof,
-                Span::new(token.span.end, token.span.end),
-            );
-            match token.contents {
-                TokenContents::Comment | TokenContents::Whitespace => {
-                    continue;
-                }
-                _ => return token,
             }
         }
     }
