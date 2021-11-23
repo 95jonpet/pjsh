@@ -8,9 +8,15 @@ fn lex_operators() {
     assert_eq!(tokens("|"), vec![Token::new(Pipe, Span::new(0, 1))]);
     assert_eq!(tokens(";"), vec![Token::new(Semi, Span::new(0, 1))]);
 
-    assert_eq!(tokens("<"), vec![Token::new(FileRead, Span::new(0, 1))]);
-    assert_eq!(tokens(">"), vec![Token::new(FileWrite, Span::new(0, 1))]);
-    assert_eq!(tokens(">>"), vec![Token::new(FileAppend, Span::new(0, 2))]);
+    assert_eq!(tokens("<"), vec![Token::new(FdReadTo(0), Span::new(0, 1))]);
+    assert_eq!(
+        tokens(">"),
+        vec![Token::new(FdWriteFrom(1), Span::new(0, 1))]
+    );
+    assert_eq!(
+        tokens(">>"),
+        vec![Token::new(FdAppendFrom(1), Span::new(0, 2))]
+    );
 
     assert_eq!(tokens("&&"), vec![Token::new(AndIf, Span::new(0, 2))]);
     assert_eq!(tokens("||"), vec![Token::new(OrIf, Span::new(0, 2))]);

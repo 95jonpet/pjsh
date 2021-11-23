@@ -43,11 +43,11 @@ pub enum TokenContents<'a> {
     Semi,
 
     /// "<"
-    FileRead,
+    FdReadTo(usize),
     /// ">"
-    FileWrite,
+    FdWriteFrom(usize),
     /// ">>"
-    FileAppend,
+    FdAppendFrom(usize),
 
     /// ","
     Comma,

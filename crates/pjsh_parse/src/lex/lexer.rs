@@ -137,7 +137,7 @@ impl<'a> Lexer<'a> {
             '|' => self.eat_pipe_or_orif(),
             '&' => self.eat_amp_or_andif(),
             ';' => self.eat_char(Semi),
-            '<' => self.eat_char(FileRead),
+            '<' => self.eat_char(FdReadTo(0)),
             '>' => self.eat_file_write_or_append(),
             '(' => self.eat_char(OpenParen),
             ')' => self.eat_char(CloseParen),
@@ -236,9 +236,15 @@ impl<'a> Lexer<'a> {
     fn eat_file_write_or_append(&mut self) -> LexResult<'a> {
         let first = self.skip_char('>')?;
         if let Ok(second) = self.skip_char('>') {
-            Ok(Token::new(FileAppend, Span::new(first.start, second.end)))
+            Ok(Token::new(
+                FdAppendFrom(1),
+                Span::new(first.start, second.end),
+            ))
         } else {
-            Ok(Token::new(FileWrite, Span::new(first.start, first.end)))
+            Ok(Token::new(
+                FdWriteFrom(1),
+                Span::new(first.start, first.end),
+            ))
         }
     }
 

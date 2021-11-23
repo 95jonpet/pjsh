@@ -3,8 +3,8 @@ use std::fmt::Display;
 use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, InterpolationUnit, Pipeline, PipelineSegment, Program,
-    Statement, Word,
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, InterpolationUnit, Pipeline,
+    PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
 };
 
 use super::cursor::TokenCursor;
@@ -201,10 +201,18 @@ impl<'a> Parser<'a> {
 
     /// Tries to parse a [`Command`] from the next tokens of input.
     pub fn parse_command(&mut self) -> Result<Command<'a>, ParseError<'a>> {
+        let prefix_redirects = self.parse_redirects();
         let mut command = Command::new(self.parse_word()?);
 
         while let Ok(argument) = self.parse_word() {
             command.arg(argument);
+        }
+
+        for redirect in prefix_redirects {
+            command.redirect(redirect);
+        }
+        for redirect in self.parse_redirects() {
+            command.redirect(redirect);
         }
 
         Ok(command)
@@ -247,6 +255,44 @@ impl<'a> Parser<'a> {
             _ => Err(ParseError::UnexpectedToken(
                 self.tokens.peek_token().clone(),
             )),
+        }
+    }
+
+    fn parse_redirects(&mut self) -> Vec<Redirect<'a>> {
+        let mut redirects = Vec::new();
+        while let Ok(redirect) = self.parse_redirect() {
+            redirects.push(redirect);
+        }
+        redirects
+    }
+
+    pub(crate) fn parse_redirect(&mut self) -> Result<Redirect<'a>, ParseError<'a>> {
+        match self.tokens.peek_token().contents {
+            TokenContents::FdReadTo(fd) => {
+                self.tokens.next_token();
+                Ok(Redirect::new(
+                    FileDescriptor::File(self.parse_word()?),
+                    RedirectOperator::Write,
+                    FileDescriptor::Number(fd),
+                ))
+            }
+            TokenContents::FdWriteFrom(fd) => {
+                self.tokens.next_token();
+                Ok(Redirect::new(
+                    FileDescriptor::Number(fd),
+                    RedirectOperator::Write,
+                    FileDescriptor::File(self.parse_word()?),
+                ))
+            }
+            TokenContents::FdAppendFrom(fd) => {
+                self.tokens.next_token();
+                Ok(Redirect::new(
+                    FileDescriptor::Number(fd),
+                    RedirectOperator::Append,
+                    FileDescriptor::File(self.parse_word()?),
+                ))
+            }
+            _ => return Err(self.unexpected_token()),
         }
     }
 
@@ -335,6 +381,10 @@ impl<'a> Parser<'a> {
         while self.tokens.peek_token().contents == TokenContents::Eol {
             self.tokens.next_token();
         }
+    }
+
+    fn unexpected_token(&mut self) -> ParseError<'a> {
+        ParseError::UnexpectedToken(self.tokens.peek_token().clone())
     }
 }
 

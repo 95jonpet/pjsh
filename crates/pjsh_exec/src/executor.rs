@@ -7,7 +7,9 @@ use std::{
     rc::Rc,
 };
 
-use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
+use pjsh_ast::{
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, RedirectOperator, Statement,
+};
 use pjsh_builtins::all_builtins;
 use pjsh_core::{find_in_path, BuiltinCommand, Context, ExecError, Result, Value};
 
@@ -114,6 +116,27 @@ impl Executor {
         stdin: Input,
         stdout: Option<Stdio>,
     ) -> Result {
+        // Allow stdout to be redirected to a file.
+        // TODO: Refactor and generalize.
+        let mut stdout = stdout;
+        for redirect in &command.redirects {
+            if redirect.source == FileDescriptor::Number(1)
+                && redirect.operator == RedirectOperator::Write
+            {
+                if let FileDescriptor::File(file_name) = &redirect.target {
+                    let mut path = context
+                        .borrow()
+                        .scope
+                        .get_env("PWD")
+                        .map(PathBuf::from)
+                        .unwrap();
+                    path.push(interpolate_word(file_name.clone(), &context.borrow()));
+                    let file = std::fs::File::create(path).unwrap();
+                    stdout = Some(Stdio::from(file));
+                }
+            }
+        }
+
         let mut args = self.expand(command, Rc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
 

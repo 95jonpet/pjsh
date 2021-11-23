@@ -1,4 +1,7 @@
-use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, PipelineSegment, Statement, Word};
+use pjsh_ast::{
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, PipelineSegment, Redirect,
+    RedirectOperator, Statement, Word,
+};
 
 use super::parser::*;
 use crate::{
@@ -241,5 +244,56 @@ fn parse_assignment_statement() {
             key: Word::Literal("key"),
             value: Word::Literal("value"),
         }))
+    )
+}
+
+#[test]
+fn parse_redirect_read() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(FdReadTo(0), span),
+        Token::new(Literal("file"), span),
+    ]);
+    assert_eq!(
+        parser.parse_redirect(),
+        Ok(Redirect {
+            source: FileDescriptor::File(Word::Literal("file")),
+            target: FileDescriptor::Number(0),
+            operator: RedirectOperator::Write
+        })
+    )
+}
+
+#[test]
+fn parse_redirect_write() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(FdWriteFrom(1), span),
+        Token::new(Literal("file"), span),
+    ]);
+    assert_eq!(
+        parser.parse_redirect(),
+        Ok(Redirect {
+            source: FileDescriptor::Number(1),
+            target: FileDescriptor::File(Word::Literal("file")),
+            operator: RedirectOperator::Write
+        })
+    )
+}
+
+#[test]
+fn parse_redirect_append() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(FdAppendFrom(1), span),
+        Token::new(Literal("file"), span),
+    ]);
+    assert_eq!(
+        parser.parse_redirect(),
+        Ok(Redirect {
+            source: FileDescriptor::Number(1),
+            target: FileDescriptor::File(Word::Literal("file")),
+            operator: RedirectOperator::Append
+        })
     )
 }

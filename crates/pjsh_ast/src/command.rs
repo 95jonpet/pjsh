@@ -4,7 +4,7 @@ use crate::{Redirect, Word};
 pub struct Command<'a> {
     pub program: Word<'a>,
     pub arguments: Vec<Word<'a>>,
-    pub redirects: Vec<Redirect>,
+    pub redirects: Vec<Redirect<'a>>,
 }
 
 impl<'a> Command<'a> {
@@ -24,7 +24,7 @@ impl<'a> Command<'a> {
     }
 
     /// Appends a redirect to the command's redirection list.
-    pub fn redirect<'b>(&'b mut self, redirect: Redirect) -> &'b mut Self {
+    pub fn redirect<'b>(&'b mut self, redirect: Redirect<'a>) -> &'b mut Self {
         self.redirects.push(redirect);
         self
     }

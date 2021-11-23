@@ -1,6 +1,8 @@
 mod command;
+mod io;
 
 pub use command::Command;
+pub use io::{FileDescriptor, Redirect, RedirectOperator};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Program<'a> {
@@ -55,24 +57,4 @@ pub struct Pipeline<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct PipelineSegment<'a> {
     pub command: Command<'a>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Redirect {
-    pub source: FileDescriptor,
-    pub operator: RedirectOperator,
-    pub target: FileDescriptor,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum RedirectOperator {
-    Read,
-    Write,
-    Append,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum FileDescriptor {
-    Number(usize),
-    File(String),
 }
