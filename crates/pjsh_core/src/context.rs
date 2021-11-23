@@ -28,6 +28,15 @@ impl Default for Context {
             );
         }
 
+        if let Ok(pwd) = std::env::current_dir() {
+            scope.set_env(
+                String::from("PWD"),
+                pwd.to_string_lossy()
+                    .trim_start_matches(r#"\\?\"#)
+                    .to_string(),
+            );
+        }
+
         Self {
             scope,
             arguments: Vec::new(),
