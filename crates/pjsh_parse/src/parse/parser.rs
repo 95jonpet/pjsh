@@ -49,25 +49,14 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Result<Program<'a>, ParseError<'a>> {
-        let mut statements = Vec::new();
-        loop {
-            match self.parse_statement() {
-                Ok(statement) => {
-                    statements.push(statement);
-                }
-                Err(ParseError::IncompleteSequence) => {
-                    return Err(ParseError::IncompleteSequence);
-                }
-                _ => break,
-            }
+        let mut program = Program::new();
+        while let Ok(statement) = self.parse_statement() {
+            program.statement(statement);
         }
 
-        let program = Program { statements };
-
-        if self.tokens.peek_token().contents != TokenContents::Eof {
-            return Err(ParseError::UnexpectedToken(
-                self.tokens.peek_token().clone(),
-            ));
+        // All tokens should be consumed when parsing a valid program.
+        if self.tokens.peek().contents != TokenContents::Eof {
+            return Err(self.unexpected_token());
         }
 
         Ok(program)
@@ -78,12 +67,12 @@ impl<'a> Parser<'a> {
         let mut operators = Vec::new();
 
         loop {
-            let operator = match self.tokens.peek_token().contents {
+            let operator = match self.tokens.peek().contents {
                 TokenContents::AndIf => AndOrOp::And,
                 TokenContents::OrIf => AndOrOp::Or,
                 _ => break,
             };
-            self.tokens.next_token();
+            self.tokens.next();
 
             operators.push(operator);
             pipelines.push(self.parse_pipeline()?);
@@ -96,9 +85,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_pipeline(&mut self) -> Result<Pipeline<'a>, ParseError<'a>> {
-        match self.tokens.peek_token().contents {
+        match self.tokens.peek().contents {
             TokenContents::PipeStart => {
-                self.tokens.next_token();
+                self.tokens.next();
                 self.parse_smart_pipeline()
             }
             _ => self.parse_legacy_pipeline(),
@@ -111,11 +100,11 @@ impl<'a> Parser<'a> {
         while let Ok(segment) = self.parse_pipeline_segment() {
             segments.push(segment);
 
-            if self.tokens.peek_token().contents == TokenContents::Pipe {
-                self.tokens.next_token();
+            if self.tokens.peek().contents == TokenContents::Pipe {
+                self.tokens.next();
 
-                if self.tokens.peek_token().contents == TokenContents::Eol {
-                    self.tokens.next_token();
+                if self.tokens.peek().contents == TokenContents::Eol {
+                    self.tokens.next();
                 }
             } else {
                 break;
@@ -123,15 +112,13 @@ impl<'a> Parser<'a> {
         }
 
         if segments.is_empty() {
-            return Err(ParseError::UnexpectedToken(
-                self.tokens.peek_token().clone(),
-            ));
+            return Err(self.unexpected_token());
         }
 
         let mut is_async = false;
-        if self.tokens.peek_token().contents == TokenContents::Amp {
+        if self.tokens.peek().contents == TokenContents::Amp {
             is_async = true;
-            self.tokens.next_token();
+            self.tokens.next();
         }
 
         Ok(Pipeline { is_async, segments })
@@ -142,53 +129,47 @@ impl<'a> Parser<'a> {
         let mut is_async = false;
 
         loop {
-            match self.tokens.peek_token().contents {
+            match self.tokens.peek().contents {
                 TokenContents::Amp => {
-                    self.tokens.next_token();
+                    self.tokens.next();
                     is_async = true;
                     break;
                 }
                 TokenContents::Semi => {
-                    self.tokens.next_token();
+                    self.tokens.next();
                     break;
                 }
                 _ => segments.push(self.parse_pipeline_segment()?),
             }
 
-            if self.tokens.peek_token().contents == TokenContents::Eol {
-                self.tokens.next_token();
+            if self.tokens.peek().contents == TokenContents::Eol {
+                self.tokens.next();
             }
 
-            match self.tokens.peek_token().contents {
+            match self.tokens.peek().contents {
                 TokenContents::Pipe => {
-                    self.tokens.next_token();
+                    self.tokens.next();
 
-                    if self.tokens.peek_token().contents == TokenContents::Eol {
-                        self.tokens.next_token();
+                    if self.tokens.peek().contents == TokenContents::Eol {
+                        self.tokens.next();
                     }
                 }
                 TokenContents::Eof => return Err(ParseError::IncompleteSequence),
                 TokenContents::Amp => {
-                    self.tokens.next_token();
+                    self.tokens.next();
                     is_async = true;
                     break;
                 }
                 TokenContents::Semi => {
-                    self.tokens.next_token();
+                    self.tokens.next();
                     break;
                 }
-                _ => {
-                    return Err(ParseError::UnexpectedToken(
-                        self.tokens.peek_token().clone(),
-                    ))
-                }
+                _ => return Err(self.unexpected_token()),
             }
         }
 
         if segments.is_empty() {
-            return Err(ParseError::UnexpectedToken(
-                self.tokens.peek_token().clone(),
-            ));
+            return Err(self.unexpected_token());
         }
 
         Ok(Pipeline { is_async, segments })
@@ -223,12 +204,12 @@ impl<'a> Parser<'a> {
         self.skip_newlines();
 
         let mut assignment_iter = self.tokens.clone();
-        assignment_iter.next_token();
-        if assignment_iter.peek_token().contents == TokenContents::Assign {
+        assignment_iter.next();
+        if assignment_iter.peek().contents == TokenContents::Assign {
             let key = self.parse_word()?;
 
-            debug_assert_eq!(self.tokens.peek_token().contents, TokenContents::Assign);
-            self.tokens.next_token();
+            debug_assert_eq!(self.tokens.peek().contents, TokenContents::Assign);
+            self.tokens.next();
 
             let value = self.parse_word()?;
             return Ok(Statement::Assignment(Assignment { key, value }));
@@ -238,23 +219,21 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_word(&mut self) -> Result<Word<'a>, ParseError<'a>> {
-        match self.tokens.peek_token().contents {
+        match self.tokens.peek().contents {
             TokenContents::Literal(literal) => {
-                self.tokens.next_token();
+                self.tokens.next();
                 Ok(Word::Literal(literal))
             }
             TokenContents::TripleQuote => self.parse_triple_quoted(),
             TokenContents::Quote => self.parse_quoted(),
             TokenContents::Interpolation(_) => self.parse_interpolation(),
             TokenContents::Variable(variable) => {
-                self.tokens.next_token();
+                self.tokens.next();
                 Ok(Word::Variable(variable))
             }
 
             TokenContents::Eof => Err(ParseError::UnexpectedEof),
-            _ => Err(ParseError::UnexpectedToken(
-                self.tokens.peek_token().clone(),
-            )),
+            _ => Err(self.unexpected_token()),
         }
     }
 
@@ -267,9 +246,9 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_redirect(&mut self) -> Result<Redirect<'a>, ParseError<'a>> {
-        match self.tokens.peek_token().contents {
+        match self.tokens.peek().contents {
             TokenContents::FdReadTo(fd) => {
-                self.tokens.next_token();
+                self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::File(self.parse_word()?),
                     RedirectOperator::Write,
@@ -277,7 +256,7 @@ impl<'a> Parser<'a> {
                 ))
             }
             TokenContents::FdWriteFrom(fd) => {
-                self.tokens.next_token();
+                self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
                     RedirectOperator::Write,
@@ -285,7 +264,7 @@ impl<'a> Parser<'a> {
                 ))
             }
             TokenContents::FdAppendFrom(fd) => {
-                self.tokens.next_token();
+                self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
                     RedirectOperator::Append,
@@ -297,16 +276,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_interpolation(&mut self) -> Result<Word<'a>, ParseError<'a>> {
-        if let TokenContents::Interpolation(units) = self.tokens.next_token().contents {
+        if let TokenContents::Interpolation(units) = self.tokens.next().contents {
             let word_units = units
                 .into_iter()
                 .map(|unit| self.parse_interpolation_unit(unit))
                 .collect();
             Ok(Word::Interpolation(word_units))
         } else {
-            Err(ParseError::UnexpectedToken(
-                self.tokens.peek_token().clone(),
-            ))
+            Err(self.unexpected_token())
         }
     }
 
@@ -322,10 +299,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_triple_quoted(&mut self) -> Result<Word<'a>, ParseError<'a>> {
-        self.tokens.next_token();
+        self.tokens.next();
         let mut quoted = String::new();
         loop {
-            let token = self.tokens.next_token();
+            let token = self.tokens.next();
             match token.contents {
                 TokenContents::TripleQuote => break,
                 TokenContents::Quoted(string) => quoted.push_str(string),
@@ -363,10 +340,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_quoted(&mut self) -> Result<Word<'a>, ParseError<'a>> {
-        self.tokens.next_token();
+        self.tokens.next();
         let mut quoted = String::new();
         loop {
-            let token = self.tokens.next_token();
+            let token = self.tokens.next();
             match token.contents {
                 TokenContents::Quote => break,
                 TokenContents::Quoted(string) => quoted.push_str(string),
@@ -377,14 +354,16 @@ impl<'a> Parser<'a> {
         Ok(Word::Quoted(quoted))
     }
 
+    /// Advances the token cursor until the next token is not an end-of-line token.
     fn skip_newlines(&mut self) {
-        while self.tokens.peek_token().contents == TokenContents::Eol {
-            self.tokens.next_token();
+        while self.tokens.peek().contents == TokenContents::Eol {
+            self.tokens.next();
         }
     }
 
+    /// Returns a [`ParseError::UnexpectedToken`] around a copy of the next token.
     fn unexpected_token(&mut self) -> ParseError<'a> {
-        ParseError::UnexpectedToken(self.tokens.peek_token().clone())
+        ParseError::UnexpectedToken(self.tokens.peek().clone())
     }
 }
 

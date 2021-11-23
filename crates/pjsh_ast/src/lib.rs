@@ -1,13 +1,10 @@
 mod command;
 mod io;
+mod program;
 
 pub use command::Command;
 pub use io::{FileDescriptor, Redirect, RedirectOperator};
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Program<'a> {
-    pub statements: Vec<Statement<'a>>,
-}
+pub use program::Program;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Statement<'a> {

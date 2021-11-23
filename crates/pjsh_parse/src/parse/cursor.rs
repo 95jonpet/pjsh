@@ -27,13 +27,13 @@ impl<'a> TokenCursor<'a> {
 
     /// Returns a reference to the next non-trivial [`Token`] while advancing the cursor past
     /// trivial tokens.
-    pub fn peek_token(&mut self) -> &Token<'a> {
+    pub fn peek(&mut self) -> &Token<'a> {
         self.skip_trivial_tokens();
         self.tokens.peek().unwrap_or(&self.eof_token)
     }
 
     /// Returns the next non-trivial [`Token`] while advancing the cursor.
-    pub fn next_token(&mut self) -> Token<'a> {
+    pub fn next(&mut self) -> Token<'a> {
         self.skip_trivial_tokens();
         self.tokens.next().unwrap_or_else(|| self.eof_token.clone())
     }
