@@ -165,7 +165,7 @@ impl Executor {
         stdout: Option<Stdio>,
         context: &Context,
     ) -> Result {
-        let mut cmd = process::Command::new(program);
+        let mut cmd = process::Command::new(program.clone());
         cmd.envs(context.scope.envs());
         cmd.args(args);
 
@@ -191,7 +191,9 @@ impl Executor {
             }
             Err(error) => match error.kind() {
                 std::io::ErrorKind::NotFound => unreachable!("Should be caught in caller"),
-                _ => Err(ExecError::ChildSpawnFailed),
+                _ => Err(ExecError::ChildSpawnFailed(
+                    error.to_string().replace("%1", &program.to_string_lossy()),
+                )),
             },
         }
     }

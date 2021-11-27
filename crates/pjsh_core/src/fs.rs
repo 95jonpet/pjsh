@@ -28,7 +28,7 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
 
     for path in possible_paths {
         if path.exists() {
-            return Some(path);
+            return Some(path.canonicalize().unwrap_or(path));
         }
     }
 
