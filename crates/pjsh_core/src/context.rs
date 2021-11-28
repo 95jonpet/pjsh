@@ -9,33 +9,10 @@ pub struct Context {
     pub last_exit: i32,
 }
 
-impl Default for Context {
-    fn default() -> Self {
+impl Context {
+    pub fn new() -> Self {
         let host = StdHost::default();
         let scope = Scope::default();
-
-        for (key, value) in host.env_vars() {
-            scope.set_env(
-                key.to_string_lossy().to_string(),
-                value.to_string_lossy().to_string(),
-            );
-        }
-
-        if let Ok(current_exe) = std::env::current_exe() {
-            scope.set_env(
-                String::from("SHELL"),
-                current_exe.to_string_lossy().to_string(),
-            );
-        }
-
-        if let Ok(pwd) = std::env::current_dir() {
-            scope.set_env(
-                String::from("PWD"),
-                pwd.to_string_lossy()
-                    .trim_start_matches(r#"\\?\"#)
-                    .to_string(),
-            );
-        }
 
         Self {
             scope,
@@ -43,5 +20,11 @@ impl Default for Context {
             host: Arc::new(parking_lot::Mutex::new(host)),
             last_exit: 0,
         }
+    }
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
     }
 }

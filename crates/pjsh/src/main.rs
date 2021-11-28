@@ -1,8 +1,10 @@
+mod init;
 mod shell;
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use clap::{crate_version, Parser};
+use init::init_context;
 use pjsh_core::Context;
 use pjsh_exec::{interpolate_word, Executor};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
@@ -41,7 +43,7 @@ pub fn main() {
         None if opts.command.is_some() => Box::new(SingleCommandShell::new(opts.command.unwrap())),
         _ => Box::new(RustylineShell::new()),
     };
-    let context = Rc::new(RefCell::new(Context::default()));
+    let context = Rc::new(RefCell::new(init_context()));
 
     source_init_scripts(shell.is_interactive(), Rc::clone(&context));
 
