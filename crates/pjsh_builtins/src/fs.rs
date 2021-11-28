@@ -5,13 +5,19 @@ use pjsh_core::{BuiltinCommand, Context, ExecError, Result, Value};
 pub struct Cd;
 
 impl Cd {
-    fn change_directory(&self, path: PathBuf, context: &mut Context) {
+    fn change_directory(&self, path: PathBuf, context: &mut Context) -> bool {
+        if !path.is_dir() {
+            return false;
+        }
+
         self.update_old_pwd(context);
 
         context
             .scope
             .set_env(String::from("PWD"), path_to_string(&path));
         let _ = std::env::set_current_dir(path);
+
+        true
     }
 
     fn update_old_pwd(&self, context: &mut Context) {
