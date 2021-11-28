@@ -50,7 +50,13 @@ impl Executor {
                 .flatten();
             let input = match stdin {
                 Some(stdin) => Input::Piped(stdin),
-                None => Input::Value(last_value.take().unwrap_or_else(String::new)),
+                None => {
+                    if let Some(value) = last_value.take() {
+                        Input::Value(value)
+                    } else {
+                        Input::Inherit
+                    }
+                }
             };
             let result = self.execute_command(segment.command, Rc::clone(&context), input, stdout);
             last_child = None;
@@ -175,10 +181,14 @@ impl Executor {
         } else if let Input::Value(string) = stdin {
             value = Some(string);
             cmd.stdin(Stdio::piped());
+        } else if let Input::Inherit = stdin {
+            cmd.stdin(Stdio::inherit());
         }
 
         if let Some(stdout) = stdout {
             cmd.stdout(stdout);
+        } else {
+            cmd.stdout(Stdio::inherit());
         }
 
         match cmd.spawn() {
