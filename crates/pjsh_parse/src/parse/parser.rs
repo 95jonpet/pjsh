@@ -9,6 +9,8 @@ use pjsh_ast::{
 
 use super::cursor::TokenCursor;
 
+/// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
+/// A [`ParserError`] is returned if a program can't be parsed.
 pub fn parse(src: &str) -> Result<Program<'_>, ParseError<'_>> {
     match crate::lex(src) {
         Ok(tokens) => {
@@ -23,6 +25,8 @@ pub fn parse(src: &str) -> Result<Program<'_>, ParseError<'_>> {
     }
 }
 
+/// Tries to parse a [`Word`] from within an interpolation.
+/// A [`ParserError`] is returned if a program can't be parsed.
 pub fn parse_interpolation(src: &str) -> Result<Word<'_>, ParseError<'_>> {
     match crate::lex_interpolation(src) {
         Ok(token) => {
@@ -37,17 +41,20 @@ pub fn parse_interpolation(src: &str) -> Result<Word<'_>, ParseError<'_>> {
     }
 }
 
+/// A parser creates an abstract syntax tree from a tokenized input.
 pub struct Parser<'a> {
     tokens: TokenCursor<'a>,
 }
 
 impl<'a> Parser<'a> {
+    /// Constructs a new parser for parsing some tokens.
     pub fn new(tokens: Vec<Token<'a>>) -> Self {
         Self {
             tokens: TokenCursor::new(tokens),
         }
     }
 
+    /// Parses [`Program`] by consuming all remaining input.
     pub fn parse_program(&mut self) -> Result<Program<'a>, ParseError<'a>> {
         let mut program = Program::new();
         while let Ok(statement) = self.parse_statement() {
