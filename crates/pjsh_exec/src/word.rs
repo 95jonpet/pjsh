@@ -3,9 +3,9 @@ use pjsh_core::Context;
 
 pub fn interpolate_word(word: Word, context: &Context) -> String {
     match word {
-        Word::Literal(literal) => literal.to_string(),
+        Word::Literal(literal) => literal,
         Word::Quoted(quoted) => quoted,
-        Word::Variable(key) => match key {
+        Word::Variable(key) => match key.as_str() {
             "?" => context.last_exit.to_string(),
             "0" => todo!(),
             _ => {
@@ -17,7 +17,7 @@ pub fn interpolate_word(word: Word, context: &Context) -> String {
                         .unwrap_or_else(String::new);
                 }
 
-                context.scope.get_env(key).unwrap_or_default()
+                context.scope.get_env(&key).unwrap_or_default()
             }
         },
         Word::Interpolation(units) => {
@@ -25,10 +25,10 @@ pub fn interpolate_word(word: Word, context: &Context) -> String {
 
             for unit in units {
                 match unit {
-                    pjsh_ast::InterpolationUnit::Literal(literal) => output.push_str(literal),
+                    pjsh_ast::InterpolationUnit::Literal(literal) => output.push_str(&literal),
                     pjsh_ast::InterpolationUnit::Unicode(ch) => output.push(ch),
                     pjsh_ast::InterpolationUnit::Variable(variable) => {
-                        output.push_str(&context.scope.get_env(variable).unwrap_or_default())
+                        output.push_str(&context.scope.get_env(&variable).unwrap_or_default())
                     }
                 }
             }

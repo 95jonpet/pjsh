@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum TokenContents<'a> {
+pub enum TokenContents {
     /// "# ..."
     Comment,
 
-    Interpolation(Vec<InterpolationUnit<'a>>),
-    Literal(&'a str),
-    Variable(&'a str),
-    Quoted(&'a str),
+    Interpolation(Vec<InterpolationUnit>),
+    Literal(String),
+    Variable(String),
+    Quoted(String),
 
     /// "\"" or "'"
     Quote,
@@ -67,8 +67,8 @@ pub enum TokenContents<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InterpolationUnit<'a> {
-    Literal(&'a str),
+pub enum InterpolationUnit {
+    Literal(String),
     Unicode(char),
-    Variable(&'a str),
+    Variable(String),
 }

@@ -1,18 +1,14 @@
 use crate::Word;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Redirect<'a> {
-    pub source: FileDescriptor<'a>,
-    pub target: FileDescriptor<'a>,
+pub struct Redirect {
+    pub source: FileDescriptor,
+    pub target: FileDescriptor,
     pub operator: RedirectOperator,
 }
 
-impl<'a> Redirect<'a> {
-    pub fn new(
-        source: FileDescriptor<'a>,
-        operator: RedirectOperator,
-        target: FileDescriptor<'a>,
-    ) -> Self {
+impl Redirect {
+    pub fn new(source: FileDescriptor, operator: RedirectOperator, target: FileDescriptor) -> Self {
         Self {
             source,
             operator,
@@ -28,7 +24,7 @@ pub enum RedirectOperator {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum FileDescriptor<'a> {
+pub enum FileDescriptor {
     Number(usize),
-    File(Word<'a>),
+    File(Word),
 }

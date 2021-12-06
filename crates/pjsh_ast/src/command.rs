@@ -1,15 +1,15 @@
 use crate::{Redirect, Word};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Command<'a> {
-    pub program: Word<'a>,
-    pub arguments: Vec<Word<'a>>,
-    pub redirects: Vec<Redirect<'a>>,
+pub struct Command {
+    pub program: Word,
+    pub arguments: Vec<Word>,
+    pub redirects: Vec<Redirect>,
 }
 
-impl<'a> Command<'a> {
+impl Command {
     /// Constructs a new command for calling a program.
-    pub fn new(program: Word<'a>) -> Self {
+    pub fn new(program: Word) -> Self {
         Self {
             program,
             arguments: Vec::new(),
@@ -18,13 +18,13 @@ impl<'a> Command<'a> {
     }
 
     /// Appends an argument to the command.
-    pub fn arg<'b>(&'b mut self, arg: Word<'a>) -> &'b mut Self {
+    pub fn arg(&mut self, arg: Word) -> &mut Self {
         self.arguments.push(arg);
         self
     }
 
     /// Appends a redirect to the command's redirection list.
-    pub fn redirect<'b>(&'b mut self, redirect: Redirect<'a>) -> &'b mut Self {
+    pub fn redirect(&mut self, redirect: Redirect) -> &mut Self {
         self.redirects.push(redirect);
         self
     }
