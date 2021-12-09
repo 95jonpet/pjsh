@@ -7,36 +7,36 @@ pub use io::{FileDescriptor, Redirect, RedirectOperator};
 pub use program::Program;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Statement<'a> {
-    AndOr(AndOr<'a>),
-    Assignment(Assignment<'a>),
+pub enum Statement {
+    AndOr(AndOr),
+    Assignment(Assignment),
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Assignment<'a> {
-    pub key: Word<'a>,
-    pub value: Word<'a>,
+pub struct Assignment {
+    pub key: Word,
+    pub value: Word,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Word<'a> {
-    Literal(&'a str),
+pub enum Word {
+    Literal(String),
     Quoted(String),
-    Variable(&'a str),
-    Interpolation(Vec<InterpolationUnit<'a>>),
+    Variable(String),
+    Interpolation(Vec<InterpolationUnit>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InterpolationUnit<'a> {
-    Literal(&'a str),
+pub enum InterpolationUnit {
+    Literal(String),
     Unicode(char),
-    Variable(&'a str),
+    Variable(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AndOr<'a> {
+pub struct AndOr {
     pub operators: Vec<AndOrOp>,
-    pub pipelines: Vec<Pipeline<'a>>,
+    pub pipelines: Vec<Pipeline>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,12 +46,12 @@ pub enum AndOrOp {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Pipeline<'a> {
+pub struct Pipeline {
     pub is_async: bool,
-    pub segments: Vec<PipelineSegment<'a>>,
+    pub segments: Vec<PipelineSegment>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PipelineSegment<'a> {
-    pub command: Command<'a>,
+pub struct PipelineSegment {
+    pub command: Command,
 }

@@ -7,18 +7,18 @@ use crate::{
 
 /// A cursor for traversing through a peekable [`Token`] iterator while skipping trivial tokens.
 #[derive(Clone)]
-pub struct TokenCursor<'a> {
+pub struct TokenCursor {
     /// Tokens that the cursor traverses.
-    tokens: Peekable<IntoIter<Token<'a>>>,
+    tokens: Peekable<IntoIter<Token>>,
 
     /// The token representing the cursor's EOF.
     /// This token is returned upon, and after, consuming all tokens.
-    eof_token: Token<'a>,
+    eof_token: Token,
 }
 
-impl<'a> TokenCursor<'a> {
+impl TokenCursor {
     /// Constructs a new cursor for a predefined set of tokens.
-    pub fn new(tokens: Vec<Token<'a>>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             eof_token: Token::new(TokenContents::Eof, Span::new(0, 0)),
             tokens: tokens.into_iter().peekable(),
@@ -27,13 +27,13 @@ impl<'a> TokenCursor<'a> {
 
     /// Returns a reference to the next non-trivial [`Token`] while advancing the cursor past
     /// trivial tokens.
-    pub fn peek(&mut self) -> &Token<'a> {
+    pub fn peek(&mut self) -> &Token {
         self.skip_trivial_tokens();
         self.tokens.peek().unwrap_or(&self.eof_token)
     }
 
     /// Returns the next non-trivial [`Token`] while advancing the cursor.
-    pub fn next(&mut self) -> Token<'a> {
+    pub fn next(&mut self) -> Token {
         self.skip_trivial_tokens();
         self.tokens.next().unwrap_or_else(|| self.eof_token.clone())
     }

@@ -1,11 +1,11 @@
 use crate::Statement;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Program<'a> {
-    pub statements: Vec<Statement<'a>>,
+pub struct Program {
+    pub statements: Vec<Statement>,
 }
 
-impl<'a> Program<'a> {
+impl Program {
     /// Constructs a new empty program.
     pub fn new() -> Self {
         let statements = Vec::new();
@@ -13,13 +13,13 @@ impl<'a> Program<'a> {
     }
 
     /// Appends a statement to the program.
-    pub fn statement<'b>(&'b mut self, statement: Statement<'a>) -> &'b mut Self {
+    pub fn statement(&mut self, statement: Statement) -> &mut Self {
         self.statements.push(statement);
         self
     }
 }
 
-impl Default for Program<'_> {
+impl Default for Program {
     fn default() -> Self {
         Self::new()
     }
