@@ -1,15 +1,14 @@
 use std::fmt::Display;
-use std::iter::Peekable;
-use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
 use crate::lex::input::{is_newline, is_variable_char, is_whitespace};
 use crate::tokens::TokenContents::*;
 use crate::tokens::{InterpolationUnit, TokenContents};
 
+use super::input::Input;
+
 /// Character representing the end of input (also known as end of file = EOF).
 const EOF_CHAR: char = '\0';
 const EOF: &str = "\0";
-type Input<'a> = Peekable<GraphemeIndices<'a>>;
 type LexResult<'a> = Result<Token, LexError>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,7 +79,7 @@ pub fn lex_interpolation(src: &str) -> Result<Token, LexError> {
     let mut lexer = Lexer::new(src);
     let interpolation = lexer.eat_interpolation(None)?;
 
-    debug_assert_eq!(lexer.input.peek(), None, "the input should be consumed");
+    debug_assert_eq!(lexer.input.peek().1, EOF, "the input should be consumed");
 
     Ok(interpolation)
 }
@@ -98,7 +97,6 @@ enum LexerMode<'a> {
 ///
 /// Supports multiple modes through [`LexerMode`].
 pub struct Lexer<'a> {
-    eof: (usize, &'a str),
     input: Input<'a>,
     input_length: usize,
     mode: LexerMode<'a>,
@@ -106,11 +104,8 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
-        let input = src.grapheme_indices(true).peekable();
-        let eof = (src.len(), EOF);
         Self {
-            eof,
-            input,
+            input: Input::new(src),
             input_length: src.len(),
             mode: LexerMode::Unquoted,
         }
@@ -133,7 +128,7 @@ impl<'a> Lexer<'a> {
     /// Returns the next token in unqouted mode.
     fn next_unquoted_token(&mut self) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::Unquoted);
-        match self.input.peek().unwrap_or(&self.eof).1 {
+        match self.input.peek().1 {
             "#" => self.eat_comment(),
             "|" => self.eat_pipe_or_orif(),
             "&" => self.eat_amp_or_andif(),
@@ -162,15 +157,18 @@ impl<'a> Lexer<'a> {
     fn next_quoted_token(&mut self, delimiter: &str) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::Quoted(delimiter));
         let is_quoted = |ch: &str| ch != delimiter && ch != "\\";
-        match self.input.peek().unwrap_or(&self.eof).1 {
+        match self.input.peek().1 {
             EOF => Err(LexError::UnexpectedEof),
             "\\" => {
-                let (start, start_str) = self.input.next().unwrap_or(self.eof);
-                if let Ok(next) = self.skip_char(delimiter) {
-                    return Ok(Token::new(Quoted(next.1), Span::new(start, start + 2)));
+                let start = self.input.next().0;
+                if let Some(next) = self.input.next_if_eq(delimiter) {
+                    return Ok(Token::new(
+                        Quoted(next.1.to_string()),
+                        Span::new(start, start + 2),
+                    ));
                 }
                 Ok(Token::new(
-                    Quoted(start_str.to_string()),
+                    Quoted(String::from("\\")),
                     Span::new(start, start + 1),
                 ))
             }
@@ -179,7 +177,7 @@ impl<'a> Lexer<'a> {
                 self.eat_char(Quote)
             }
             _ => {
-                let (span, contents) = self.eat_while(is_quoted);
+                let (span, contents) = self.input.eat_while(is_quoted);
                 Ok(Token::new(Quoted(contents), span))
             }
         }
@@ -188,93 +186,87 @@ impl<'a> Lexer<'a> {
     /// Returns the next token in qouted multiline mode.
     fn next_quoted_multiline_token(&mut self, delimiter: &str) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::QuotedMultiline(delimiter));
-        let start = self.input.peek().unwrap_or(&self.eof).0;
+        let start = self.input.peek().0;
         let mut contents = String::new();
 
         loop {
-            if self.lookahead(3)[..] == [delimiter, delimiter, delimiter] {
+            if self.input.peek_n(3) == [delimiter, delimiter, delimiter] {
                 if !contents.is_empty() {
                     break;
                 }
 
-                self.skip_chars(&[delimiter, delimiter, delimiter])?;
-                let end = self.input.peek().unwrap_or(&self.eof).0;
+                self.input
+                    .take_if_eq(&[delimiter, delimiter, delimiter])
+                    .expect("peeked input should match");
+                let end = self.input.peek().0;
                 let span = Span::new(start, end);
                 self.mode = LexerMode::Unquoted;
                 return Ok(Token::new(TripleQuote, span));
             }
 
-            match self.input.peek().unwrap_or(&self.eof).1 {
+            match self.input.peek().1 {
                 EOF => return Err(LexError::UnexpectedEof),
-                ch if ch == delimiter => contents.push_str(self.input.next().unwrap_or(self.eof).1),
-                _ => contents.push_str(&self.eat_while(|ch| ch != delimiter).1),
+                ch if ch == delimiter => contents.push_str(self.input.next().1),
+                _ => contents.push_str(&self.input.eat_while(|ch| ch != delimiter).1),
             }
         }
 
-        let end = self.input.peek().unwrap_or(&self.eof).0;
+        let end = self.input.peek().0;
         let span = Span::new(start, end);
         Ok(Token::new(Quoted(contents), span))
     }
 
     /// Eats a single character.
     fn eat_char(&mut self, contents: TokenContents) -> LexResult<'a> {
-        let (index, _) = self.input.next().unwrap();
+        let (index, _) = self.input.next();
         Ok(Token::new(contents, Span::new(index, index + 1)))
     }
 
     /// Eats [`FileAppend`] ">>" or [`FileWrite`] ">".
     fn eat_file_write_or_append(&mut self) -> LexResult<'a> {
-        let first = self.skip_char(">")?;
-        if let Ok(second) = self.skip_char(">") {
-            Ok(Token::new(
-                FdAppendFrom(1),
-                Span::new(first.0.start, second.0.end),
-            ))
+        let start = self
+            .input
+            .next_if_eq(">")
+            .expect("the next char of input should be '>'")
+            .0;
+        if let Some(second) = self.input.next_if_eq(">") {
+            Ok(Token::new(FdAppendFrom(1), Span::new(start, second.0 + 1)))
         } else {
-            Ok(Token::new(
-                FdWriteFrom(1),
-                Span::new(first.0.start, first.0.end),
-            ))
+            Ok(Token::new(FdWriteFrom(1), Span::new(start, start + 1)))
         }
     }
 
     fn eat_amp_or_andif(&mut self) -> LexResult<'a> {
-        let start = *self.input.peek().unwrap_or(&self.eof);
-        debug_assert_eq!(start.1, "&");
-        self.input.next();
+        let start = self
+            .input
+            .next_if_eq("&")
+            .expect("the next char of input should be '&'")
+            .0;
 
-        if let Some("&") = self.input.peek().map(|&(_, c)| c) {
-            let end = self.input.next().unwrap_or(self.eof).0;
-            Ok(Token::new(AndIf, Span::new(start.0, end + 1)))
+        if let Some((end, _)) = self.input.next_if_eq("&") {
+            Ok(Token::new(AndIf, Span::new(start, end + 1)))
         } else {
-            Ok(Token::new(Amp, Span::new(start.0, start.0 + 1)))
+            Ok(Token::new(Amp, Span::new(start, start + 1)))
         }
     }
 
     fn eat_pipe_or_orif(&mut self) -> LexResult<'a> {
-        let start = *self.input.peek().unwrap_or(&self.eof);
-        debug_assert_eq!(start.1, "|");
-        self.input.next();
+        let start = self
+            .input
+            .next_if_eq("|")
+            .expect("the next char of input should be '|'")
+            .0;
 
-        let next = self.input.peek().map(|&(_, c)| c);
-
-        if let Some("|") = next {
-            let end = self.input.next().unwrap_or(self.eof).0;
-            Ok(Token::new(OrIf, Span::new(start.0, end + 1)))
+        if let Some((end, _)) = self.input.next_if_eq("|") {
+            Ok(Token::new(OrIf, Span::new(start, end + 1)))
         } else {
-            Ok(Token::new(Pipe, Span::new(start.0, start.0 + 1)))
+            Ok(Token::new(Pipe, Span::new(start, start + 1)))
         }
     }
 
     fn eat_pipeline_start_or_literal(&mut self) -> LexResult<'a> {
-        let start = *self.input.peek().unwrap_or(&self.eof);
-        debug_assert_eq!(start.1, "-");
-
-        if self.skip_chars(&["-", ">", "|"]).is_ok() {
-            return Ok(Token::new(
-                PipeStart,
-                Span::new(start.0, self.input.peek().unwrap_or(&self.eof).0),
-            ));
+        if let Some(span) = self.input.take_if_eq(&["-", ">", "|"]) {
+            return Ok(Token::new(PipeStart, span));
         }
 
         self.eat_literal()
@@ -282,14 +274,14 @@ impl<'a> Lexer<'a> {
 
     /// Eats a comment.
     fn eat_comment(&mut self) -> LexResult<'a> {
-        let (span, _) = self.eat_while(|c| !is_newline(c));
+        let (span, _) = self.input.eat_while(|c| !is_newline(c));
         Ok(Token::new(Comment, span))
     }
 
     /// Eats a newline token.
     fn eat_newline(&mut self) -> LexResult<'a> {
-        let start = self.input.peek().unwrap_or(&self.eof).0;
-        match self.input.peek().unwrap_or(&self.eof).1 {
+        let start = self.input.peek().0;
+        match self.input.peek().1 {
             "\r\n" => {
                 self.input.next();
                 Ok(Token::new(Eol, Span::new(start, start + 1)))
@@ -304,7 +296,7 @@ impl<'a> Lexer<'a> {
 
     /// Eats literal words.
     fn eat_literal(&mut self) -> LexResult<'a> {
-        let (span, content) = self.eat_while(|c| !is_whitespace(c));
+        let (span, content) = self.input.eat_while(|c| !is_whitespace(c));
         Ok(Token::new(Literal(content), span))
     }
 
@@ -319,23 +311,24 @@ impl<'a> Lexer<'a> {
 
     /// Eats variable words.
     fn eat_variable(&mut self) -> LexResult<'a> {
-        match self.input.peek().unwrap_or(&self.eof).1 {
+        match self.input.peek().1 {
             "{" => {
-                let start = self.skip_char("{")?.0.start;
-                let (mut span, content) = self.eat_while(|c| c != "}");
+                let start = self.input.next().0;
+                let (mut span, content) = self.input.eat_while(|c| c != "}");
 
-                let next = self.input.peek().unwrap_or(&self.eof);
+                let next = self.input.peek();
                 if next.1 != "}" {
                     return Err(LexError::UnexpectedChar(next.1.to_string()));
                 }
                 span.start = start;
-                span.end = self.input.next().unwrap_or(self.eof).0 + 1;
+                span.end = self.input.next().0 + 1;
 
                 Ok(Token::new(Variable(content), span))
             }
             ch if ch.chars().all(char::is_alphabetic) || ch == "_" => {
-                let (span, content) =
-                    self.eat_while(|c| c.chars().all(char::is_alphanumeric) || c == "_");
+                let (span, content) = self
+                    .input
+                    .eat_while(|c| c.chars().all(char::is_alphanumeric) || c == "_");
                 Ok(Token::new(Variable(content), span))
             }
             ch => Err(LexError::UnexpectedChar(ch.to_string())),
@@ -343,10 +336,10 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_interpolation_or_variable(&mut self) -> LexResult<'a> {
-        debug_assert!(self.input.peek().unwrap().1 == "$");
-        let span_start = self.input.next().unwrap_or(self.eof).0;
+        debug_assert!(self.input.peek().1 == "$");
+        let span_start = self.input.next().0;
 
-        let result = match self.input.peek().unwrap_or(&self.eof).1 {
+        let result = match self.input.peek().1 {
             "\"" => self.eat_interpolation(Some("\"")),
             "'" => self.eat_interpolation(Some("'")),
             _ => self.eat_variable(),
@@ -362,44 +355,39 @@ impl<'a> Lexer<'a> {
     /// Eats an interpolation optionally surrounded by a delimiter.
     fn eat_interpolation(&mut self, delimiter: Option<&str>) -> LexResult<'a> {
         let delimiter_char = delimiter.unwrap_or(EOF);
-        let start = self.input.peek().unwrap_or(&self.eof).0;
+        let start = self.input.peek().0;
         if delimiter.is_some() {
-            debug_assert!(self.input.peek().unwrap().1 == delimiter.unwrap());
+            debug_assert!(self.input.peek().1 == delimiter.unwrap());
             self.input.next();
         }
         let mut units = Vec::new();
 
         loop {
-            match self.input.peek().unwrap_or(&self.eof).1 {
+            match self.input.peek().1 {
                 EOF if delimiter.is_some() => return Err(LexError::UnexpectedEof),
 
                 // Uses EOF as default and must be matched after an actual EOF.
                 ch if ch == delimiter_char => {
-                    let end = self.input.next().unwrap_or(self.eof).0;
+                    let end = self.input.next().0;
                     let span = Span::new(start, end + 1);
                     return Ok(Token::new(Interpolation(units), span));
                 }
                 "\\" => {
                     self.input.next();
 
-                    if self.input.peek().unwrap_or(&self.eof).1 == "e" {
+                    if self.input.next_if_eq("e").is_some() {
                         units.push(InterpolationUnit::Unicode('\u{001b}'));
-                        self.input.next();
                         continue;
-                    } else if self.skip_char("u").is_ok() {
-                        if self.input.peek().unwrap_or(&self.eof).1 != "{" {
-                            return Err(LexError::UnexpectedChar(
-                                self.input.peek().unwrap_or(&self.eof).1.to_string(),
-                            ));
+                    } else if self.input.next_if_eq("u").is_some() {
+                        if self.input.peek().1 != "{" {
+                            return Err(LexError::UnexpectedChar(self.input.peek().1.to_string()));
                         }
                         self.input.next();
 
-                        let content = self.eat_while(|c| c != "}").1;
+                        let content = self.input.eat_while(|c| c != "}").1;
 
-                        if self.input.peek().unwrap_or(&self.eof).1 != "}" {
-                            return Err(LexError::UnexpectedChar(
-                                self.input.peek().unwrap_or(&self.eof).1.to_string(),
-                            ));
+                        if self.input.peek().1 != "}" {
+                            return Err(LexError::UnexpectedChar(self.input.peek().1.to_string()));
                         }
                         self.input.next();
 
@@ -412,18 +400,20 @@ impl<'a> Lexer<'a> {
                         }
                     }
 
-                    let (_, span_str) = self.input.next().unwrap();
+                    let (_, span_str) = self.input.next();
                     units.push(InterpolationUnit::Literal(span_str.to_string()));
                 }
                 "$" => {
                     self.input.next();
-                    let (_, content) =
-                        self.eat_while(|c| is_variable_char(c) && c != delimiter_char);
+                    let (_, content) = self
+                        .input
+                        .eat_while(|c| is_variable_char(c) && c != delimiter_char);
                     units.push(InterpolationUnit::Variable(content));
                 }
                 _ => {
-                    let (_, content) =
-                        self.eat_while(|c| c != "$" && c != "\\" && c != delimiter_char);
+                    let (_, content) = self
+                        .input
+                        .eat_while(|c| c != "$" && c != "\\" && c != delimiter_char);
                     units.push(InterpolationUnit::Literal(content));
                 }
             }
@@ -435,16 +425,9 @@ impl<'a> Lexer<'a> {
         self.mode = LexerMode::Quoted(delimiter);
         let first_quote = self.eat_char(Quote);
 
-        // Use lookahead to determine whether or not a single quote or triple quotes are used.
-        let mut input_iter = self.input.clone();
-        let peek = [
-            input_iter.next().unwrap_or(self.eof).1,
-            input_iter.next().unwrap_or(self.eof).1,
-        ];
-        if peek == [delimiter, delimiter] {
-            self.input.next();
-            let end = self.input.next().unwrap_or(self.eof);
-            let span = Span::new(first_quote.expect("should exist").span.start, end.0 + 1);
+        // Peek the next two quotes to determine whether a single quote or triple quotes are used.
+        if let Some(end_span) = self.input.take_if_eq(&[delimiter, delimiter]) {
+            let span = Span::new(first_quote.expect("should exist").span.start, end_span.end);
             self.mode = LexerMode::QuotedMultiline(delimiter);
             return Ok(Token::new(TripleQuote, span));
         }
@@ -454,70 +437,7 @@ impl<'a> Lexer<'a> {
 
     /// Eats whitespace characters.
     fn eat_whitespace(&mut self) -> LexResult<'a> {
-        let (span, _) = self.eat_while(is_whitespace);
+        let (span, _) = self.input.eat_while(is_whitespace);
         Ok(Token::new(Whitespace, span))
-    }
-
-    /// Consumes the input while a predicate holds and returns a [`Span`] denoting the consumed
-    /// character indices in the original input.
-    fn eat_while(&mut self, mut predicate: impl FnMut(&str) -> bool) -> (Span, String) {
-        let mut content = String::new();
-        let start = self.input.peek().unwrap_or(&self.eof).0;
-        let mut end = start;
-        loop {
-            let (i, c) = *self.input.peek().unwrap_or(&self.eof);
-            if c == EOF || !predicate(c) {
-                break;
-            }
-
-            self.input.next();
-            end = i + 1;
-            content.push_str(c);
-        }
-
-        (Span::new(start, end), content)
-    }
-
-    /// Skips a character in the input.
-    fn skip_char(&mut self, ch: &str) -> Result<(Span, String), LexError> {
-        let peeked = self.input.peek().unwrap_or(&self.eof).1;
-        if peeked != ch {
-            Err(LexError::UnexpectedChar(peeked.to_string()))
-        } else {
-            let next = self.input.next().unwrap_or(self.eof);
-            Ok((
-                Span::new(next.0, self.input.peek().unwrap_or(&self.eof).0),
-                next.1.to_string(),
-            ))
-        }
-    }
-
-    /// Skips a sequence of characters in the input, advancing the input iterator in the process.
-    /// The input iterator is not advanced unless the complete character sequence can be matched
-    /// starting from the current iterator position.
-    fn skip_chars(&mut self, chars: &[&str]) -> Result<(), LexError> {
-        let original_input_iterator = self.input.clone();
-
-        for ch in chars {
-            if let Err(error) = self.skip_char(ch) {
-                self.input = original_input_iterator;
-                return Err(error);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Returns the next `n` characters of input without advancing the input iterator.
-    /// Multiple [`EOF`] characters may be returned.
-    fn lookahead(&self, n: usize) -> Vec<&str> {
-        let mut input = self.input.clone();
-
-        let mut peeked = Vec::new();
-        for _ in 0..n {
-            peeked.push(input.next().unwrap_or(self.eof).1);
-        }
-
-        peeked
     }
 }
