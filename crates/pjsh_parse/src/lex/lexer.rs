@@ -188,36 +188,32 @@ impl<'a> Lexer<'a> {
     /// Returns the next token in qouted multiline mode.
     fn next_quoted_multiline_token(&mut self, delimiter: &str) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::QuotedMultiline(delimiter));
-        let is_quoted = |ch: &str| ch != delimiter && ch != "\\";
-        match self.input.peek().unwrap_or(&self.eof).1 {
-            EOF => Err(LexError::UnexpectedEof),
-            ch if ch == delimiter => {
-                // Use lookahead to determine whether or not a single quote or triple quotes are used.
-                let (start, start_char) = self.input.next().expect("should exist");
-                let mut input_iter = self.input.clone();
-                let peek = [
-                    input_iter.next().unwrap_or(self.eof).1,
-                    input_iter.next().unwrap_or(self.eof).1,
-                ];
-                if peek == [delimiter, delimiter] {
-                    self.input.next();
-                    let end = self.input.next().unwrap_or(self.eof).0;
-                    let span = Span::new(start, end + 1);
-                    self.mode = LexerMode::Unquoted;
-                    return Ok(Token::new(TripleQuote, span));
+        let start = self.input.peek().unwrap_or(&self.eof).0;
+        let mut contents = String::new();
+
+        loop {
+            if self.lookahead(3)[..] == [delimiter, delimiter, delimiter] {
+                if !contents.is_empty() {
+                    break;
                 }
 
-                // Single quote, is inside the delimited value.
-                Ok(Token::new(
-                    Quoted(start_char.to_string()),
-                    Span::new(start, start + 1),
-                ))
+                self.skip_chars(&[delimiter, delimiter, delimiter])?;
+                let end = self.input.peek().unwrap_or(&self.eof).0;
+                let span = Span::new(start, end);
+                self.mode = LexerMode::Unquoted;
+                return Ok(Token::new(TripleQuote, span));
             }
-            _ => {
-                let (span, contents) = self.eat_while(is_quoted);
-                Ok(Token::new(Quoted(contents), span))
+
+            match self.input.peek().unwrap_or(&self.eof).1 {
+                EOF => return Err(LexError::UnexpectedEof),
+                ch if ch == delimiter => contents.push_str(self.input.next().unwrap_or(self.eof).1),
+                _ => contents.push_str(&self.eat_while(|ch| ch != delimiter).1),
             }
         }
+
+        let end = self.input.peek().unwrap_or(&self.eof).0;
+        let span = Span::new(start, end);
+        Ok(Token::new(Quoted(contents), span))
     }
 
     /// Eats a single character.
@@ -274,15 +270,7 @@ impl<'a> Lexer<'a> {
         let start = *self.input.peek().unwrap_or(&self.eof);
         debug_assert_eq!(start.1, "-");
 
-        // Use lookahead to determine whether or not to return a pipeline or a literal.
-        let mut input_iter = self.input.clone();
-        let peek = [
-            input_iter.next().unwrap_or(self.eof).1,
-            input_iter.next().unwrap_or(self.eof).1,
-            input_iter.next().unwrap_or(self.eof).1,
-        ];
-        if peek == ["-", ">", "|"] {
-            self.input = input_iter;
+        if self.skip_chars(&["-", ">", "|"]).is_ok() {
             return Ok(Token::new(
                 PipeStart,
                 Span::new(start.0, self.input.peek().unwrap_or(&self.eof).0),
@@ -502,5 +490,34 @@ impl<'a> Lexer<'a> {
                 next.1.to_string(),
             ))
         }
+    }
+
+    /// Skips a sequence of characters in the input, advancing the input iterator in the process.
+    /// The input iterator is not advanced unless the complete character sequence can be matched
+    /// starting from the current iterator position.
+    fn skip_chars(&mut self, chars: &[&str]) -> Result<(), LexError> {
+        let original_input_iterator = self.input.clone();
+
+        for ch in chars {
+            if let Err(error) = self.skip_char(ch) {
+                self.input = original_input_iterator;
+                return Err(error);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Returns the next `n` characters of input without advancing the input iterator.
+    /// Multiple [`EOF`] characters may be returned.
+    fn lookahead(&self, n: usize) -> Vec<&str> {
+        let mut input = self.input.clone();
+
+        let mut peeked = Vec::new();
+        for _ in 0..n {
+            peeked.push(input.next().unwrap_or(self.eof).1);
+        }
+
+        peeked
     }
 }

@@ -176,12 +176,16 @@ fn lex_quoted_multiline_single() {
         tokens("'''first'second'third'''"),
         vec![
             Token::new(TripleQuote, Span::new(0, 3)),
-            Token::new(Quoted("first".into()), Span::new(3, 8)),
-            Token::new(Quoted("'".into()), Span::new(8, 9)),
-            Token::new(Quoted("second".into()), Span::new(9, 15)),
-            Token::new(Quoted("'".into()), Span::new(15, 16)),
-            Token::new(Quoted("third".into()), Span::new(16, 21)),
+            Token::new(Quoted("first'second'third".into()), Span::new(3, 21)),
             Token::new(TripleQuote, Span::new(21, 24))
+        ]
+    );
+    assert_eq!(
+        tokens(r#"'''\u{0020}'''"#),
+        vec![
+            Token::new(TripleQuote, Span::new(0, 3)),
+            Token::new(Quoted(r#"\u{0020}"#.into()), Span::new(3, 11)),
+            Token::new(TripleQuote, Span::new(11, 14))
         ]
     );
 }
