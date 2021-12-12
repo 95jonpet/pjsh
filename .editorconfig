@@ -13,5 +13,5 @@ indent_size = 4
 trim_trailing_whitespace = false
 indent_size = 2
 
-[*.{pjsh,yml}]
+[*.{pjsh,sh,yml}]
 indent_size = 2
