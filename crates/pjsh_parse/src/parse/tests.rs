@@ -1,6 +1,6 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, PipelineSegment, Redirect,
-    RedirectOperator, Statement, Word,
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, PipelineSegment, Program,
+    Redirect, RedirectOperator, Statement, Word,
 };
 
 use super::parser::*;
@@ -296,4 +296,41 @@ fn parse_redirect_append() {
             operator: RedirectOperator::Append
         })
     )
+}
+
+#[test]
+fn parse_program() {
+    assert_eq!(
+        crate::parse("cmd1 arg1 ; cmd2 arg2"),
+        Ok(Program {
+            statements: vec![
+                Statement::AndOr(AndOr {
+                    operators: vec![],
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("cmd1".into()),
+                                arguments: vec![Word::Literal("arg1".into())],
+                                redirects: Vec::new(),
+                            }
+                        },]
+                    }]
+                }),
+                Statement::AndOr(AndOr {
+                    operators: vec![],
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("cmd2".into()),
+                                arguments: vec![Word::Literal("arg2".into())],
+                                redirects: Vec::new(),
+                            }
+                        },]
+                    }]
+                })
+            ]
+        })
+    );
 }

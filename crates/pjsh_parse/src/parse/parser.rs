@@ -74,6 +74,12 @@ impl Parser {
         let mut operators = Vec::new();
 
         loop {
+            // Semi tokens terminate the current statement.
+            if self.tokens.peek().contents == TokenContents::Semi {
+                self.tokens.next();
+                break;
+            }
+
             let operator = match self.tokens.peek().contents {
                 TokenContents::AndIf => AndOrOp::And,
                 TokenContents::OrIf => AndOrOp::Or,
