@@ -15,3 +15,6 @@ indent_size = 2
 
 [*.{pjsh,sh,yml}]
 indent_size = 2
+
+[Jenkinsfile]
+indent_size = 2
