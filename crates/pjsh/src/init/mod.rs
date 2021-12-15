@@ -1,3 +1,3 @@
 mod context;
 
-pub(crate) use context::init_context;
+pub(crate) use context::initialized_context;
