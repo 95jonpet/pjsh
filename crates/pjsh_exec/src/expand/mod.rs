@@ -20,19 +20,23 @@ use crate::word::interpolate_word;
 /// 1. aliases in the current [`Context`].
 /// 2. filesystem globs.
 pub fn expand(words: Vec<Word>, context: &Context) -> VecDeque<String> {
-    let mut words = interpolate_words(words, context);
+    let mut words = interpolate_words(words, context); // (text, expandable)
     debug_assert!(!words.is_empty(), "words should not be empty");
 
     expand_aliases(&mut words, context);
     expand_globs(&mut words, context);
 
-    words
+    words.into_iter().map(|(word, _)| word).collect()
 }
 
 /// Interpolates words and converts them into strings.
-fn interpolate_words(words: Vec<Word>, context: &Context) -> VecDeque<String> {
+fn interpolate_words(words: Vec<Word>, context: &Context) -> VecDeque<(String, bool)> {
     words
         .into_iter()
-        .map(|word| interpolate_word(word, context))
+        .map(|word| {
+            let expandable = matches!(word, Word::Literal(_) | Word::Variable(_));
+            let interpolated = interpolate_word(word, context);
+            (interpolated, expandable)
+        })
         .collect()
 }
