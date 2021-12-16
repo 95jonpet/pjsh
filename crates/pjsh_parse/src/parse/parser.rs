@@ -57,8 +57,27 @@ impl Parser {
     /// Parses [`Program`] by consuming all remaining input.
     pub fn parse_program(&mut self) -> Result<Program, ParseError> {
         let mut program = Program::new();
-        while let Ok(statement) = self.parse_statement() {
-            program.statement(statement);
+
+        loop {
+            let statement = self.parse_statement();
+
+            match statement {
+                // Fill the program while more statements can be parsed.
+                Ok(statement) => {
+                    program.statement(statement);
+                }
+
+                // There is no more input, and no half-parsed statements.
+                // Parsing is completed.
+                Err(ParseError::UnexpectedEof) => break,
+
+                // Incomplete sequences must be emitted as parse errors so that interactive shells
+                // can request more input from the user.
+                Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+
+                // Generic errors are not recoverable and must be emitted.
+                Err(error) => return Err(error),
+            }
         }
 
         // All tokens should be consumed when parsing a valid program.
@@ -74,9 +93,12 @@ impl Parser {
         let mut operators = Vec::new();
 
         loop {
+            if self.tokens.next_if_eq(TokenContents::Eof).is_some() {
+                break;
+            }
+
             // Semi tokens terminate the current statement.
-            if self.tokens.peek().contents == TokenContents::Semi {
-                self.tokens.next();
+            if self.tokens.next_if_eq(TokenContents::Semi).is_some() {
                 break;
             }
 
@@ -98,41 +120,44 @@ impl Parser {
     }
 
     pub fn parse_pipeline(&mut self) -> Result<Pipeline, ParseError> {
-        match self.tokens.peek().contents {
-            TokenContents::PipeStart => {
-                self.tokens.next();
-                self.parse_smart_pipeline()
-            }
-            _ => self.parse_legacy_pipeline(),
+        if self.tokens.next_if_eq(TokenContents::PipeStart).is_some() {
+            return self.parse_smart_pipeline();
         }
+
+        self.parse_legacy_pipeline()
     }
 
     pub fn parse_legacy_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         let mut segments = Vec::new();
 
-        while let Ok(segment) = self.parse_pipeline_segment() {
-            segments.push(segment);
+        // No input to parse - a valid legacy pipeline cannot be constructed.
+        if self.tokens.peek().contents == TokenContents::Eof {
+            return Err(ParseError::UnexpectedEof);
+        }
 
-            if self.tokens.peek().contents == TokenContents::Pipe {
-                self.tokens.next();
+        loop {
+            match self.parse_pipeline_segment() {
+                // Continually add segments until there is no more input or th
+                Ok(segment) => {
+                    segments.push(segment);
 
-                if self.tokens.peek().contents == TokenContents::Eol {
-                    self.tokens.next();
+                    if self.tokens.next_if_eq(TokenContents::Pipe).is_none() {
+                        // Legacy pipelines end when there are no more pipes.
+                        break;
+                    } else {
+                        self.tokens.next_if_eq(TokenContents::Eol);
+                    }
                 }
-            } else {
-                break;
+
+                // A legacy pipeline is automatically terminated at the end of input.
+                Err(ParseError::UnexpectedEof) => break,
+
+                // Other parser errors must be returned and handled elsewhere.
+                Err(error) => return Err(error),
             }
         }
 
-        if segments.is_empty() {
-            return Err(self.unexpected_token());
-        }
-
-        let mut is_async = false;
-        if self.tokens.peek().contents == TokenContents::Amp {
-            is_async = true;
-            self.tokens.next();
-        }
+        let is_async = self.tokens.next_if_eq(TokenContents::Amp).is_some();
 
         Ok(Pipeline { is_async, segments })
     }
@@ -385,10 +410,29 @@ impl Parser {
     }
 }
 
+/// Parse errors are returned by a parser when input cannot be parsed.
+///
+/// Note that some parse errors are recoverable, and that some errors may expected withing certain
+/// contexts.
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
+    /// Error indicating that there is no more input to parse while parsing a started sequence.
+    ///
+    /// This error is recoverable, and interactive shells should prompt the user for more input.
     IncompleteSequence,
+
+    /// Error indicating that there is no more input to parse.
+    ///
+    /// This error is only returned before consuming tokens in a new sequence.
+    /// [`IncompleteSequence`] should instead be returned when within a sequence.
+    ///
+    /// This error could also mean that the input has been fully parsed.
     UnexpectedEof,
+
+    /// Error indicating that an unexpected token was found in the input.
+    /// The current sequence of tokens cannot be parsed in this context.
+    ///
+    /// Note that the token may still be valid in a different context.
     UnexpectedToken(Token),
 }
 

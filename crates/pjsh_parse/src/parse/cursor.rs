@@ -38,6 +38,26 @@ impl TokenCursor {
         self.tokens.next().unwrap_or_else(|| self.eof_token.clone())
     }
 
+    /// Consume and return the next token if a condition is true.
+    ///
+    /// If `func` returns `true` for the next token, consume and return it.
+    /// Otherwise, return `None`.
+    ///
+    /// Skips trival tokens before evaluating the condition.
+    pub fn next_if(&mut self, func: impl FnOnce(&Token) -> bool) -> Option<Token> {
+        self.skip_trivial_tokens();
+        self.tokens.next_if(func)
+    }
+
+    /// Consume and return the next token if `contents` match the next token's contents.
+    /// Otherwise, return `None`.
+    ///
+    /// Skips trival tokens.
+    pub fn next_if_eq(&mut self, contents: TokenContents) -> Option<Token> {
+        self.skip_trivial_tokens();
+        self.next_if(|token| token.contents == contents)
+    }
+
     /// Skips all trivial tokens, stopping before the next non-trivial token.
     fn skip_trivial_tokens(&mut self) {
         while is_trivial(self.tokens.peek().unwrap_or(&self.eof_token)) {

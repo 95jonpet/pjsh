@@ -209,6 +209,34 @@ fn parse_smart_pipeline() {
 }
 
 #[test]
+fn parse_smart_pipeline_partial() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+
+    let mut tokens = vec![
+        Token::new(PipeStart, span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("cmd1".into()), span),
+        Token::new(Eol, span),
+    ];
+    assert_eq!(
+        Parser::new(tokens.clone()).parse_pipeline(),
+        Err(ParseError::IncompleteSequence)
+    );
+
+    tokens.push(Token::new(Pipe, span));
+    tokens.push(Token::new(Whitespace, span));
+    tokens.push(Token::new(Literal("cmd2".into()), span));
+    tokens.push(Token::new(Eol, span));
+    assert_eq!(
+        Parser::new(tokens.clone()).parse_pipeline(),
+        Err(ParseError::IncompleteSequence)
+    );
+
+    tokens.push(Token::new(Semi, span));
+    assert!(Parser::new(tokens.clone()).parse_pipeline().is_ok());
+}
+
+#[test]
 fn parse_smart_async_pipeline() {
     let span = Span::new(0, 0); // Does not matter during this test.
     let mut parser = Parser::new(vec![
