@@ -1,6 +1,4 @@
-use sysinfo::{
-    get_current_pid, Pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt,
-};
+use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 
 use pjsh_core::Context;
 
@@ -38,7 +36,7 @@ fn inject_shell_specific_env(context: &Context) {
         let system = System::new_with_specifics(
             RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
         );
-        if let Some(process) = system.process(Pid::from(pid)) {
+        if let Some(process) = system.process(pid) {
             if let Some(parent_id) = process.parent() {
                 context
                     .scope
