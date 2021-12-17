@@ -1,7 +1,6 @@
-use std::fmt::Display;
-
 use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
+use crate::ParseError;
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, FileDescriptor, InterpolationUnit, Pipeline,
     PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
@@ -10,7 +9,7 @@ use pjsh_ast::{
 use super::cursor::TokenCursor;
 
 /// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
-/// A [`ParserError`] is returned if a program can't be parsed.
+/// A [`ParseError`] is returned if a program can't be parsed.
 pub fn parse(src: &str) -> Result<Program, ParseError> {
     match crate::lex(src) {
         Ok(tokens) => {
@@ -26,7 +25,7 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
 }
 
 /// Tries to parse a [`Word`] from within an interpolation.
-/// A [`ParserError`] is returned if a program can't be parsed.
+/// A [`ParseError`] is returned if a program can't be parsed.
 pub fn parse_interpolation(src: &str) -> Result<Word, ParseError> {
     match crate::lex_interpolation(src) {
         Ok(token) => {
@@ -414,43 +413,5 @@ impl Parser {
     /// Returns a [`ParseError::UnexpectedToken`] around a copy of the next token.
     fn unexpected_token(&mut self) -> ParseError {
         ParseError::UnexpectedToken(self.tokens.peek().clone())
-    }
-}
-
-/// Parse errors are returned by a parser when input cannot be parsed.
-///
-/// Note that some parse errors are recoverable, and that some errors may expected withing certain
-/// contexts.
-#[derive(Debug, PartialEq)]
-pub enum ParseError {
-    /// Error indicating that there is no more input to parse while parsing a started sequence.
-    ///
-    /// This error is recoverable, and interactive shells should prompt the user for more input.
-    IncompleteSequence,
-
-    /// Error indicating that there is no more input to parse.
-    ///
-    /// This error is only returned before consuming tokens in a new sequence.
-    /// [`IncompleteSequence`] should instead be returned when within a sequence.
-    ///
-    /// This error could also mean that the input has been fully parsed.
-    UnexpectedEof,
-
-    /// Error indicating that an unexpected token was found in the input.
-    /// The current sequence of tokens cannot be parsed in this context.
-    ///
-    /// Note that the token may still be valid in a different context.
-    UnexpectedToken(Token),
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::IncompleteSequence => write!(f, "incomplete sequence"),
-            ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
-            ParseError::UnexpectedToken(token) => {
-                write!(f, "unexpected token {:? }", token.contents)
-            }
-        }
     }
 }

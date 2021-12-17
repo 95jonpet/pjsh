@@ -7,6 +7,7 @@ use super::parser::*;
 use crate::{
     lex::lexer::{Span, Token},
     tokens::TokenContents::*,
+    ParseError,
 };
 
 #[test]
