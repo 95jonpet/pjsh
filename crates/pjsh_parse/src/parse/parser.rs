@@ -59,9 +59,7 @@ impl Parser {
         let mut program = Program::new();
 
         loop {
-            let statement = self.parse_statement();
-
-            match statement {
+            match self.parse_statement() {
                 // Fill the program while more statements can be parsed.
                 Ok(statement) => {
                     program.statement(statement);
@@ -88,6 +86,7 @@ impl Parser {
         Ok(program)
     }
 
+    /// Parses an [`AndOr`] consisting of one or more [`Pipeline`] definitions.
     pub fn parse_and_or(&mut self) -> Result<AndOr, ParseError> {
         let mut pipelines = vec![self.parse_pipeline()?];
         let mut operators = Vec::new();
@@ -119,6 +118,7 @@ impl Parser {
         })
     }
 
+    /// Parses a pipeline. Handles both smart pipelines and legacy pipelines.
     pub fn parse_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         if self.tokens.next_if_eq(TokenContents::PipeStart).is_some() {
             return self.parse_smart_pipeline();
@@ -127,6 +127,7 @@ impl Parser {
         self.parse_legacy_pipeline()
     }
 
+    /// Parses a legacy [`Pipeline`] without an explicit start and end.
     pub fn parse_legacy_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         let mut segments = Vec::new();
 
@@ -162,6 +163,7 @@ impl Parser {
         Ok(Pipeline { is_async, segments })
     }
 
+    /// Parses a "smart" [`Pipeline`] with an explicit start and end.
     pub fn parse_smart_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         let mut segments = Vec::new();
         let mut is_async = false;
@@ -180,17 +182,15 @@ impl Parser {
                 _ => segments.push(self.parse_pipeline_segment()?),
             }
 
-            if self.tokens.peek().contents == TokenContents::Eol {
-                self.tokens.next();
-            }
+            // Potentially skip a newline.
+            self.tokens.next_if_eq(TokenContents::Eol);
 
             match self.tokens.peek().contents {
                 TokenContents::Pipe => {
                     self.tokens.next();
 
-                    if self.tokens.peek().contents == TokenContents::Eol {
-                        self.tokens.next();
-                    }
+                    // Potentially skip a newline.
+                    self.tokens.next_if_eq(TokenContents::Eol);
                 }
                 TokenContents::Eof => return Err(ParseError::IncompleteSequence),
                 TokenContents::Amp => {
@@ -206,6 +206,7 @@ impl Parser {
             }
         }
 
+        // A pipeline is only valid if it contains one or more segments.
         if segments.is_empty() {
             return Err(self.unexpected_token());
         }
@@ -213,6 +214,7 @@ impl Parser {
         Ok(Pipeline { is_async, segments })
     }
 
+    /// Parses a pipeline segment consisting of a [`Command`].
     pub fn parse_pipeline_segment(&mut self) -> Result<PipelineSegment, ParseError> {
         let command = self.parse_command()?;
         Ok(PipelineSegment { command })
@@ -283,6 +285,8 @@ impl Parser {
         }
     }
 
+    /// Parses a sequence of [`Redirect`] definitions.
+    /// Returns [`Vec::new()`] if the next non-trivial tokens are not valid redirects.
     fn parse_redirects(&mut self) -> Vec<Redirect> {
         let mut redirects = Vec::new();
         while let Ok(redirect) = self.parse_redirect() {
@@ -291,6 +295,7 @@ impl Parser {
         redirects
     }
 
+    /// Parses a single redirect.
     pub(crate) fn parse_redirect(&mut self) -> Result<Redirect, ParseError> {
         match self.tokens.peek().contents {
             TokenContents::FdReadTo(fd) => {
@@ -321,6 +326,7 @@ impl Parser {
         }
     }
 
+    /// Parses an interpolation consisting of multiple interpolation units.
     fn parse_interpolation(&mut self) -> Result<Word, ParseError> {
         if let TokenContents::Interpolation(units) = self.tokens.next().contents {
             let word_units = units
@@ -333,6 +339,7 @@ impl Parser {
         }
     }
 
+    /// Parses a single interpolation unit.
     fn parse_interpolation_unit(&self, unit: tokens::InterpolationUnit) -> InterpolationUnit {
         match unit {
             tokens::InterpolationUnit::Literal(literal) => InterpolationUnit::Literal(literal),
