@@ -1,5 +1,5 @@
 # Init Scripts
-Pjsh will automatically execute the following scripts:
+Pjsh automatically executes the following scripts:
 
 | Order | Script path                     | Executed when                  |
 | ----: | :------------------------------ | :----------------------------- |
@@ -10,3 +10,6 @@ Init scripts can be used to prepare the shell by:
   - defining common functions.
   - defining environment variables such as `PS1` and `PS2`.
   - setting common aliases.
+
+Note that there is no need to call `~/.pjsh/init-interactive.pjsh` from `~/.pjsh/init-always.pjsh`.
+It should, in fact, be avoided.
