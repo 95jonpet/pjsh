@@ -3,6 +3,7 @@ mod env;
 pub(crate) mod eval;
 mod fs;
 mod status;
+pub mod utils;
 
 pub use context::Context;
 pub use env::host::Host;

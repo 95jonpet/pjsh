@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use pjsh_core::{BuiltinCommand, Context, ExecError, Result, Value};
+use pjsh_core::{utils::path_to_string, BuiltinCommand, Context, ExecError, Result, Value};
 
 pub struct Cd;
 
@@ -75,10 +75,4 @@ impl BuiltinCommand for Pwd {
         let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
         Ok(Value::String(path_to_string(&path)))
     }
-}
-
-fn path_to_string(path: &Path) -> String {
-    path.to_string_lossy()
-        .trim_start_matches(r#"\\?\"#)
-        .to_string()
 }

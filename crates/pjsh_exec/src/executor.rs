@@ -11,7 +11,9 @@ use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, RedirectOperator, Statement,
 };
 use pjsh_builtins::all_builtins;
-use pjsh_core::{find_in_path, BuiltinCommand, Context, ExecError, Result, Value};
+use pjsh_core::{
+    find_in_path, utils::path_to_string, BuiltinCommand, Context, ExecError, Result, Value,
+};
 
 use crate::{expand, word::interpolate_word, Input};
 
@@ -202,7 +204,7 @@ impl Executor {
             Err(error) => match error.kind() {
                 std::io::ErrorKind::NotFound => unreachable!("Should be caught in caller"),
                 _ => Err(ExecError::ChildSpawnFailed(
-                    error.to_string().replace("%1", &program.to_string_lossy()),
+                    error.to_string().replace("%1", &path_to_string(&program)),
                 )),
             },
         }
