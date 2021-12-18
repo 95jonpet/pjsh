@@ -1,6 +1,8 @@
 pipeline {
   agent none
   environment {
+    BASE_VERSION ="0.1.0"
+    VERSION = "${env.BASE_VERSION}${env.BRANCH_NAME == 'main' ? '-SNAPSHOT' : "~${env.BRANCH_NAME}"}"
     CARGO_HOME = "/.cargo"
     RUST_VERSION = "1.57"
     RUST_IMAGE = "rust:${RUST_VERSION}-slim-bullseye"
@@ -38,7 +40,24 @@ pipeline {
       }
       post {
         success {
-          archiveArtifacts(artifacts: "target/release/pjsh", fingerprint: true)
+          stash(name: "linux-binary", includes: "target/release/pjsh")
+        }
+        cleanup {
+          cleanWs()
+        }
+      }
+    }
+    stage("Package (Linux)") {
+      agent {
+        label "docker"
+      }
+      steps {
+        unstash(name: "linux-binary")
+        sh "build/build-linux-packages.sh '${VERSION}' '${BUILD_NUMBER}'"
+      }
+      post {
+        success {
+          archiveArtifacts(artifacts: "target/package/*", fingerprint: true)
         }
         cleanup {
           cleanWs()
