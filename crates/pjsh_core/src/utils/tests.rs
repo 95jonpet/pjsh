@@ -40,16 +40,19 @@ fn resolve_path() {
         PathBuf::from("/absolute")
     );
 
-    let windows_context = Context::default();
-    windows_context
-        .scope
-        .set_env("PWD".into(), r#"C:\\Dev"#.into());
-    assert_eq!(
-        super::resolve_path(&windows_context, "relative"),
-        PathBuf::from(r#"C:\\Dev\relative"#)
-    );
-    assert_eq!(
-        super::resolve_path(&windows_context, r#"D:\\absolute"#),
-        PathBuf::from(r#"D:\\absolute"#)
-    );
+    #[cfg(target_os = "windows")]
+    {
+        let windows_context = Context::default();
+        windows_context
+            .scope
+            .set_env("PWD".into(), r#"C:\\Dev"#.into());
+        assert_eq!(
+            super::resolve_path(&windows_context, "relative"),
+            PathBuf::from(r#"C:\\Dev\relative"#)
+        );
+        assert_eq!(
+            super::resolve_path(&windows_context, r#"D:\\absolute"#),
+            PathBuf::from(r#"D:\\absolute"#)
+        );
+    }
 }

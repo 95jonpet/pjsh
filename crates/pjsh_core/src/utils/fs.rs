@@ -14,7 +14,8 @@ pub fn path_to_string<P: AsRef<Path>>(path: &P) -> String {
 
 /// Resolves a path given a [`Context`].
 ///
-/// Relative paths are resolved from the current working directory as determined by `$PWD`.
+/// Relative paths are resolved from the current working directory as determined by `$PWD`. Path
+/// resolution is not guaranteed when `$PWD` is not set.
 ///
 /// Returns a canonicalized (absolute) path.
 pub fn resolve_path(context: &Context, path: &str) -> PathBuf {
