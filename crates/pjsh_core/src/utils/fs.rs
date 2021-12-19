@@ -1,4 +1,6 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use crate::Context;
 
 /// Converts a path to a string.
 ///
@@ -8,4 +10,21 @@ pub fn path_to_string<P: AsRef<Path>>(path: &P) -> String {
         .to_string_lossy()
         .trim_start_matches(r#"\\?\"#)
         .to_string()
+}
+
+/// Resolves a path given a [`Context`].
+///
+/// Relative paths are resolved from the current working directory as determined by `$PWD`.
+///
+/// Returns a canonicalized (absolute) path.
+pub fn resolve_path(context: &Context, path: &str) -> PathBuf {
+    let mut resolved_path = context
+        .scope
+        .get_env("PWD")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/"));
+    resolved_path.push(path);
+
+    // Attempt to canonicalize the path into an absolute path.
+    resolved_path.canonicalize().unwrap_or(resolved_path)
 }

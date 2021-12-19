@@ -12,7 +12,9 @@ use pjsh_ast::{
 };
 use pjsh_builtins::all_builtins;
 use pjsh_core::{
-    find_in_path, utils::path_to_string, BuiltinCommand, Context, ExecError, Result, Value,
+    find_in_path,
+    utils::{path_to_string, resolve_path},
+    BuiltinCommand, Context, ExecError, Result, Value,
 };
 
 use crate::{expand, word::interpolate_word, Input};
@@ -132,13 +134,10 @@ impl Executor {
                 && redirect.operator == RedirectOperator::Write
             {
                 if let FileDescriptor::File(file_name) = &redirect.target {
-                    let mut path = context
-                        .borrow()
-                        .scope
-                        .get_env("PWD")
-                        .map(PathBuf::from)
-                        .unwrap();
-                    path.push(interpolate_word(file_name.clone(), &context.borrow()));
+                    let path = resolve_path(
+                        &context.borrow(),
+                        &interpolate_word(file_name.clone(), &context.borrow()),
+                    );
                     let file = std::fs::File::create(path).unwrap();
                     stdout = Some(Stdio::from(file));
                 }
@@ -154,13 +153,22 @@ impl Executor {
             return builtin.run(args.as_slices().0, &mut context.borrow_mut());
         }
 
-        // Search for the program in $PATH and spawn a child process for it if possible.
+        // Attempt to start a program from an absolute path, or from a path relative to $PWD if the
+        // program looks like a path.
         let ctx = &context.borrow();
-        if let Some(executable) = find_in_path(&program, ctx) {
-            self.start_program(executable, args, stdin, stdout, ctx)
-        } else {
-            Err(ExecError::Message(format!("unknown program: {}", &program)))
+        if program.starts_with('.') || program.contains('/') {
+            let program_in_pwd = resolve_path(ctx, &program);
+            if program_in_pwd.is_file() {
+                return self.start_program(program_in_pwd, args, stdin, stdout, ctx);
+            }
         }
+
+        // Search for the program in $PATH and spawn a child process for it if possible.
+        if let Some(executable) = find_in_path(&program, ctx) {
+            return self.start_program(executable, args, stdin, stdout, ctx);
+        }
+
+        Err(ExecError::Message(format!("unknown program: {}", &program)))
     }
 
     /// Starts a program as a [`std::process::Command`] by spawning a child process.
