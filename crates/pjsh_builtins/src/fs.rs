@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use pjsh_core::{utils::path_to_string, BuiltinCommand, Context, ExecError, Result, Value};
+use pjsh_core::{
+    utils::{path_to_string, resolve_path},
+    BuiltinCommand, Context, ExecError, Result, Value,
+};
 
 pub struct Cd;
 
@@ -20,11 +23,11 @@ impl Cd {
         true
     }
 
+    /// Sets `$OLDPWD` to `$PWD` in a context.
     fn update_old_pwd(&self, context: &mut Context) {
-        let pwd = std::env::current_dir()
-            .map(|path| path_to_string(&path))
-            .unwrap_or_else(|_| String::from("/"));
-        context.scope.set_env(String::from("OLDPWD"), pwd);
+        if let Some(pwd) = context.scope.get_env("PWD") {
+            context.scope.set_env(String::from("OLDPWD"), pwd);
+        }
     }
 }
 
@@ -50,9 +53,7 @@ impl BuiltinCommand for Cd {
                 None => Err(ExecError::Message(String::from("cd: OLDPWD not set"))),
             },
             [target] => {
-                let mut path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
-                path.push(target);
-                path = path.canonicalize().unwrap_or(path);
+                let path = resolve_path(context, target);
                 self.change_directory(path, context);
                 Ok(Value::Empty)
             }
