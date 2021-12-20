@@ -1,24 +1,23 @@
-use pjsh_core::{BuiltinCommand, Context, ExecError, Result, Value};
+use pjsh_core::{Context, InternalCommand};
 
 pub struct Drop;
 
-impl BuiltinCommand for Drop {
+impl InternalCommand for Drop {
     fn name(&self) -> &str {
         "drop"
     }
 
     /// Drops all environment variables with keys defined in `args`.
-    fn run(&self, args: &[String], context: &mut Context) -> Result {
+    fn run(&self, args: &[String], context: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
         if args.is_empty() {
-            return Err(ExecError::Value(Value::String(
-                "drop: missing keys to drop.".to_string(),
-            )));
+            let _ = writeln!(io.stderr, "drop: missing keys to drop");
+            return 2;
         }
 
         for arg in args {
             context.scope.unset_env(arg);
         }
 
-        Ok(Value::Empty)
+        0
     }
 }

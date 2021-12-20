@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 dirs = "4.0"
+os_pipe = "1.0.0"
 
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_builtins = { path = "../pjsh_builtins" }

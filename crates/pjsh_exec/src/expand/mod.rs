@@ -29,6 +29,19 @@ pub fn expand(words: Vec<Word>, context: &Context) -> VecDeque<String> {
     words.into_iter().map(|(word, _)| word).collect()
 }
 
+/// Interpolates and expands a single word.
+///
+/// Returns `None` if the given word expands to multiple words.
+pub fn expand_single(word: Word, context: &Context) -> Option<String> {
+    let mut expanded = expand(vec![word], context);
+
+    if expanded.len() != 1 {
+        return None;
+    }
+
+    expanded.pop_front()
+}
+
 /// Interpolates words and converts them into strings.
 fn interpolate_words(words: Vec<Word>, context: &Context) -> VecDeque<(String, bool)> {
     words

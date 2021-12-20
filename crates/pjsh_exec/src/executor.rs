@@ -1,29 +1,34 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
-    io::Write,
     path::PathBuf,
-    process::{self, Child, Stdio},
+    process,
     rc::Rc,
 };
 
-use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, RedirectOperator, Statement,
-};
+use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
 use pjsh_builtins::all_builtins;
+// use pjsh_builtins::all_builtins;
 use pjsh_core::{
     find_in_path,
     utils::{path_to_string, resolve_path},
-    BuiltinCommand, Context, ExecError, Result, Value,
+    Context, ExecError, InternalCommand, InternalIo, Result,
 };
 
-use crate::{expand, word::interpolate_word, Input};
+use crate::{
+    expand::{expand, expand_single},
+    io::{FileDescriptor, FileDescriptors, FD_STDERR, FD_STDIN, FD_STDOUT},
+    word::interpolate_word,
+};
 
+/// An executor is responsible for executing a parsed AST.
 pub struct Executor {
-    builtins: HashMap<String, Box<dyn BuiltinCommand>>,
+    /// Shell builtins that can be used as commands.
+    builtins: HashMap<String, Box<dyn InternalCommand>>,
 }
 
 impl Executor {
+    /// Executes an [`AndOr`].
     pub fn execute_and_or(&self, and_or: AndOr, context: Rc<RefCell<Context>>) {
         let mut operators = and_or.operators.iter();
         let mut exit_status = 0;
@@ -40,39 +45,34 @@ impl Executor {
         }
     }
 
+    /// Executes a [`Pipeline`].
     pub fn execute_pipeline(&self, pipeline: Pipeline, context: Rc<RefCell<Context>>) {
         let mut segments = pipeline.segments.into_iter().peekable();
+        let mut fds = FileDescriptors::new();
         let mut last_child = None;
-        let mut last_value = None;
         loop {
             let segment = segments.next().unwrap();
-            let stdout = segments.peek().map(|_| Stdio::piped());
             let is_last = segments.peek().is_none();
 
-            let stdin = std::mem::take(&mut last_child)
-                .map(|c: Child| c.stdout)
-                .flatten();
-            let input = match stdin {
-                Some(stdin) => Input::Piped(stdin),
-                None => {
-                    if let Some(value) = last_value.take() {
-                        Input::Value(value)
-                    } else {
-                        Input::Inherit
-                    }
-                }
-            };
-            let result = self.execute_command(segment.command, Rc::clone(&context), input, stdout);
-            last_child = None;
+            // Create a new pipe for all but the last pipeline segment.
+            if is_last {
+                fds.set(FD_STDOUT, FileDescriptor::Stdout);
+            } else {
+                fds.set(FD_STDOUT, FileDescriptor::Pipe(os_pipe::pipe().unwrap()));
+            }
+
+            let result = self.execute_command(segment.command, Rc::clone(&context), &mut fds);
             match result {
-                Ok(value) => match value {
-                    Value::Child(child) => {
-                        last_child = Some(child);
-                        last_value = None;
+                Ok(Some(child)) => {
+                    // Set the pipe that was previously used for output as input for the next
+                    // pipeline segment. The output end is replaced in the next loop iteration.
+                    if let Some(stdout) = fds.take(&FD_STDOUT) {
+                        fds.set(FD_STDIN, stdout);
                     }
-                    Value::String(string) => last_value = Some(string),
-                    Value::Empty => last_value = Some(String::new()),
-                },
+
+                    last_child = Some(child);
+                }
+                Ok(None) => {}
                 Err(err) => {
                     context
                         .borrow()
@@ -98,13 +98,10 @@ impl Executor {
             } else {
                 let _ = child.wait();
             }
-        } else if let Some(value) = last_value {
-            if !value.is_empty() {
-                context.borrow().host.lock().println(&value);
-            }
         }
     }
 
+    /// Executes a [`Statement`].
     pub fn execute_statement(&self, statement: Statement, context: Rc<RefCell<Context>>) {
         match statement {
             Statement::AndOr(and_or) => self.execute_and_or(and_or, context),
@@ -119,30 +116,14 @@ impl Executor {
         context.borrow_mut().scope.set_env(key, value);
     }
 
+    /// Executes a [`Command`].
     fn execute_command(
         &self,
         command: Command,
         context: Rc<RefCell<Context>>,
-        stdin: Input,
-        stdout: Option<Stdio>,
+        fds: &mut FileDescriptors,
     ) -> Result {
-        // Allow stdout to be redirected to a file.
-        // TODO: Refactor and generalize.
-        let mut stdout = stdout;
-        for redirect in &command.redirects {
-            if redirect.source == FileDescriptor::Number(1)
-                && redirect.operator == RedirectOperator::Write
-            {
-                if let FileDescriptor::File(file_name) = &redirect.target {
-                    let path = resolve_path(
-                        &context.borrow(),
-                        &interpolate_word(file_name.clone(), &context.borrow()),
-                    );
-                    let file = std::fs::File::create(path).unwrap();
-                    stdout = Some(Stdio::from(file));
-                }
-            }
-        }
+        redirect_file_descriptors(fds, &context.borrow(), &command.redirects)?;
 
         let mut args = self.expand(command, Rc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
@@ -150,7 +131,15 @@ impl Executor {
         // Attempt to use the program as a builtin.
         if let Some(builtin) = self.builtins.get(&program) {
             args.make_contiguous();
-            return builtin.run(args.as_slices().0, &mut context.borrow_mut());
+            // TODO: Run on a separate thread to allow async pipelines.
+            // TODO: Handle unwrapping.
+            let mut io = InternalIo::new(
+                fds.reader(&FD_STDIN).unwrap().unwrap(),
+                fds.writer(&FD_STDOUT).unwrap().unwrap(),
+                fds.writer(&FD_STDERR).unwrap().unwrap(),
+            );
+            builtin.run(args.as_slices().0, &mut context.borrow_mut(), &mut io);
+            return Ok(None);
         }
 
         // Attempt to start a program from an absolute path, or from a path relative to $PWD if the
@@ -159,13 +148,13 @@ impl Executor {
         if program.starts_with('.') || program.contains('/') {
             let program_in_pwd = resolve_path(ctx, &program);
             if program_in_pwd.is_file() {
-                return self.start_program(program_in_pwd, args, stdin, stdout, ctx);
+                return self.start_program(program_in_pwd, args, fds, ctx);
             }
         }
 
         // Search for the program in $PATH and spawn a child process for it if possible.
         if let Some(executable) = find_in_path(&program, ctx) {
-            return self.start_program(executable, args, stdin, stdout, ctx);
+            return self.start_program(executable, args, fds, ctx);
         }
 
         Err(ExecError::Message(format!("unknown program: {}", &program)))
@@ -177,38 +166,25 @@ impl Executor {
         &self,
         program: PathBuf,
         args: VecDeque<String>,
-        stdin: Input,
-        stdout: Option<Stdio>,
+        fds: &mut FileDescriptors,
         context: &Context,
     ) -> Result {
         let mut cmd = process::Command::new(program.clone());
         cmd.envs(context.scope.envs());
         cmd.args(args);
 
-        let mut value = None;
-        if let Input::Piped(pipe) = stdin {
-            cmd.stdin(pipe);
-        } else if let Input::Value(string) = stdin {
-            value = Some(string);
-            cmd.stdin(Stdio::piped());
-        } else if let Input::Inherit = stdin {
-            cmd.stdin(Stdio::inherit());
+        if let Some(stdin) = fds.input(&FD_STDIN) {
+            cmd.stdin(stdin?);
         }
-
-        if let Some(stdout) = stdout {
-            cmd.stdout(stdout);
-        } else {
-            cmd.stdout(Stdio::inherit());
+        if let Some(stdout) = fds.output(&FD_STDOUT) {
+            cmd.stdout(stdout?);
+        }
+        if let Some(stderr) = fds.output(&FD_STDERR) {
+            cmd.stderr(stderr?);
         }
 
         match cmd.spawn() {
-            Ok(mut child) => {
-                if let Some(string) = value {
-                    let _ = write!(child.stdin.take().expect("stdin exists"), "{}", string);
-                }
-
-                Ok(Value::Child(child))
-            }
+            Ok(child) => Ok(Some(child)),
             Err(error) => match error.kind() {
                 std::io::ErrorKind::NotFound => unreachable!("Should be caught in caller"),
                 _ => Err(ExecError::ChildSpawnFailed(
@@ -231,9 +207,66 @@ impl Executor {
     }
 }
 
+/// Handles [`FileDescriptor`] redirections for some [`FileDescriptors`] in a [`Context`].
+fn redirect_file_descriptors(
+    fds: &mut FileDescriptors,
+    ctx: &Context,
+    redirects: &[pjsh_ast::Redirect],
+) -> std::result::Result<(), ExecError> {
+    for redirect in redirects {
+        match (redirect.source.clone(), redirect.target.clone()) {
+            (pjsh_ast::FileDescriptor::Number(_), pjsh_ast::FileDescriptor::Number(_)) => {
+                todo!("general file descriptor redirection");
+            }
+            (
+                pjsh_ast::FileDescriptor::Number(source),
+                pjsh_ast::FileDescriptor::File(file_path),
+            ) => {
+                if let Some(file_path) = expand_single(file_path, ctx) {
+                    let path = resolve_path(ctx, &file_path);
+                    match redirect.operator {
+                        pjsh_ast::RedirectOperator::Write => {
+                            fds.set(source, FileDescriptor::File(path));
+                        }
+                        pjsh_ast::RedirectOperator::Append => {
+                            fds.set(source, FileDescriptor::AppendFile(path));
+                        }
+                    }
+                } else {
+                    // TODO: Print error with the fully expanded file name word.
+                    return Err(ExecError::Message(format!(
+                        "invalid redirect: {:?}",
+                        redirect
+                    )));
+                }
+            }
+            (
+                pjsh_ast::FileDescriptor::File(file_path),
+                pjsh_ast::FileDescriptor::Number(target),
+            ) => {
+                if let Some(file_path) = expand_single(file_path, ctx) {
+                    let path = resolve_path(ctx, &file_path);
+                    fds.set(target, FileDescriptor::File(path));
+                } else {
+                    // TODO: Print error with the fully expanded file name word.
+                    return Err(ExecError::Message(format!(
+                        "invalid redirect: {:?}",
+                        redirect
+                    )));
+                }
+            }
+            (pjsh_ast::FileDescriptor::File(_), pjsh_ast::FileDescriptor::File(_)) => {
+                unreachable!("cannot redirect input from file to file");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 impl Default for Executor {
     fn default() -> Self {
-        let mut builtins: HashMap<String, Box<dyn BuiltinCommand>> = HashMap::new();
+        let mut builtins: HashMap<String, Box<dyn InternalCommand>> = HashMap::new();
         for builtin in all_builtins() {
             builtins.insert(builtin.name().to_string(), builtin);
         }

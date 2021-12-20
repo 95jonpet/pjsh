@@ -23,7 +23,7 @@ pub enum RedirectOperator {
     Append,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileDescriptor {
     Number(usize),
     File(Word),

@@ -1,14 +1,13 @@
-use pjsh_core::{BuiltinCommand, Context, Result, Value};
+use pjsh_core::{Context, InternalCommand};
 
 pub struct Echo;
 
-impl BuiltinCommand for Echo {
+impl InternalCommand for Echo {
     fn name(&self) -> &str {
         "echo"
     }
 
-    /// Prints space-separated arguments from `args` to stdout ending with a newline.
-    fn run(&self, args: &[String], _context: &mut Context) -> Result {
+    fn run(&self, args: &[String], _: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
         let mut output = String::new();
         let mut args = args.iter();
         if let Some(arg) = args.next() {
@@ -20,6 +19,14 @@ impl BuiltinCommand for Echo {
             output.push_str(arg);
         }
 
-        Ok(Value::String(output))
+        // Use exit code to signal success. If stdout cannot be written to, stderr is probably not
+        // going to work either.
+        match writeln!(io.stdout, "{}", &output) {
+            Ok(_) => 0,
+            Err(error) => {
+                let _ = writeln!(io.stderr, "echo: {}", error);
+                1
+            }
+        }
     }
 }

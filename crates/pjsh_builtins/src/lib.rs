@@ -8,7 +8,7 @@ pub use drop::Drop;
 pub use echo::Echo;
 pub use fs::{Cd, Pwd};
 
-pub fn all_builtins() -> Vec<Box<dyn pjsh_core::BuiltinCommand>> {
+pub fn all_builtins() -> Vec<Box<dyn pjsh_core::InternalCommand>> {
     vec![
         Box::new(Alias {}),
         Box::new(Cd {}),
