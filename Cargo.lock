@@ -358,6 +358,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da32515d9f6e6e489d7bc9d84c71b060db7247dc035bbe44eac88cf87486d8d5"
 
 [[package]]
+name = "os_pipe"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e3492ebca331b895fe23ed427dce2013d9b2e00c45964f12040b0db38b8ab27"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "os_str_bytes"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -433,6 +443,7 @@ name = "pjsh_exec"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "os_pipe",
  "pjsh_ast",
  "pjsh_builtins",
  "pjsh_core",
