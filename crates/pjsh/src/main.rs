@@ -1,10 +1,11 @@
 mod init;
 mod shell;
 
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{path::PathBuf, sync::Arc};
 
 use clap::{crate_version, Parser};
 use init::initialized_context;
+use parking_lot::Mutex;
 use pjsh_core::Context;
 use pjsh_exec::{interpolate_word, Executor};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
@@ -43,9 +44,9 @@ pub fn main() {
         None if opts.command.is_some() => Box::new(SingleCommandShell::new(opts.command.unwrap())),
         _ => Box::new(RustylineShell::new()),
     };
-    let context = Rc::new(RefCell::new(initialized_context()));
+    let context = Arc::new(Mutex::new(initialized_context()));
 
-    source_init_scripts(shell.is_interactive(), Rc::clone(&context));
+    source_init_scripts(shell.is_interactive(), Arc::clone(&context));
 
     run_shell(shell, context) // Not guaranteed to exit.
 }
@@ -86,11 +87,11 @@ fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
 }
 
 /// Main loop for running a [`Shell`]. This method is not guaranteed to exit.
-fn run_shell(mut shell: Box<dyn Shell>, context: Rc<RefCell<Context>>) {
+fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
     let executor = Executor::default();
     loop {
-        let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.borrow());
-        print_exited_child_processes(&mut context.borrow_mut());
+        let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.lock());
+        print_exited_child_processes(&mut context.lock());
 
         // Prompt for initial input.
         let maybe_line = shell.prompt_line(&ps1);
@@ -106,7 +107,7 @@ fn run_shell(mut shell: Box<dyn Shell>, context: Rc<RefCell<Context>>) {
                 Ok(program) => {
                     shell.add_history_entry(line.trim());
                     for statement in program.statements {
-                        executor.execute_statement(statement, Rc::clone(&context));
+                        executor.execute_statement(statement, Arc::clone(&context));
                     }
                     break;
                 }
@@ -142,7 +143,7 @@ fn print_exited_child_processes(context: &mut Context) {
 }
 
 /// Sources all init scripts for the shell.
-fn source_init_scripts(interactive: bool, context: Rc<RefCell<Context>>) {
+fn source_init_scripts(interactive: bool, context: Arc<Mutex<Context>>) {
     let mut script_names = vec![INIT_ALWAYS_SCRIPT_NAME];
 
     if interactive {
@@ -156,7 +157,7 @@ fn source_init_scripts(interactive: bool, context: Rc<RefCell<Context>>) {
         }) {
             if init_script.exists() {
                 let init_shell = Box::new(FileBufferShell::new(init_script));
-                run_shell(init_shell, Rc::clone(&context));
+                run_shell(init_shell, Arc::clone(&context));
             }
         }
     }

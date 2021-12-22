@@ -7,7 +7,9 @@ use std::{
 };
 
 use os_pipe::{PipeReader, PipeWriter};
-use pjsh_core::{utils::path_to_string, ExecError};
+use pjsh_core::utils::path_to_string;
+
+use crate::error::ExecError;
 
 /// Index for the stdin file descriptor.
 pub(crate) const FD_STDIN: usize = 0;
@@ -109,7 +111,7 @@ impl FileDescriptor {
     }
 
     /// Returns a reader for the file descriptor.
-    pub fn reader(&mut self) -> Result<Box<dyn Read>, ExecError> {
+    pub fn reader(&mut self) -> Result<Box<dyn Read + Send>, ExecError> {
         match self {
             FileDescriptor::Stdin => Ok(Box::new(io::stdin())),
             FileDescriptor::Stdout => Err(ExecError::Message("stdout cannot be read".to_string())),
@@ -132,7 +134,7 @@ impl FileDescriptor {
     }
 
     /// Returns a writer for the file descriptor.
-    pub fn writer(&mut self) -> Result<Box<dyn Write>, ExecError> {
+    pub fn writer(&mut self) -> Result<Box<dyn Write + Send>, ExecError> {
         match self {
             FileDescriptor::Stdin => {
                 Err(ExecError::Message("stdin cannot be written to".to_string()))
@@ -210,14 +212,14 @@ impl FileDescriptors {
     /// Returns a [`Write`] for writing to the file descriptor with index `k`.
     ///
     /// Returns `None` if no such file descriptor exists.
-    pub fn writer(&mut self, k: &usize) -> Option<Result<Box<dyn Write>, ExecError>> {
+    pub fn writer(&mut self, k: &usize) -> Option<Result<Box<dyn Write + Send>, ExecError>> {
         self.fds.get_mut(k).map(FileDescriptor::writer)
     }
 
     /// Returns a [`Read`] for reading from the file descriptor with index `k`.
     ///
     /// Returns `None` if no such file descriptor exists.
-    pub fn reader(&mut self, k: &usize) -> Option<Result<Box<dyn Read>, ExecError>> {
+    pub fn reader(&mut self, k: &usize) -> Option<Result<Box<dyn Read + Send>, ExecError>> {
         self.fds.get_mut(k).map(FileDescriptor::reader)
     }
 

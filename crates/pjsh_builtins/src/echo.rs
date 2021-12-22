@@ -1,4 +1,7 @@
-use pjsh_core::{Context, InternalCommand};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+use pjsh_core::{Context, InternalCommand, InternalIo};
 
 pub struct Echo;
 
@@ -7,7 +10,7 @@ impl InternalCommand for Echo {
         "echo"
     }
 
-    fn run(&self, args: &[String], _: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
+    fn run(&self, args: &[String], _: Arc<Mutex<Context>>, io: Arc<Mutex<InternalIo>>) -> i32 {
         let mut output = String::new();
         let mut args = args.iter();
         if let Some(arg) = args.next() {
@@ -21,10 +24,10 @@ impl InternalCommand for Echo {
 
         // Use exit code to signal success. If stdout cannot be written to, stderr is probably not
         // going to work either.
-        match writeln!(io.stdout, "{}", &output) {
+        match writeln!(io.lock().stdout, "{}", &output) {
             Ok(_) => 0,
             Err(error) => {
-                let _ = writeln!(io.stderr, "echo: {}", error);
+                let _ = writeln!(io.lock().stderr, "echo: {}", error);
                 1
             }
         }

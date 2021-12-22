@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    process::Child,
+    process::Child, thread::Thread,
 };
 
 use super::host::Host;
@@ -10,6 +10,8 @@ use super::host::Host;
 pub struct StdHost {
     /// Child processes that the host has spawned.
     child_processes: Vec<Child>,
+    /// Threads that the host has spawned.
+    threads: Vec<Thread>
 }
 
 impl Host for StdHost {
@@ -26,6 +28,10 @@ impl Host for StdHost {
     /// Marks a child process as owned by the host.
     fn add_child_process(&mut self, child: std::process::Child) {
         self.child_processes.push(child)
+    }
+
+    fn add_thread(&mut self, thread: std::thread::Thread) {
+        self.threads.push(thread)
     }
 
     /// Return a list of all exited processes that have been spawend by the host, removing them from

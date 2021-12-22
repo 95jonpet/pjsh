@@ -1,8 +1,9 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
+use parking_lot::Mutex;
 use pjsh_core::{
     utils::{path_to_string, resolve_path},
-    Context, InternalCommand,
+    Context, InternalCommand, InternalIo,
 };
 
 pub struct Cd;
@@ -36,23 +37,28 @@ impl InternalCommand for Cd {
         "cd"
     }
 
-    fn run(&self, args: &[String], context: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
+    fn run(
+        &self,
+        args: &[String],
+        context: Arc<Mutex<Context>>,
+        io: Arc<Mutex<InternalIo>>,
+    ) -> i32 {
         match args {
             [] => {
                 let path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
-                self.change_directory(path, context);
+                self.change_directory(path, &mut context.lock());
                 0
             }
-            [target] if target == "-" => match context.scope.get_env("OLDPWD") {
+            [target] if target == "-" => match context.lock().scope.get_env("OLDPWD") {
                 Some(oldpwd) => {
                     let path = PathBuf::from(oldpwd);
-                    self.change_directory(path, context);
+                    self.change_directory(path, &mut context.lock());
                     let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
-                    match writeln!(io.stdout, "{}", path_to_string(&path)) {
+                    match writeln!(io.lock().stdout, "{}", path_to_string(&path)) {
                         Ok(_) => 0,
                         Err(error) => {
                             let _ = writeln!(
-                                io.stderr,
+                                io.lock().stderr,
                                 "cd: could not write path to stdout: {}",
                                 error
                             );
@@ -61,17 +67,21 @@ impl InternalCommand for Cd {
                     }
                 }
                 None => {
-                    let _ = writeln!(io.stderr, "cd: OLDPWD not set");
+                    let _ = writeln!(io.lock().stderr, "cd: OLDPWD not set");
                     1
                 }
             },
             [target] => {
-                let path = resolve_path(context, target);
-                self.change_directory(path, context);
+                let path = resolve_path(&context.lock(), target);
+                self.change_directory(path, &mut context.lock());
                 0
             }
             _ => {
-                let _ = writeln!(io.stderr, "cd: invalid arguments: {}", args.join(" "));
+                let _ = writeln!(
+                    io.lock().stderr,
+                    "cd: invalid arguments: {}",
+                    args.join(" ")
+                );
                 2
             }
         }
@@ -85,12 +95,21 @@ impl InternalCommand for Pwd {
         "pwd"
     }
 
-    fn run(&self, _args: &[String], _context: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
+    fn run(
+        &self,
+        _args: &[String],
+        _context: Arc<Mutex<Context>>,
+        io: Arc<Mutex<InternalIo>>,
+    ) -> i32 {
         let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
-        match writeln!(io.stdout, "{}", path_to_string(&path)) {
+        match writeln!(io.lock().stdout, "{}", path_to_string(&path)) {
             Ok(_) => 0,
             Err(error) => {
-                let _ = writeln!(io.stderr, "pwd: could not write path to stdout: {}", error);
+                let _ = writeln!(
+                    io.lock().stderr,
+                    "pwd: could not write path to stdout: {}",
+                    error
+                );
                 1
             }
         }

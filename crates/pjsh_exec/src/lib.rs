@@ -1,3 +1,4 @@
+mod error;
 mod executor;
 mod expand;
 mod io;

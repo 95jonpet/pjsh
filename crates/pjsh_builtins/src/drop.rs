@@ -1,4 +1,7 @@
-use pjsh_core::{Context, InternalCommand};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+use pjsh_core::{Context, InternalCommand, InternalIo};
 
 pub struct Drop;
 
@@ -8,14 +11,19 @@ impl InternalCommand for Drop {
     }
 
     /// Drops all environment variables with keys defined in `args`.
-    fn run(&self, args: &[String], context: &mut Context, io: &mut pjsh_core::InternalIo) -> i32 {
+    fn run(
+        &self,
+        args: &[String],
+        context: Arc<Mutex<Context>>,
+        io: Arc<Mutex<InternalIo>>,
+    ) -> i32 {
         if args.is_empty() {
-            let _ = writeln!(io.stderr, "drop: missing keys to drop");
+            let _ = writeln!(io.lock().stderr, "drop: missing keys to drop");
             return 2;
         }
 
         for arg in args {
-            context.scope.unset_env(arg);
+            context.lock().scope.unset_env(arg);
         }
 
         0
