@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
-    process::Child,
+    process::Child, thread::Thread,
 };
 
 /// A host is a shell's representation of its current environment.
@@ -20,6 +20,12 @@ pub trait Host: Send {
     /// The child process should originate from the shell, meaning that the shell should have
     /// spawned it.
     fn add_child_process(&mut self, child: Child);
+
+    /// Registers a thread in the host.
+    ///
+    /// The thread should originate from the shell, meaning that the shell should have
+    /// spawned it.
+    fn add_thread(&mut self, thread: Thread);
 
     /// Return a list of all exited processes that have been spawend by the host, removing them from
     /// the list of tracked child processes.

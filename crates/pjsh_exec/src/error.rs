@@ -1,6 +1,4 @@
-use std::{fmt::Display, process::Child};
-
-pub type Result = std::result::Result<Option<Child>, ExecError>;
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum ExecError {
