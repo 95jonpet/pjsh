@@ -1,6 +1,9 @@
 mod init;
 mod shell;
 
+#[cfg(test)]
+mod tests;
+
 use std::{path::PathBuf, sync::Arc};
 
 use clap::{crate_version, Parser};
@@ -48,7 +51,10 @@ pub fn main() {
 
     source_init_scripts(shell.is_interactive(), Arc::clone(&context));
 
-    run_shell(shell, context) // Not guaranteed to exit.
+    run_shell(shell, Arc::clone(&context)); // Not guaranteed to exit.
+
+    // If the shell exits cleanly, attempt to stop all threads and processes that it has spawned.
+    interrupt(&mut context.lock());
 }
 
 /// Interpolates a string using a [`Context`].
@@ -86,19 +92,24 @@ fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
     (ps1, ps2)
 }
 
-/// Main loop for running a [`Shell`]. This method is not guaranteed to exit.
+/// Main loop for running a [`Shell`].
+///
+/// This method is not guaranteed to exit.
 fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
     let executor = Executor::default();
-    loop {
+    'main: loop {
         let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.lock());
         print_exited_child_processes(&mut context.lock());
 
-        // Prompt for initial input.
-        let maybe_line = shell.prompt_line(&ps1);
-        if maybe_line.is_none() {
-            break;
-        }
-        let mut line = maybe_line.expect("there is one more line of input");
+        let mut line = match shell.prompt_line(&ps1) {
+            shell::ShellInput::Line(line) => line,
+            shell::ShellInput::Interrupt => {
+                interrupt(&mut context.lock());
+                continue;
+            }
+            shell::ShellInput::Logout => break 'main,
+            shell::ShellInput::None => break,
+        };
 
         // Repeatedly ask for lines of input until a valid program can be executed.
         loop {
@@ -115,22 +126,35 @@ fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
                 // If more input is required, prompt for more input and loop again.
                 // The next line of input will be appended to the buffer and parsed.
                 Err(ParseError::IncompleteSequence | ParseError::UnexpectedEof) => {
-                    if let Some(next_line) = shell.prompt_line(&ps2) {
-                        line.push_str(&next_line);
-                    } else {
-                        eprintln!("Unexpected EOF");
-                        std::process::exit(1);
-                    }
+                    match shell.prompt_line(&ps2) {
+                        shell::ShellInput::Line(next_line) => line.push_str(&next_line),
+                        shell::ShellInput::Interrupt => {
+                            interrupt(&mut context.lock());
+                            continue 'main;
+                        }
+                        shell::ShellInput::Logout => break 'main,
+                        shell::ShellInput::None => break,
+                    };
                 }
 
                 // Unrecoverable error.
                 Err(error) => {
-                    eprintln!("Parse error: {}", error);
+                    eprintln!("pjsh: parse error: {}", error);
                     break;
                 }
             }
         }
     }
+
+    // Ensure a clean shutdown.
+    interrupt(&mut context.lock());
+}
+
+/// Interrupts the currently running threads and processes in a context.
+fn interrupt(context: &mut Context) {
+    let mut host = context.host.lock();
+    host.join_all_threads();
+    host.kill_all_processes();
 }
 
 /// Prints process IDs (PIDs) to stderr for each child process that is managed by the shell, and

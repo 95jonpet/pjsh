@@ -19,3 +19,6 @@ pjsh_builtins = { path = "../pjsh_builtins" }
 pjsh_core = { path = "../pjsh_core" }
 pjsh_exec = { path = "../pjsh_exec" }
 pjsh_parse = { path = "../pjsh_parse" }
+
+[dev-dependencies]
+mockall = "0.11.0"

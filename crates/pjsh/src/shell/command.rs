@@ -1,4 +1,4 @@
-use super::Shell;
+use super::{Shell, ShellInput};
 
 pub struct SingleCommandShell {
     it: Option<String>,
@@ -11,8 +11,12 @@ impl SingleCommandShell {
 }
 
 impl Shell for SingleCommandShell {
-    fn prompt_line(&mut self, _prompt: &str) -> Option<String> {
-        std::mem::take(&mut self.it)
+    fn prompt_line(&mut self, _prompt: &str) -> ShellInput {
+        if let Some(line) = std::mem::take(&mut self.it) {
+            return ShellInput::Line(line);
+        }
+
+        ShellInput::None
     }
 
     fn add_history_entry(&mut self, _line: &str) {
