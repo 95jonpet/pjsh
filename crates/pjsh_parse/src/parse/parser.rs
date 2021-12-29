@@ -164,6 +164,7 @@ impl Parser {
 
     /// Parses a "smart" [`Pipeline`] with an explicit start and end.
     pub fn parse_smart_pipeline(&mut self) -> Result<Pipeline, ParseError> {
+        self.tokens.newline_is_whitespace(true); // Newline is trivialized in a smart pipeline.
         let mut segments = Vec::new();
         let mut is_async = false;
 
@@ -181,15 +182,9 @@ impl Parser {
                 _ => segments.push(self.parse_pipeline_segment()?),
             }
 
-            // Potentially skip a newline.
-            self.tokens.next_if_eq(TokenContents::Eol);
-
             match self.tokens.peek().contents {
                 TokenContents::Pipe => {
                     self.tokens.next();
-
-                    // Potentially skip a newline.
-                    self.tokens.next_if_eq(TokenContents::Eol);
                 }
                 TokenContents::Eof => return Err(ParseError::IncompleteSequence),
                 TokenContents::Amp => {
@@ -204,6 +199,8 @@ impl Parser {
                 _ => return Err(self.unexpected_token()),
             }
         }
+
+        self.tokens.newline_is_whitespace(false); // Ensure a clean exit.
 
         // A pipeline is only valid if it contains one or more segments.
         if segments.is_empty() {
@@ -240,6 +237,7 @@ impl Parser {
 
     /// Tries to parse a [`Statement`] from the next tokens of input.
     pub fn parse_statement(&mut self) -> Result<Statement, ParseError> {
+        self.tokens.newline_is_whitespace(false); // Ensure clean start.
         self.skip_newlines();
 
         let mut assignment_iter = self.tokens.clone();

@@ -210,6 +210,34 @@ fn parse_smart_pipeline() {
 }
 
 #[test]
+fn parse_smart_pipeline_whitespace() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(PipeStart, span),
+        Token::new(Literal("cmd".into()), span),
+        Token::new(Eol, span),
+        Token::new(Literal("arg1".into()), span),
+        Token::new(Eol, span),
+        Token::new(Literal("arg2".into()), span),
+        Token::new(Eol, span),
+        Token::new(Semi, span),
+    ]);
+    assert_eq!(
+        parser.parse_pipeline(),
+        Ok(Pipeline {
+            is_async: false,
+            segments: vec![PipelineSegment {
+                command: Command {
+                    program: Word::Literal("cmd".into()),
+                    arguments: vec![Word::Literal("arg1".into()), Word::Literal("arg2".into())],
+                    redirects: Vec::new(),
+                }
+            },]
+        })
+    );
+}
+
+#[test]
 fn parse_smart_pipeline_partial() {
     let span = Span::new(0, 0); // Does not matter during this test.
 

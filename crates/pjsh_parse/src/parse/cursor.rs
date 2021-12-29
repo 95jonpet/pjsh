@@ -5,6 +5,15 @@ use crate::{
     tokens::TokenContents,
 };
 
+/// The newline mode determines how a [`TokenCursor`] handles newline tokens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NewlineMode {
+    /// Newline is treated as newline.
+    Newline,
+    /// Newline is replaced by whitespace.
+    Whitespace,
+}
+
 /// A cursor for traversing through a peekable [`Token`] iterator while skipping trivial tokens.
 #[derive(Clone)]
 pub struct TokenCursor {
@@ -12,8 +21,12 @@ pub struct TokenCursor {
     tokens: Peekable<IntoIter<Token>>,
 
     /// The token representing the cursor's EOF.
+    ///
     /// This token is returned upon, and after, consuming all tokens.
     eof_token: Token,
+
+    /// Mode of operation for newline tokens.
+    newline_mode: NewlineMode,
 }
 
 impl TokenCursor {
@@ -22,6 +35,7 @@ impl TokenCursor {
         Self {
             eof_token: Token::new(TokenContents::Eof, Span::new(0, 0)),
             tokens: tokens.into_iter().peekable(),
+            newline_mode: NewlineMode::Newline,
         }
     }
 
@@ -58,19 +72,33 @@ impl TokenCursor {
         self.next_if(|token| token.contents == contents)
     }
 
+    /// Further operations should treat newline as whitespace if `is_whitespace` is `true`.
+    pub fn newline_is_whitespace(&mut self, is_whitespace: bool) {
+        self.newline_mode = match is_whitespace {
+            true => NewlineMode::Whitespace,
+            false => NewlineMode::Newline,
+        };
+    }
+
     /// Skips all trivial tokens, stopping before the next non-trivial token.
     fn skip_trivial_tokens(&mut self) {
-        while is_trivial(self.tokens.peek().unwrap_or(&self.eof_token)) {
+        let mode = self.newline_mode.clone();
+        while is_trivial(self.tokens.peek().unwrap_or(&self.eof_token), &mode) {
             self.tokens.next();
         }
     }
 }
 
-/// Returns `true` if a [`Token`] is considered trivial.
+/// Returns `true` if a [`Token`] is considered trivial in a [`NewlineMode`].
+///
 /// Trivial tokens are typically discarded.
-fn is_trivial(token: &Token) -> bool {
-    matches!(
-        token.contents,
-        TokenContents::Comment | TokenContents::Whitespace
-    )
+fn is_trivial(token: &Token, newline_mode: &NewlineMode) -> bool {
+    match token.contents {
+        TokenContents::Comment | TokenContents::Whitespace => true,
+
+        // Eol is trivialized when treating newline as whitespace.
+        TokenContents::Eol if newline_mode == &NewlineMode::Whitespace => true,
+
+        _ => false,
+    }
 }
