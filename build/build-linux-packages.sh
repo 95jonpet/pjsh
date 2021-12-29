@@ -1,23 +1,37 @@
 #!/bin/bash
+#
+# Build linux packages from compiled binaries.
 
 set -euo pipefail
 
 VERSION="${1?'Missing required package version'}"
 RELEASE="${2?'Missing required package release number'}"
+RELEASE_PATH="${3?'Missing required path to compiled release'}"
+PACKAGE_PATH="${4?'Missing required output path for packages'}"
 
-DOCKER_IMAGE="alanfranz/fpm-within-docker:debian-bullseye"
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-RELEASE_PATH="${SCRIPT_DIR}/../target/release"
-PACKAGE_PATH="${SCRIPT_DIR}/../target/package"
+# Use absolute paths.
+RELEASE_PATH="$(realpath "${RELEASE_PATH}")"
+PACKAGE_PATH="$(realpath "${PACKAGE_PATH}")"
 
 if [[ ! -d "${RELEASE_PATH}" ]]; then
   echo "ERROR: The software has not been build. Nothing to package." >&2
   exit 1
 fi
 
+mkdir -p "${RELEASE_PATH}" "${PACKAGE_PATH}"
+
+#######################################
+# Cleanup files from the backup directory.
+# Globals:
+#   VERSION
+#   RELEASE
+# Arguments:
+#   Package type, a string
+#   Docker image with fpm, a string
+#######################################
 package() {
   local PACKAGE_TYPE="${1?'Missing required package type'}"
-  DOCKER_IMAGE="${2?'Missing required docker image'}"
+  local DOCKER_IMAGE="${2?'Missing required docker image'}"
 
   MSYS_NO_PATHCONV=1 docker run \
     --rm \
@@ -37,6 +51,13 @@ package() {
     --url "https://peterjonsson.se/shell" \
     --maintainer "Peter Jonsson" \
     "/src/pjsh=/usr/bin/pjsh"
+
+  # Correct file ownership.
+  MSYS_NO_PATHCONV=1 docker run \
+    --rm \
+    -v "${PACKAGE_PATH}:/out" \
+    "${DOCKER_IMAGE}" \
+    bash -c "chown '$(id -u):$(id -g)' /out/pjsh_${VERSION}-${RELEASE}.${PACKAGE_TYPE}"
 }
 
 # Build all packages.
