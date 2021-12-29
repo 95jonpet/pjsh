@@ -13,6 +13,11 @@ pub enum ParseError {
     /// This error is recoverable, and interactive shells should prompt the user for more input.
     IncompleteSequence,
 
+    /// Error indicating that the syntax is invalid.
+    ///
+    /// This error is not recoverable.
+    InvalidSyntax,
+
     /// Error indicating that there is no more input to parse.
     ///
     /// This error is only returned before consuming tokens in a new sequence.
@@ -32,6 +37,7 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::IncompleteSequence => write!(f, "incomplete sequence"),
+            ParseError::InvalidSyntax => write!(f, "invalid syntax"),
             ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
             ParseError::UnexpectedToken(token) => {
                 write!(f, "unexpected token {:? }", token.contents)

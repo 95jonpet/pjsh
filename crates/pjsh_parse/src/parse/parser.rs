@@ -19,7 +19,7 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
         Err(error) => {
             eprintln!("pjsh: {}", error);
-            Err(ParseError::UnexpectedEof)
+            Err(ParseError::InvalidSyntax)
         }
     }
 }
@@ -35,7 +35,7 @@ pub fn parse_interpolation(src: &str) -> Result<Word, ParseError> {
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
         Err(error) => {
             eprintln!("pjsh: {}", error);
-            Err(ParseError::UnexpectedEof)
+            Err(ParseError::InvalidSyntax)
         }
     }
 }
