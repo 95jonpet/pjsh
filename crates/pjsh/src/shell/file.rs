@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use super::Shell;
+use super::{Shell, ShellInput};
 
 pub struct FileBufferShell {
     reader: BufReader<fs::File>,
@@ -18,11 +18,11 @@ impl FileBufferShell {
 }
 
 impl Shell for FileBufferShell {
-    fn prompt_line(&mut self, _prompt: &str) -> Option<String> {
+    fn prompt_line(&mut self, _prompt: &str) -> ShellInput {
         let mut line = String::new();
         match self.reader.read_line(&mut line) {
-            Ok(0) | Err(_) => None,
-            _ => Some(line),
+            Ok(0) | Err(_) => ShellInput::None,
+            _ => ShellInput::Line(line),
         }
     }
 

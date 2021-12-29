@@ -12,7 +12,7 @@ use rustyline::{
 };
 use rustyline_derive::Helper;
 
-use super::Shell;
+use super::{Shell, ShellInput};
 
 const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
 
@@ -54,7 +54,7 @@ impl RustylineShell {
 }
 
 impl Shell for RustylineShell {
-    fn prompt_line(&mut self, prompt: &str) -> Option<String> {
+    fn prompt_line(&mut self, prompt: &str) -> ShellInput {
         // Set a colored prompt from the input. This prompt allows ANSI control sequences to be
         // passed to the terminal.
         self.editor.helper_mut().expect("No helper").colored_prompt = prompt.to_string();
@@ -64,10 +64,18 @@ impl Shell for RustylineShell {
         // ANSI escape codes contribute to the perceived length. Thus, all ANSII escape sequences
         // must be stripped prior to prompting the user for input.
         let prompt_text = strip_ansi_escapes(prompt);
-        self.editor.readline(&prompt_text).ok().map(|mut line| {
-            line.push('\n');
-            line
-        })
+        match self.editor.readline(&prompt_text) {
+            Ok(mut line) => {
+                line.push('\n');
+                ShellInput::Line(line)
+            }
+            Err(ReadlineError::Interrupted) => ShellInput::Interrupt,
+            Err(ReadlineError::Eof) => ShellInput::Logout,
+            Err(error) => {
+                eprintln!("pjsh: unhandled input: {}", error);
+                ShellInput::None
+            }
+        }
     }
 
     fn add_history_entry(&mut self, line: &str) {

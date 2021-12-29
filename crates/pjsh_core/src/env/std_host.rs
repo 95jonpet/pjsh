@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
-    process::Child, thread::Thread,
+    process::Child,
+    thread::JoinHandle,
 };
 
 use super::host::Host;
@@ -11,7 +12,7 @@ pub struct StdHost {
     /// Child processes that the host has spawned.
     child_processes: Vec<Child>,
     /// Threads that the host has spawned.
-    threads: Vec<Thread>
+    threads: Vec<JoinHandle<i32>>,
 }
 
 impl Host for StdHost {
@@ -30,8 +31,20 @@ impl Host for StdHost {
         self.child_processes.push(child)
     }
 
-    fn add_thread(&mut self, thread: std::thread::Thread) {
+    fn add_thread(&mut self, thread: std::thread::JoinHandle<i32>) {
         self.threads.push(thread)
+    }
+
+    fn kill_all_processes(&mut self) {
+        for mut child in std::mem::take(&mut self.child_processes) {
+            let _ = child.kill();
+        }
+    }
+
+    fn join_all_threads(&mut self) {
+        for thread in std::mem::take(&mut self.threads) {
+            let _ = thread.join();
+        }
     }
 
     /// Return a list of all exited processes that have been spawend by the host, removing them from

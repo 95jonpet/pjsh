@@ -113,11 +113,7 @@ impl Executor {
             }
             Some(Value::Thread(thread_handle)) => {
                 if pipeline.is_async {
-                    context
-                        .lock()
-                        .host
-                        .lock()
-                        .add_thread(thread_handle.thread().to_owned());
+                    context.lock().host.lock().add_thread(thread_handle);
                     0
                 } else {
                     thread_handle.join().unwrap_or(127)
