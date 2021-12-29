@@ -1,4 +1,4 @@
-use mockall::mock;
+use mockall::{mock, predicate::eq};
 
 use crate::shell::{MockShell, ShellInput};
 use pjsh_core::Host;
@@ -29,15 +29,18 @@ fn shell_interrupt() {
     mock_host
         .expect_take_exited_child_processes()
         .returning(|| std::collections::HashSet::new());
+    mock_host
+        .expect_eprintln()
+        .with(eq("pjsh: interrupt"))
+        .return_const(());
 
-    // Called twice: once for interrupt, and once for logout.
     mock_host
         .expect_kill_all_processes()
-        .times(2)
+        .times(1)
         .return_const(());
     mock_host
         .expect_join_all_threads()
-        .times(2)
+        .times(1)
         .return_const(());
 
     context.host = Arc::new(parking_lot::Mutex::new(mock_host));

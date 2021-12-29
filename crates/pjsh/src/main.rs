@@ -54,7 +54,8 @@ pub fn main() {
     run_shell(shell, Arc::clone(&context)); // Not guaranteed to exit.
 
     // If the shell exits cleanly, attempt to stop all threads and processes that it has spawned.
-    interrupt(&mut context.lock());
+    context.lock().host.lock().join_all_threads();
+    context.lock().host.lock().kill_all_processes();
 }
 
 /// Interpolates a string using a [`Context`].
@@ -145,9 +146,6 @@ fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
             }
         }
     }
-
-    // Ensure a clean shutdown.
-    interrupt(&mut context.lock());
 }
 
 /// Interrupts the currently running threads and processes in a context.
@@ -155,6 +153,7 @@ fn interrupt(context: &mut Context) {
     let mut host = context.host.lock();
     host.join_all_threads();
     host.kill_all_processes();
+    host.eprintln("pjsh: interrupt");
 }
 
 /// Prints process IDs (PIDs) to stderr for each child process that is managed by the shell, and
