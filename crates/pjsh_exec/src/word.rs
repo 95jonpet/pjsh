@@ -1,5 +1,10 @@
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use pjsh_ast::Word;
 use pjsh_core::Context;
+
+use crate::executor::execute_program;
 
 pub fn interpolate_word(word: Word, context: &Context) -> String {
     match word {
@@ -30,10 +35,18 @@ pub fn interpolate_word(word: Word, context: &Context) -> String {
                     pjsh_ast::InterpolationUnit::Variable(variable) => {
                         output.push_str(&context.scope.get_env(&variable).unwrap_or_default())
                     }
+                    pjsh_ast::InterpolationUnit::Subshell(program) => {
+                        let inner_context = Arc::new(Mutex::new(context.fork()));
+                        output.push_str(&execute_program(program, inner_context).0)
+                    }
                 }
             }
 
             output
+        }
+        Word::Subshell(program) => {
+            let inner_context = Arc::new(Mutex::new(context.fork()));
+            execute_program(program, inner_context).0
         }
     }
 }

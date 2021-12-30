@@ -28,7 +28,7 @@ fn shell_interrupt() {
     let mut mock_host = MockTestHost::new();
     mock_host
         .expect_take_exited_child_processes()
-        .returning(|| std::collections::HashSet::new());
+        .returning(std::collections::HashSet::new);
     mock_host
         .expect_eprintln()
         .with(eq("pjsh: interrupt"))

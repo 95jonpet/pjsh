@@ -85,6 +85,46 @@ impl Parser {
         Ok(program)
     }
 
+    /// Parses a non-empty subshell.
+    ///
+    /// Note that tokens are consumed as long as the subshell is opened - even if the subshell is
+    /// empty.
+    fn parse_subshell(&mut self) -> Result<Statement, ParseError> {
+        if self.tokens.next_if_eq(TokenContents::OpenParen).is_none() {
+            return Err(self.unexpected_token());
+        }
+
+        let mut subshell_program = Program::new();
+        loop {
+            match self.parse_statement() {
+                Ok(statement) => {
+                    subshell_program.statement(statement);
+                }
+                Err(ParseError::UnexpectedToken(Token {
+                    contents: TokenContents::CloseParen,
+                    span: _,
+                })) => {
+                    break;
+                }
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
+
+        // A subshell must be terminated by a closing parenthesis.
+        if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
+            return Err(self.unexpected_token());
+        }
+
+        // A subshell must not be empty.
+        if subshell_program.statements.is_empty() {
+            return Err(ParseError::EmptySubshell);
+        }
+
+        Ok(Statement::Subshell(subshell_program))
+    }
+
     /// Parses an [`AndOr`] consisting of one or more [`Pipeline`] definitions.
     pub fn parse_and_or(&mut self) -> Result<AndOr, ParseError> {
         let mut pipelines = vec![self.parse_pipeline()?];
@@ -240,6 +280,12 @@ impl Parser {
         self.tokens.newline_is_whitespace(false); // Ensure clean start.
         self.skip_newlines();
 
+        // Try to parse a subshell.
+        if let Ok(subshell_statement) = self.parse_subshell() {
+            return Ok(subshell_statement);
+        }
+
+        // Try to parse an assignment.
         let mut assignment_iter = self.tokens.clone();
         assignment_iter.next();
         if assignment_iter.peek().contents == TokenContents::Assign {
@@ -326,10 +372,10 @@ impl Parser {
     /// Parses an interpolation consisting of multiple interpolation units.
     fn parse_interpolation(&mut self) -> Result<Word, ParseError> {
         if let TokenContents::Interpolation(units) = self.tokens.next().contents {
-            let word_units = units
-                .into_iter()
-                .map(|unit| self.parse_interpolation_unit(unit))
-                .collect();
+            let mut word_units = Vec::with_capacity(units.len());
+            for unit in units {
+                word_units.push(self.parse_interpolation_unit(unit)?);
+            }
             Ok(Word::Interpolation(word_units))
         } else {
             Err(self.unexpected_token())
@@ -337,11 +383,19 @@ impl Parser {
     }
 
     /// Parses a single interpolation unit.
-    fn parse_interpolation_unit(&self, unit: tokens::InterpolationUnit) -> InterpolationUnit {
+    fn parse_interpolation_unit(
+        &self,
+        unit: tokens::InterpolationUnit,
+    ) -> Result<InterpolationUnit, ParseError> {
         match unit {
-            tokens::InterpolationUnit::Literal(literal) => InterpolationUnit::Literal(literal),
-            tokens::InterpolationUnit::Unicode(ch) => InterpolationUnit::Unicode(ch),
-            tokens::InterpolationUnit::Variable(var) => InterpolationUnit::Variable(var),
+            tokens::InterpolationUnit::Literal(literal) => Ok(InterpolationUnit::Literal(literal)),
+            tokens::InterpolationUnit::Unicode(ch) => Ok(InterpolationUnit::Unicode(ch)),
+            tokens::InterpolationUnit::Variable(var) => Ok(InterpolationUnit::Variable(var)),
+            tokens::InterpolationUnit::Subshell(subshell_tokens) => {
+                let mut subshell_parser = Parser::new(subshell_tokens);
+                let subshell_program = subshell_parser.parse_program()?;
+                Ok(InterpolationUnit::Subshell(subshell_program))
+            }
         }
     }
 

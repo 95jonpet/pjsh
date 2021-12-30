@@ -1,6 +1,6 @@
 use crate::Word;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Redirect {
     pub source: FileDescriptor,
     pub target: FileDescriptor,
@@ -17,7 +17,7 @@ impl Redirect {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RedirectOperator {
     Write,
     Append,

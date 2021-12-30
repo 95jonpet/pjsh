@@ -1,6 +1,6 @@
 use crate::{Redirect, Word};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
     pub program: Word,
     pub arguments: Vec<Word>,

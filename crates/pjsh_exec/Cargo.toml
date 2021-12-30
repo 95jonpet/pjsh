@@ -7,7 +7,8 @@ edition = "2021"
 [dependencies]
 dirs = "4.0"
 os_pipe = "1.0.0"
-parking_lot = "0.11"
+parking_lot = {version = "0.11", features = ["deadlock_detection"] }
+tempfile = "3.2.0"
 
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_builtins = { path = "../pjsh_builtins" }

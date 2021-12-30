@@ -8,6 +8,9 @@ use crate::lex::lexer::Token;
 /// contexts.
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
+    /// Error indicating that a parsed subshell contains no statements.
+    EmptySubshell,
+
     /// Error indicating that there is no more input to parse while parsing a started sequence.
     ///
     /// This error is recoverable, and interactive shells should prompt the user for more input.
@@ -36,6 +39,7 @@ pub enum ParseError {
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ParseError::EmptySubshell => write!(f, "empty subshell"),
             ParseError::IncompleteSequence => write!(f, "incomplete sequence"),
             ParseError::InvalidSyntax => write!(f, "invalid syntax"),
             ParseError::UnexpectedEof => write!(f, "unexpected end of file"),

@@ -1,6 +1,6 @@
 use crate::Statement;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }

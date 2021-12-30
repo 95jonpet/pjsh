@@ -219,6 +219,13 @@ fn lex_word_interpolation() {
         crate::lex_interpolation(r#"\e"#).unwrap().contents,
         Interpolation(vec![InterpolationUnit::Unicode('\u{001b}')])
     );
+    assert_eq!(
+        crate::lex_interpolation(r#"$(ls)"#).unwrap().contents,
+        Interpolation(vec![InterpolationUnit::Subshell(vec![Token {
+            contents: Literal("ls".into()),
+            span: Span::new(2, 4)
+        }])])
+    );
 }
 
 fn tokens(src: &str) -> Vec<Token> {
