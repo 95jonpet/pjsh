@@ -325,6 +325,7 @@ impl<'a> Lexer<'a> {
 
                 Ok(Token::new(Variable(content), span))
             }
+            "?" => self.eat_char(Variable(String::from("?"))),
             ch if ch.chars().all(char::is_alphabetic) || ch == "_" => {
                 let (span, content) = self
                     .input

@@ -18,7 +18,7 @@ impl Context {
             scope,
             arguments: Vec::new(),
             host: Arc::new(parking_lot::Mutex::new(host)),
-            last_exit: 0,
+            last_exit: 0, // Success
         }
     }
 }

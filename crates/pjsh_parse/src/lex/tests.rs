@@ -80,6 +80,10 @@ fn lex_variable() {
         tokens("${wrapped_var}"),
         vec![Token::new(Variable("wrapped_var".into()), Span::new(0, 14))]
     );
+    assert_eq!(
+        tokens("$?"),
+        vec![Token::new(Variable("?".into()), Span::new(0, 2))]
+    );
 }
 
 #[test]
