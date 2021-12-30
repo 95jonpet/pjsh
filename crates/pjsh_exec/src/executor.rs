@@ -11,12 +11,13 @@ use pjsh_core::{
 
 use crate::{
     error::ExecError,
+    exit::{EXIT_GENERAL_ERROR, EXIT_SUCCESS},
     expand::{expand, expand_single},
     io::{FileDescriptor, FileDescriptors, FD_STDERR, FD_STDIN, FD_STDOUT},
     word::interpolate_word,
 };
 
-pub enum Value {
+enum Value {
     Process(process::Child),
     Thread(thread::JoinHandle<i32>),
 }
@@ -27,27 +28,34 @@ pub struct Executor;
 
 impl Executor {
     /// Executes an [`AndOr`].
-    pub fn execute_and_or(&self, and_or: AndOr, context: Arc<Mutex<Context>>) {
+    pub fn execute_and_or(&self, and_or: AndOr, ctx: Arc<Mutex<Context>>) {
+        debug_assert!(and_or.operators.len() == and_or.pipelines.len() - 1);
         let mut operators = and_or.operators.iter();
-        let mut exit_status = 0;
+        let mut exit_status = EXIT_SUCCESS;
         let mut operator = &AndOrOp::And;
 
         for pipeline in and_or.pipelines {
-            exit_status = match (operator, exit_status) {
-                (AndOrOp::And, 0) => self.execute_pipeline(pipeline, Arc::clone(&context)),
-                (AndOrOp::Or, i) if i != 0 => self.execute_pipeline(pipeline, Arc::clone(&context)),
-                _ => 127,
+            let is_accepting_segment = match operator {
+                AndOrOp::And => exit_status == EXIT_SUCCESS,
+                AndOrOp::Or => exit_status != EXIT_SUCCESS,
             };
-            operator = operators.next().unwrap_or(&AndOrOp::And);
+
+            if !is_accepting_segment {
+                break;
+            }
+
+            exit_status = self.execute_pipeline(pipeline, Arc::clone(&ctx));
+            operator = operators.next().unwrap_or(&AndOrOp::And); // There are n-1 operators.
         }
-        context.lock().last_exit = exit_status;
+
+        ctx.lock().last_exit = exit_status;
     }
 
     /// Executes a [`Pipeline`].
-    pub fn execute_pipeline(&self, pipeline: Pipeline, context: Arc<Mutex<Context>>) -> i32 {
+    pub fn execute_pipeline(&self, pipeline: Pipeline, ctx: Arc<Mutex<Context>>) -> i32 {
+        let mut values = VecDeque::with_capacity(pipeline.segments.len());
         let mut segments = pipeline.segments.into_iter().peekable();
         let mut fds = FileDescriptors::new();
-        let mut last_value = None;
         loop {
             let segment = segments.next().unwrap();
             let is_last = segments.peek().is_none();
@@ -59,26 +67,19 @@ impl Executor {
                 fds.set(FD_STDOUT, FileDescriptor::Pipe(os_pipe::pipe().unwrap()));
             }
 
-            let result = self.execute_command(segment.command, Arc::clone(&context), &mut fds);
+            let result = self.execute_command(segment.command, Arc::clone(&ctx), &mut fds);
             match result {
-                Ok(Value::Process(child)) => {
+                Ok(value) => {
                     // Set the pipe that was previously used for output as input for the next
                     // pipeline segment. The output end is replaced in the next loop iteration.
                     if let Some(stdout) = fds.take(&FD_STDOUT) {
                         fds.set(FD_STDIN, stdout);
                     }
 
-                    last_value = Some(Value::Process(child));
-                }
-                Ok(Value::Thread(thread_handle)) => {
-                    last_value = Some(Value::Thread(thread_handle));
+                    values.push_back(value);
                 }
                 Err(err) => {
-                    context
-                        .lock()
-                        .host
-                        .lock()
-                        .eprintln(&format!("pjsh: {}", &err));
+                    ctx.lock().host.lock().eprintln(&format!("pjsh: {}", &err));
                 }
             }
 
@@ -87,40 +88,42 @@ impl Executor {
             }
         }
 
-        match last_value {
-            Some(Value::Process(mut child)) => {
-                if pipeline.is_async {
-                    context
-                        .lock()
-                        .host
-                        .lock()
-                        .println(&format!("pjsh: PID {} started", child.id()));
-                    context.lock().host.lock().add_child_process(child);
-                    0
-                } else {
-                    match child.wait() {
-                        Ok(status) => status.code().unwrap_or(1),
-                        Err(error) => {
-                            context
-                                .lock()
-                                .host
-                                .lock()
-                                .eprintln(&format!("failed to wait for process: {}", error));
-                            127
-                        }
-                    }
+        // Register async processes and threads for later processing.
+        if pipeline.is_async {
+            while let Some(value) = values.pop_front() {
+                match value {
+                    Value::Process(process) => ctx.lock().host.lock().add_child_process(process),
+                    Value::Thread(thread) => ctx.lock().host.lock().add_thread(thread),
                 }
             }
-            Some(Value::Thread(thread_handle)) => {
-                if pipeline.is_async {
-                    context.lock().host.lock().add_thread(thread_handle);
-                    0
-                } else {
-                    thread_handle.join().unwrap_or(127)
-                }
-            }
-            None => 0,
+
+            return EXIT_SUCCESS;
         }
+
+        // Wait for the last synchronous process or thread to exit. Exit with 0 only if all pipeline
+        // segments exit with 0. Iterate backwards to ensure clean termination of the final segment.
+        let mut status = EXIT_SUCCESS;
+        while let Some(value) = values.pop_back() {
+            let segment_status = match value {
+                Value::Process(mut child) => match child.wait() {
+                    Ok(status) => status.code().unwrap_or(EXIT_GENERAL_ERROR),
+                    Err(error) => {
+                        ctx.lock()
+                            .host
+                            .lock()
+                            .eprintln(&format!("failed to wait for process: {}", error));
+                        EXIT_GENERAL_ERROR
+                    }
+                },
+                Value::Thread(thread_handle) => thread_handle.join().unwrap_or(EXIT_GENERAL_ERROR),
+            };
+
+            if segment_status != EXIT_SUCCESS {
+                status = segment_status;
+            }
+        }
+
+        status
     }
 
     /// Executes a [`Statement`].

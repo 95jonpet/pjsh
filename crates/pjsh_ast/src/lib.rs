@@ -18,6 +18,12 @@ pub struct Assignment {
     pub value: Word,
 }
 
+impl Assignment {
+    pub fn new(key: Word, value: Word) -> Self {
+        Self { key, value }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Word {
     Literal(String),
