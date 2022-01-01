@@ -53,7 +53,14 @@ pipeline {
       }
       steps {
         unstash(name: "linux-binary")
-        sh "build/build-linux-packages.sh '${VERSION}' '${BUILD_NUMBER}' target/release target/package"
+        sh """
+          build/build-linux-packages.sh \
+            '${VERSION}' \
+            '${BUILD_NUMBER}' \
+            build/package \
+            target/release \
+            target/package
+        """
       }
       post {
         success {
