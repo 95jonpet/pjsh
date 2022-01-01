@@ -6,10 +6,12 @@ set -euo pipefail
 
 VERSION="${1?'Missing required package version'}"
 RELEASE="${2?'Missing required package release number'}"
-RELEASE_PATH="${3?'Missing required path to compiled release'}"
-PACKAGE_PATH="${4?'Missing required output path for packages'}"
+SCRIPTS_PATH="${3?'Missing required path to install scripts'}"
+RELEASE_PATH="${4?'Missing required path to compiled release'}"
+PACKAGE_PATH="${5?'Missing required output path for packages'}"
 
 # Use absolute paths.
+SCRIPTS_PATH="$(realpath "${SCRIPTS_PATH}")"
 RELEASE_PATH="$(realpath "${RELEASE_PATH}")"
 PACKAGE_PATH="$(realpath "${PACKAGE_PATH}")"
 
@@ -35,6 +37,7 @@ package() {
 
   MSYS_NO_PATHCONV=1 docker run \
     --rm \
+    -v "${SCRIPTS_PATH}:/scripts" \
     -v "${RELEASE_PATH}:/src" \
     -v "${PACKAGE_PATH}:/out" \
     "${DOCKER_IMAGE}" \
@@ -50,6 +53,8 @@ package() {
     --description "A non-POIX shell for the modern age" \
     --url "https://peterjonsson.se/shell" \
     --maintainer "Peter Jonsson" \
+    --after-install "/scripts/after-install.sh" \
+    --before-remove "/scripts/before-remove.sh" \
     "/src/pjsh=/usr/bin/pjsh"
 
   # Correct file ownership.
