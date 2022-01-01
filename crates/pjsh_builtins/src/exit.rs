@@ -3,6 +3,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use pjsh_core::{Context, InternalCommand, InternalIo};
 
+use crate::status;
+
 const EXIT_INVALID_CODE: i32 = 128;
 
 pub struct Exit;
@@ -18,7 +20,7 @@ impl InternalCommand for Exit {
             [n] => n.parse::<i32>().unwrap_or(EXIT_INVALID_CODE),
             _ => {
                 let _ = writeln!(io.lock().stderr, "exit: too many arguments");
-                1
+                status::BUILTIN_ERROR
             }
         }
     }

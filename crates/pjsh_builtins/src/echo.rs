@@ -3,6 +3,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use pjsh_core::{Context, InternalCommand, InternalIo};
 
+use crate::status;
+
 pub struct Echo;
 
 impl InternalCommand for Echo {
@@ -25,10 +27,10 @@ impl InternalCommand for Echo {
         // Use exit code to signal success. If stdout cannot be written to, stderr is probably not
         // going to work either.
         match writeln!(io.lock().stdout, "{}", &output) {
-            Ok(_) => 0,
+            Ok(_) => status::SUCCESS,
             Err(error) => {
                 let _ = writeln!(io.lock().stderr, "echo: {}", error);
-                1
+                status::GENERAL_ERROR
             }
         }
     }
