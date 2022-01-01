@@ -4,9 +4,9 @@ use parking_lot::Mutex;
 use pjsh_ast::Word;
 use pjsh_core::Context;
 
-use crate::executor::execute_program;
+use crate::{executor::execute_program, Executor};
 
-pub fn interpolate_word(word: Word, context: &Context) -> String {
+pub fn interpolate_word(executor: &Executor, word: Word, context: &Context) -> String {
     match word {
         Word::Literal(literal) => literal,
         Word::Quoted(quoted) => quoted,
@@ -37,7 +37,7 @@ pub fn interpolate_word(word: Word, context: &Context) -> String {
                     }
                     pjsh_ast::InterpolationUnit::Subshell(program) => {
                         let inner_context = Arc::new(Mutex::new(context.fork()));
-                        output.push_str(&execute_program(program, inner_context).0)
+                        output.push_str(&execute_program(executor, program, inner_context).0)
                     }
                 }
             }
@@ -46,7 +46,7 @@ pub fn interpolate_word(word: Word, context: &Context) -> String {
         }
         Word::Subshell(program) => {
             let inner_context = Arc::new(Mutex::new(context.fork()));
-            execute_program(program, inner_context).0
+            execute_program(executor, program, inner_context).0
         }
     }
 }

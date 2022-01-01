@@ -9,7 +9,7 @@ use crate::{Executor, FileDescriptors};
 fn execute_assign() {
     let mut fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor;
+    let executor = Executor::default();
     let assignment = Assignment::new(Word::Literal("key".into()), Word::Literal("value".into()));
 
     executor.execute_statement(
@@ -25,7 +25,7 @@ fn execute_assign() {
 fn execute_assign_replace() {
     let mut fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor;
+    let executor = Executor::default();
     let assignment = Assignment::new(Word::Literal("key".into()), Word::Literal("new".into()));
 
     ctx.lock().scope.set_env("key".into(), "old".into());

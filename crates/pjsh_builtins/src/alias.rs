@@ -5,8 +5,8 @@ use pjsh_core::{Context, InternalCommand, InternalIo};
 
 use crate::status;
 
+#[derive(Clone)]
 pub struct Alias;
-
 impl InternalCommand for Alias {
     fn name(&self) -> &str {
         "alias"
@@ -53,8 +53,8 @@ impl InternalCommand for Alias {
     }
 }
 
+#[derive(Clone)]
 pub struct Unalias;
-
 impl InternalCommand for Unalias {
     fn name(&self) -> &str {
         "unalias"

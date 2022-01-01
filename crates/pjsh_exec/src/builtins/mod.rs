@@ -4,7 +4,13 @@ use parking_lot::Mutex;
 use pjsh_builtins::status;
 use pjsh_core::{find_in_path, utils::path_to_string, Context, InternalCommand, InternalIo};
 
+#[derive(Clone)]
 struct Type;
+impl Type {
+    fn is_builtin_action(&self, name: &str) -> bool {
+        matches!(name, "interpolate" | "source")
+    }
+}
 impl InternalCommand for Type {
     fn name(&self) -> &str {
         "type"
@@ -18,6 +24,11 @@ impl InternalCommand for Type {
 
         let mut exit = status::SUCCESS;
         for arg in args {
+            if self.is_builtin_action(arg) {
+                let _ = writeln!(io.lock().stdout, "{} is a shell builtin", arg);
+                continue;
+            }
+
             if let Some(cmd) = builtin(arg) {
                 let _ = writeln!(io.lock().stdout, "{} is a shell builtin", cmd.name());
                 continue;
@@ -28,22 +39,20 @@ impl InternalCommand for Type {
                 continue;
             }
 
-            match find_in_path(arg, &ctx.lock()) {
-                Some(path) => {
-                    let _ = writeln!(io.lock().stdout, "{} is {}", arg, path_to_string(&path));
-                }
-                None => {
-                    let path_var = ctx.lock().scope.get_env("PATH").unwrap_or_default();
-                    let _ = writeln!(io.lock().stderr, "type: no {} in ({})", &arg, path_var);
-                    exit = status::GENERAL_ERROR;
-                }
+            if let Some(path) = find_in_path(arg, &ctx.lock()) {
+                let _ = writeln!(io.lock().stdout, "{} is {}", arg, path_to_string(&path));
+                continue;
             }
+
+            let _ = writeln!(io.lock().stderr, "type: {} not found", &arg);
+            exit = status::GENERAL_ERROR;
         }
 
         exit
     }
 }
 
+#[derive(Clone)]
 struct Which;
 impl InternalCommand for Which {
     fn name(&self) -> &str {
@@ -57,13 +66,13 @@ impl InternalCommand for Which {
         }
 
         let mut exit = status::SUCCESS;
+        let path_var = ctx.lock().scope.get_env("PATH").unwrap_or_default();
         for arg in args {
             match find_in_path(arg, &ctx.lock()) {
                 Some(path) => {
                     let _ = writeln!(io.lock().stdout, "{}", path_to_string(&path));
                 }
                 None => {
-                    let path_var = ctx.lock().scope.get_env("PATH").unwrap_or_default();
                     let _ = writeln!(io.lock().stderr, "which: no {} in ({})", &arg, path_var);
                     exit = status::GENERAL_ERROR;
                 }

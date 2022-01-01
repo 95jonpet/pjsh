@@ -5,8 +5,8 @@ use pjsh_core::{Context, InternalCommand, InternalIo};
 
 use crate::status;
 
+#[derive(Clone)]
 pub struct Drop;
-
 impl InternalCommand for Drop {
     fn name(&self) -> &str {
         "drop"

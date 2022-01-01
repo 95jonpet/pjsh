@@ -5,8 +5,8 @@ use pjsh_core::{Context, InternalCommand, InternalIo};
 
 use crate::status;
 
+#[derive(Clone)]
 pub struct Echo;
-
 impl InternalCommand for Echo {
     fn name(&self) -> &str {
         "echo"

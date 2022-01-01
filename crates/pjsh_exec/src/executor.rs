@@ -1,5 +1,5 @@
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     io::{BufReader, Read, Seek},
     path::PathBuf,
     process,
@@ -12,7 +12,7 @@ use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
 use pjsh_core::{
     find_in_path,
     utils::{path_to_string, resolve_path},
-    Context, InternalIo,
+    Context, InternalCommand, InternalIo,
 };
 use tempfile::tempfile;
 
@@ -33,9 +33,25 @@ enum Value {
 
 /// An executor is responsible for executing a parsed AST.
 #[derive(Default)]
-pub struct Executor;
+pub struct Executor {
+    actions: HashMap<String, Box<dyn InternalCommand>>,
+}
 
 impl Executor {
+    /// Creates an empty executor.
+    pub fn new() -> Self {
+        Self {
+            actions: HashMap::new(),
+        }
+    }
+
+    /// Registers a built-in [`InternalCommand`] action within the executor.
+    ///
+    /// Any previous built-in action with the same name is replaced.
+    pub fn register_action(&mut self, builtin: Box<dyn InternalCommand>) {
+        self.actions.insert(builtin.name().to_string(), builtin);
+    }
+
     /// Executes an [`AndOr`].
     pub fn execute_and_or(&self, and_or: AndOr, ctx: Arc<Mutex<Context>>, fds: &FileDescriptors) {
         debug_assert!(and_or.operators.len() == and_or.pipelines.len() - 1);
@@ -163,8 +179,8 @@ impl Executor {
 
     /// Executes an [`Assignment`] by modifying the [`Context`].
     fn execute_assignment(&self, assignment: Assignment, context: Arc<Mutex<Context>>) {
-        let key = interpolate_word(assignment.key, &context.lock());
-        let value = interpolate_word(assignment.value, &context.lock());
+        let key = interpolate_word(self, assignment.key, &context.lock());
+        let value = interpolate_word(self, assignment.value, &context.lock());
         context.lock().scope.set_env(key, value);
     }
 
@@ -175,24 +191,18 @@ impl Executor {
         context: Arc<Mutex<Context>>,
         fds: &mut FileDescriptors,
     ) -> Result<Value, ExecError> {
-        redirect_file_descriptors(fds, &context.lock(), &command.redirects)?;
+        redirect_file_descriptors(fds, &context.lock(), self, &command.redirects)?;
 
         let mut args = self.expand(command, Arc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
 
+        if let Some(action) = self.actions.get(&program) {
+            return execute_internal_command(action.clone(), args, context, fds);
+        }
+
         // Attempt to use the program as a builtin.
         if let Some(builtin) = builtin(&program) {
-            args.make_contiguous();
-            // TODO: Handle unwrapping.
-            let io = Arc::new(Mutex::new(InternalIo::new(
-                fds.reader(&FD_STDIN).unwrap().unwrap(),
-                fds.writer(&FD_STDOUT).unwrap().unwrap(),
-                fds.writer(&FD_STDERR).unwrap().unwrap(),
-            )));
-
-            let thread_handle =
-                thread::spawn(move || builtin.run(args.as_slices().0, Arc::clone(&context), io));
-            return Ok(Value::Thread(thread_handle));
+            return execute_internal_command(builtin, args, context, fds);
         }
 
         // Attempt to start a program from an absolute path, or from a path relative to $PWD if the
@@ -256,12 +266,31 @@ impl Executor {
             args.push(arg);
         }
 
-        expand(args, &context.lock())
+        expand(args, &context.lock(), self)
     }
+}
+
+/// Executes an internal command.
+fn execute_internal_command(
+    command: Box<dyn InternalCommand>,
+    mut args: VecDeque<String>,
+    ctx: Arc<Mutex<Context>>,
+    fds: &mut FileDescriptors,
+) -> Result<Value, ExecError> {
+    args.make_contiguous();
+    let io = Arc::new(Mutex::new(InternalIo::new(
+        fds.reader(&FD_STDIN).unwrap().unwrap(),
+        fds.writer(&FD_STDOUT).unwrap().unwrap(),
+        fds.writer(&FD_STDERR).unwrap().unwrap(),
+    )));
+    let thread_handle =
+        thread::spawn(move || command.run(args.as_slices().0, Arc::clone(&ctx), io));
+    Ok(Value::Thread(thread_handle))
 }
 
 /// Executes a program and returns a tuple of stdout and stderr.
 pub(crate) fn execute_program(
+    executor: &Executor,
     program: pjsh_ast::Program,
     context: Arc<Mutex<Context>>,
 ) -> (String, String) {
@@ -277,7 +306,6 @@ pub(crate) fn execute_program(
         FileDescriptor::FileHandle(stderr.try_clone().unwrap()),
     );
 
-    let executor = Executor::default();
     for statement in program.statements {
         executor.execute_statement(statement, Arc::clone(&context), &fds);
     }
@@ -297,6 +325,7 @@ pub(crate) fn execute_program(
 fn redirect_file_descriptors(
     fds: &mut FileDescriptors,
     ctx: &Context,
+    executor: &Executor,
     redirects: &[pjsh_ast::Redirect],
 ) -> std::result::Result<(), ExecError> {
     for redirect in redirects {
@@ -313,7 +342,7 @@ fn redirect_file_descriptors(
                 pjsh_ast::FileDescriptor::Number(source),
                 pjsh_ast::FileDescriptor::File(file_path),
             ) => {
-                if let Some(file_path) = expand_single(file_path, ctx) {
+                if let Some(file_path) = expand_single(file_path, ctx, executor) {
                     let path = resolve_path(ctx, &file_path);
                     match redirect.operator {
                         pjsh_ast::RedirectOperator::Write => {
@@ -335,7 +364,7 @@ fn redirect_file_descriptors(
                 pjsh_ast::FileDescriptor::File(file_path),
                 pjsh_ast::FileDescriptor::Number(target),
             ) => {
-                if let Some(file_path) = expand_single(file_path, ctx) {
+                if let Some(file_path) = expand_single(file_path, ctx, executor) {
                     let path = resolve_path(ctx, &file_path);
                     fds.set(target, FileDescriptor::File(path));
                 } else {

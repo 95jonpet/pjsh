@@ -7,8 +7,8 @@ use crate::status;
 
 const EXIT_INVALID_CODE: i32 = 128;
 
+#[derive(Clone)]
 pub struct Exit;
-
 impl InternalCommand for Exit {
     fn name(&self) -> &str {
         "exit"
