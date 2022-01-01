@@ -8,8 +8,8 @@ use pjsh_core::{
 
 use crate::status;
 
+#[derive(Clone)]
 pub struct Cd;
-
 impl Cd {
     fn change_directory(&self, path: PathBuf, context: &mut Context) -> bool {
         if !path.is_dir() {
@@ -90,8 +90,8 @@ impl InternalCommand for Cd {
     }
 }
 
+#[derive(Clone)]
 pub struct Pwd;
-
 impl InternalCommand for Pwd {
     fn name(&self) -> &str {
         "pwd"

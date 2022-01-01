@@ -1,3 +1,5 @@
+mod action;
+mod exec;
 mod init;
 mod shell;
 
@@ -7,6 +9,7 @@ mod tests;
 use std::{path::PathBuf, sync::Arc};
 
 use clap::{crate_version, Parser};
+use exec::create_executor;
 use init::initialized_context;
 use parking_lot::Mutex;
 use pjsh_core::Context;
@@ -59,8 +62,8 @@ pub fn main() {
 }
 
 /// Interpolates a string using a [`Context`].
-fn interpolate(src: &str, context: &Context) -> String {
-    match parse_interpolation(src).map(|word| interpolate_word(word, context)) {
+fn interpolate(src: &str, context: &Context, executor: &Executor) -> String {
+    match parse_interpolation(src).map(|word| interpolate_word(executor, word, context)) {
         Ok(string) => string,
         Err(error) => {
             eprintln!("pjsh: {}", error);
@@ -70,7 +73,7 @@ fn interpolate(src: &str, context: &Context) -> String {
 }
 
 /// Get interpolated PS1 and PS2 prompts from a context.
-fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
+fn get_prompts(interactive: bool, context: &Context, executor: &Executor) -> (String, String) {
     if !interactive {
         return (String::new(), String::new());
     }
@@ -81,6 +84,7 @@ fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
             .get_env("PS1")
             .unwrap_or_else(|| String::from("$ ")),
         context,
+        executor,
     );
     let ps2 = interpolate(
         &context
@@ -88,6 +92,7 @@ fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
             .get_env("PS2")
             .unwrap_or_else(|| String::from("> ")),
         context,
+        executor,
     );
 
     (ps1, ps2)
@@ -96,10 +101,10 @@ fn get_prompts(interactive: bool, context: &Context) -> (String, String) {
 /// Main loop for running a [`Shell`].
 ///
 /// This method is not guaranteed to exit.
-fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
-    let executor = Executor::default();
+pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
+    let executor = create_executor();
     'main: loop {
-        let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.lock());
+        let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.lock(), &executor);
         print_exited_child_processes(&mut context.lock());
 
         let mut line = match shell.prompt_line(&ps1) {

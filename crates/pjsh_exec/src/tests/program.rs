@@ -6,9 +6,12 @@ use pjsh_ast::{
 };
 use pjsh_core::Context;
 
+use crate::Executor;
+
 #[test]
 fn execute_program() {
     let ctx = Context::default();
+    let executor = Executor::default();
     let program = Program {
         statements: vec![Statement::AndOr(AndOr {
             operators: Vec::new(),
@@ -25,7 +28,8 @@ fn execute_program() {
         })],
     };
 
-    let (stdout, stderr) = crate::executor::execute_program(program, Arc::new(Mutex::new(ctx)));
+    let (stdout, stderr) =
+        crate::executor::execute_program(&executor, program, Arc::new(Mutex::new(ctx)));
 
     assert_eq!(stdout, String::from("Hello, world!\n")); // Echo adds newline.
     assert_eq!(stderr, String::new());
@@ -34,6 +38,7 @@ fn execute_program() {
 #[test]
 fn execute_program_stderr() {
     let ctx = Context::default();
+    let executor = Executor::default();
     let program = Program {
         statements: vec![Statement::AndOr(AndOr {
             operators: Vec::new(),
@@ -54,7 +59,8 @@ fn execute_program_stderr() {
         })],
     };
 
-    let (stdout, stderr) = crate::executor::execute_program(program, Arc::new(Mutex::new(ctx)));
+    let (stdout, stderr) =
+        crate::executor::execute_program(&executor, program, Arc::new(Mutex::new(ctx)));
 
     assert_eq!(stdout, String::new()); // Stdout is redirected to stderr.
     assert_eq!(stderr, String::from("Hello, world!\n")); // Echo adds newline.

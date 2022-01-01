@@ -12,6 +12,7 @@ use pjsh_core::Context;
 use crate::expand::alias::expand_aliases;
 use crate::expand::glob::expand_globs;
 use crate::word::interpolate_word;
+use crate::Executor;
 
 /// Interpolates and expands words.
 ///
@@ -19,8 +20,8 @@ use crate::word::interpolate_word;
 /// them:
 /// 1. aliases in the current [`Context`].
 /// 2. filesystem globs.
-pub fn expand(words: Vec<Word>, context: &Context) -> VecDeque<String> {
-    let mut words = interpolate_words(words, context); // (text, expandable)
+pub fn expand(words: Vec<Word>, context: &Context, executor: &Executor) -> VecDeque<String> {
+    let mut words = interpolate_words(words, context, executor); // (text, expandable)
     debug_assert!(!words.is_empty(), "words should not be empty");
 
     expand_aliases(&mut words, context);
@@ -32,8 +33,8 @@ pub fn expand(words: Vec<Word>, context: &Context) -> VecDeque<String> {
 /// Interpolates and expands a single word.
 ///
 /// Returns `None` if the given word expands to multiple words.
-pub fn expand_single(word: Word, context: &Context) -> Option<String> {
-    let mut expanded = expand(vec![word], context);
+pub fn expand_single(word: Word, context: &Context, executor: &Executor) -> Option<String> {
+    let mut expanded = expand(vec![word], context, executor);
 
     if expanded.len() != 1 {
         return None;
@@ -43,12 +44,16 @@ pub fn expand_single(word: Word, context: &Context) -> Option<String> {
 }
 
 /// Interpolates words and converts them into strings.
-fn interpolate_words(words: Vec<Word>, context: &Context) -> VecDeque<(String, bool)> {
+fn interpolate_words(
+    words: Vec<Word>,
+    context: &Context,
+    executor: &Executor,
+) -> VecDeque<(String, bool)> {
     words
         .into_iter()
         .map(|word| {
             let expandable = matches!(word, Word::Literal(_) | Word::Variable(_));
-            let interpolated = interpolate_word(word, context);
+            let interpolated = interpolate_word(executor, word, context);
             (interpolated, expandable)
         })
         .collect()
