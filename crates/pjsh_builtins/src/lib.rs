@@ -3,6 +3,7 @@ mod echo;
 mod env;
 mod exit;
 mod fs;
+mod logic;
 pub mod status;
 
 /// Returns a built-in [`InternalCommand`] with a given `name`.
@@ -13,7 +14,9 @@ pub fn builtin(name: &str) -> Option<Box<dyn pjsh_core::InternalCommand>> {
         "drop" => Some(Box::new(env::Drop {})),
         "echo" => Some(Box::new(echo::Echo {})),
         "exit" => Some(Box::new(exit::Exit {})),
+        "false" => Some(Box::new(logic::False {})),
         "pwd" => Some(Box::new(fs::Pwd {})),
+        "true" => Some(Box::new(logic::True {})),
         "unalias" => Some(Box::new(alias::Unalias {})),
         _ => None,
     }
