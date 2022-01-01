@@ -3,8 +3,9 @@ mod echo;
 mod env;
 mod exit;
 mod fs;
-mod status;
+pub mod status;
 
+/// Returns a built-in [`InternalCommand`] with a given `name`.
 pub fn builtin(name: &str) -> Option<Box<dyn pjsh_core::InternalCommand>> {
     match name {
         "alias" => Some(Box::new(alias::Alias {})),

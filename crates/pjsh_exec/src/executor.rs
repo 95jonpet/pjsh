@@ -9,7 +9,6 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
-use pjsh_builtins::builtin;
 use pjsh_core::{
     find_in_path,
     utils::{path_to_string, resolve_path},
@@ -18,6 +17,7 @@ use pjsh_core::{
 use tempfile::tempfile;
 
 use crate::{
+    builtins::builtin,
     error::ExecError,
     exit::{EXIT_GENERAL_ERROR, EXIT_SUCCESS},
     expand::{expand, expand_single},
