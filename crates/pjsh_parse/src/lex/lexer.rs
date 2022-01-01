@@ -4,7 +4,7 @@ use crate::lex::input::{is_newline, is_variable_char, is_whitespace};
 use crate::tokens::TokenContents::*;
 use crate::tokens::{InterpolationUnit, TokenContents};
 
-use super::input::Input;
+use super::input::{is_literal, Input};
 
 /// Character representing the end of input (also known as end of file = EOF).
 const EOF_CHAR: char = '\0';
@@ -143,7 +143,7 @@ impl<'a> Lexer<'a> {
             "]" => self.eat_char(CloseBracket),
             "\"" => self.eat_quoted_string("\""),
             "'" => self.eat_quoted_string("'"),
-            "$" => self.eat_interpolation_or_variable(),
+            "$" => self.eat_expandable(),
             ":" => self.eat_assign_or_literal(),
             "-" => self.eat_pipeline_start_or_literal(),
             c if is_newline(c) => self.eat_newline(),
@@ -296,7 +296,7 @@ impl<'a> Lexer<'a> {
 
     /// Eats literal words.
     fn eat_literal(&mut self) -> LexResult<'a> {
-        let (span, content) = self.input.eat_while(|c| !is_whitespace(c));
+        let (span, content) = self.input.eat_while(is_literal);
         Ok(Token::new(Literal(content), span))
     }
 
@@ -335,14 +335,15 @@ impl<'a> Lexer<'a> {
             ch => Err(LexError::UnexpectedChar(ch.to_string())),
         }
     }
-
-    fn eat_interpolation_or_variable(&mut self) -> LexResult<'a> {
+    /// Eats an expandable value that starts with a `$` character.
+    fn eat_expandable(&mut self) -> LexResult<'a> {
         debug_assert!(self.input.peek().1 == "$");
         let span_start = self.input.next().0;
 
         let result = match self.input.peek().1 {
             "\"" => self.eat_interpolation(Some("\"")),
             "'" => self.eat_interpolation(Some("'")),
+            "(" => self.eat_char(OpenParen),
             _ => self.eat_variable(),
         };
 
@@ -406,10 +407,27 @@ impl<'a> Lexer<'a> {
                 }
                 "$" => {
                     self.input.next();
-                    let (_, content) = self
-                        .input
-                        .eat_while(|c| is_variable_char(c) && c != delimiter_char);
-                    units.push(InterpolationUnit::Variable(content));
+                    match self.input.peek().1 {
+                        "(" => {
+                            self.input.next();
+                            let mut subshell_tokens = Vec::new();
+                            loop {
+                                // TODO: Handle EoF.
+                                let next_token = self.next_unquoted_token()?;
+                                match next_token.contents {
+                                    CloseParen => break,
+                                    _ => subshell_tokens.push(next_token),
+                                }
+                            }
+                            units.push(InterpolationUnit::Subshell(subshell_tokens));
+                        }
+                        _ => {
+                            let (_, content) = self
+                                .input
+                                .eat_while(|c| is_variable_char(c) && c != delimiter_char);
+                            units.push(InterpolationUnit::Variable(content));
+                        }
+                    }
                 }
                 _ => {
                     let (_, content) = self

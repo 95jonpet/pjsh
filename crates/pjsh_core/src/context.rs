@@ -21,6 +21,15 @@ impl Context {
             last_exit: 0, // Success
         }
     }
+
+    pub fn fork(&self) -> Self {
+        Self {
+            scope: self.scope.fork(),
+            arguments: Vec::new(),
+            host: Arc::clone(&self.host),
+            last_exit: self.last_exit,
+        }
+    }
 }
 
 impl Default for Context {

@@ -1,3 +1,5 @@
+use crate::lex::lexer::Token;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenContents {
     /// "# ..."
@@ -71,4 +73,5 @@ pub enum InterpolationUnit {
     Literal(String),
     Unicode(char),
     Variable(String),
+    Subshell(Vec<Token>),
 }

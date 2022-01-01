@@ -76,6 +76,14 @@ impl Scope {
             frame.aliases.remove(name);
         }
     }
+
+    pub fn fork(&self) -> Self {
+        let mut frames = self.frames.lock().clone();
+        frames.push(Frame::new());
+        Self {
+            frames: Arc::new(Mutex::new(frames)),
+        }
+    }
 }
 
 impl Default for Scope {
@@ -86,6 +94,7 @@ impl Default for Scope {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Frame {
     pub aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,

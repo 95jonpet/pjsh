@@ -1,6 +1,6 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Pipeline, PipelineSegment, Program,
-    Redirect, RedirectOperator, Statement, Word,
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, InterpolationUnit, Pipeline,
+    PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
 };
 
 use super::parser::*;
@@ -305,6 +305,43 @@ fn parse_assignment_statement() {
 }
 
 #[test]
+fn parse_statement_before_unexpected() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("test".into()), span),
+        Token::new(CloseParen, span), // Unexpected token.
+    ]);
+
+    // First, return the valid statement.
+    assert_eq!(
+        parser.parse_statement(),
+        Ok(Statement::AndOr(AndOr {
+            operators: Vec::new(),
+            pipelines: vec![Pipeline {
+                is_async: false,
+                segments: vec![PipelineSegment {
+                    command: Command {
+                        program: Word::Literal("echo".into()),
+                        arguments: vec![Word::Literal("test".into())],
+                        redirects: Vec::new(),
+                    }
+                }]
+            }]
+        }))
+    );
+
+    // Then, return the parse error.
+    assert_eq!(
+        parser.parse_statement(),
+        Err(ParseError::UnexpectedToken(Token {
+            contents: CloseParen,
+            span
+        }))
+    );
+}
+
+#[test]
 fn parse_redirect_read() {
     let span = Span::new(0, 0); // Does not matter during this test.
     let mut parser = Parser::new(vec![
@@ -388,6 +425,84 @@ fn parse_program() {
                     }]
                 })
             ]
+        })
+    );
+}
+
+#[test]
+fn parse_subshell() {
+    assert_eq!(
+        crate::parse("(cmd1 arg1 ; cmd2 arg2)"),
+        Ok(Program {
+            statements: vec![Statement::Subshell(Program {
+                statements: vec![
+                    Statement::AndOr(AndOr {
+                        operators: vec![],
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment {
+                                command: Command {
+                                    program: Word::Literal("cmd1".into()),
+                                    arguments: vec![Word::Literal("arg1".into())],
+                                    redirects: Vec::new(),
+                                }
+                            },]
+                        }]
+                    }),
+                    Statement::AndOr(AndOr {
+                        operators: vec![],
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment {
+                                command: Command {
+                                    program: Word::Literal("cmd2".into()),
+                                    arguments: vec![Word::Literal("arg2".into())],
+                                    redirects: Vec::new(),
+                                }
+                            },]
+                        }]
+                    })
+                ]
+            })]
+        })
+    );
+}
+
+#[test]
+fn parse_subshell_interpolation() {
+    assert_eq!(
+        crate::parse("echo $\"today: $(date)\""),
+        Ok(Program {
+            statements: vec![Statement::AndOr(AndOr {
+                operators: Vec::new(),
+                pipelines: vec![Pipeline {
+                    is_async: false,
+                    segments: vec![PipelineSegment {
+                        command: Command {
+                            program: Word::Literal("echo".into()),
+                            arguments: vec![Word::Interpolation(vec![
+                                InterpolationUnit::Literal("today: ".into()),
+                                InterpolationUnit::Subshell(Program {
+                                    statements: vec![Statement::AndOr(AndOr {
+                                        operators: vec![],
+                                        pipelines: vec![Pipeline {
+                                            is_async: false,
+                                            segments: vec![PipelineSegment {
+                                                command: Command {
+                                                    program: Word::Literal("date".into()),
+                                                    arguments: Vec::new(),
+                                                    redirects: Vec::new(),
+                                                }
+                                            },]
+                                        }]
+                                    }),]
+                                })
+                            ])],
+                            redirects: Vec::new(),
+                        }
+                    }]
+                }]
+            })]
         })
     );
 }

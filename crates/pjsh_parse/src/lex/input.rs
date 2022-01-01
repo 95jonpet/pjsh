@@ -139,3 +139,20 @@ pub fn is_whitespace(grapheme_cluster: &str) -> bool {
         | "\u{2029}" // PARAGRAPH SEPARATOR
     )
 }
+
+/// Returns `true` if a unicode grapheme cluster can belong to a literal.
+pub fn is_literal(grapheme_cluster: &str) -> bool {
+    if is_whitespace(grapheme_cluster) {
+        return false;
+    }
+
+    // Reserved non-literal characters.
+    if matches!(
+        grapheme_cluster,
+        "(" | ")" | "{" | "}" | "[" | "]" | "<" | ">"
+    ) {
+        return false;
+    }
+
+    true
+}

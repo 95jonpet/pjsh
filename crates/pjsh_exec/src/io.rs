@@ -50,6 +50,22 @@ pub enum FileDescriptor {
 }
 
 impl FileDescriptor {
+    /// Creates a clone of the file descriptor.
+    pub fn try_clone(&self) -> std::io::Result<Self> {
+        match self {
+            FileDescriptor::Stdin => Ok(FileDescriptor::Stdin),
+            FileDescriptor::Stdout => Ok(FileDescriptor::Stdout),
+            FileDescriptor::Stderr => Ok(FileDescriptor::Stderr),
+            FileDescriptor::Pipe((reader, writer)) => Ok(FileDescriptor::Pipe((
+                reader.try_clone()?,
+                writer.try_clone()?,
+            ))),
+            FileDescriptor::FileHandle(file) => Ok(FileDescriptor::FileHandle(file.try_clone()?)),
+            FileDescriptor::File(path) => Ok(FileDescriptor::File(path.clone())),
+            FileDescriptor::AppendFile(path) => Ok(FileDescriptor::AppendFile(path.clone())),
+        }
+    }
+
     /// Returns a [`Stdio`] for writing to.
     pub fn output(&mut self) -> Result<Stdio, ExecError> {
         match self {
@@ -190,6 +206,11 @@ impl FileDescriptors {
         Self { fds }
     }
 
+    /// Returns the file descriptor with index `k`.
+    pub fn get(&self, k: &usize) -> Option<&FileDescriptor> {
+        self.fds.get(k)
+    }
+
     /// Returns and removes the file descriptor with index `k`.
     pub fn take(&mut self, k: &usize) -> Option<FileDescriptor> {
         self.fds.remove(k)
@@ -228,5 +249,21 @@ impl FileDescriptors {
     /// Any previous file descriptor with the same index is dropped.
     pub fn set(&mut self, k: usize, fd: FileDescriptor) {
         self.fds.insert(k, fd);
+    }
+
+    /// Creates a new collection containing clones of all file descriptors.
+    pub fn try_clone(&self) -> std::io::Result<Self> {
+        let mut fds = HashMap::new();
+        for (key, fd) in &self.fds {
+            fds.insert(*key, fd.try_clone()?);
+        }
+
+        Ok(FileDescriptors { fds })
+    }
+}
+
+impl Default for FileDescriptors {
+    fn default() -> Self {
+        Self::new()
     }
 }

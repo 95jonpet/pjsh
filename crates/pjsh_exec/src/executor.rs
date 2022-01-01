@@ -1,4 +1,11 @@
-use std::{collections::VecDeque, path::PathBuf, process, sync::Arc, thread};
+use std::{
+    collections::VecDeque,
+    io::{BufReader, Read, Seek},
+    path::PathBuf,
+    process,
+    sync::Arc,
+    thread,
+};
 
 use parking_lot::Mutex;
 use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
@@ -8,6 +15,7 @@ use pjsh_core::{
     utils::{path_to_string, resolve_path},
     Context, InternalIo,
 };
+use tempfile::tempfile;
 
 use crate::{
     error::ExecError,
@@ -17,6 +25,7 @@ use crate::{
     word::interpolate_word,
 };
 
+#[derive(Debug)]
 enum Value {
     Process(process::Child),
     Thread(thread::JoinHandle<i32>),
@@ -28,7 +37,7 @@ pub struct Executor;
 
 impl Executor {
     /// Executes an [`AndOr`].
-    pub fn execute_and_or(&self, and_or: AndOr, ctx: Arc<Mutex<Context>>) {
+    pub fn execute_and_or(&self, and_or: AndOr, ctx: Arc<Mutex<Context>>, fds: &FileDescriptors) {
         debug_assert!(and_or.operators.len() == and_or.pipelines.len() - 1);
         let mut operators = and_or.operators.iter();
         let mut exit_status = EXIT_SUCCESS;
@@ -44,7 +53,7 @@ impl Executor {
                 break;
             }
 
-            exit_status = self.execute_pipeline(pipeline, Arc::clone(&ctx));
+            exit_status = self.execute_pipeline(pipeline, Arc::clone(&ctx), fds);
             operator = operators.next().unwrap_or(&AndOrOp::And); // There are n-1 operators.
         }
 
@@ -52,17 +61,23 @@ impl Executor {
     }
 
     /// Executes a [`Pipeline`].
-    pub fn execute_pipeline(&self, pipeline: Pipeline, ctx: Arc<Mutex<Context>>) -> i32 {
+    pub fn execute_pipeline(
+        &self,
+        pipeline: Pipeline,
+        ctx: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) -> i32 {
         let mut values = VecDeque::with_capacity(pipeline.segments.len());
         let mut segments = pipeline.segments.into_iter().peekable();
-        let mut fds = FileDescriptors::new();
+        let mut fds = fds.try_clone().unwrap(); // Clone to allow local modification.
+        let mut stdout = fds.take(&FD_STDOUT); // The original stdout.
         loop {
             let segment = segments.next().unwrap();
             let is_last = segments.peek().is_none();
 
             // Create a new pipe for all but the last pipeline segment.
             if is_last {
-                fds.set(FD_STDOUT, FileDescriptor::Stdout);
+                fds.set(FD_STDOUT, stdout.take().unwrap_or(FileDescriptor::Stdout));
             } else {
                 fds.set(FD_STDOUT, FileDescriptor::Pipe(os_pipe::pipe().unwrap()));
             }
@@ -72,8 +87,9 @@ impl Executor {
                 Ok(value) => {
                     // Set the pipe that was previously used for output as input for the next
                     // pipeline segment. The output end is replaced in the next loop iteration.
-                    if let Some(stdout) = fds.take(&FD_STDOUT) {
-                        fds.set(FD_STDIN, stdout);
+                    // This also serves to release stdout from the previous process.
+                    if let Some(previous_stdout) = fds.take(&FD_STDOUT) {
+                        fds.set(FD_STDIN, previous_stdout);
                     }
 
                     values.push_back(value);
@@ -127,10 +143,21 @@ impl Executor {
     }
 
     /// Executes a [`Statement`].
-    pub fn execute_statement(&self, statement: Statement, context: Arc<Mutex<Context>>) {
+    pub fn execute_statement(
+        &self,
+        statement: Statement,
+        context: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) {
         match statement {
-            Statement::AndOr(and_or) => self.execute_and_or(and_or, context),
+            Statement::AndOr(and_or) => self.execute_and_or(and_or, context, fds),
             Statement::Assignment(assignment) => self.execute_assignment(assignment, context),
+            Statement::Subshell(subshell) => {
+                let inner_context = Arc::new(Mutex::new(context.lock().fork()));
+                for subshell_statement in subshell.statements {
+                    self.execute_statement(subshell_statement, Arc::clone(&inner_context), fds);
+                }
+            }
         }
     }
 
@@ -233,6 +260,39 @@ impl Executor {
     }
 }
 
+/// Executes a program and returns a tuple of stdout and stderr.
+pub(crate) fn execute_program(
+    program: pjsh_ast::Program,
+    context: Arc<Mutex<Context>>,
+) -> (String, String) {
+    let stdout = tempfile().expect("create temporary file");
+    let stderr = tempfile().expect("create temporary file");
+    let mut fds = FileDescriptors::new();
+    fds.set(
+        FD_STDOUT,
+        FileDescriptor::FileHandle(stdout.try_clone().unwrap()),
+    );
+    fds.set(
+        FD_STDERR,
+        FileDescriptor::FileHandle(stderr.try_clone().unwrap()),
+    );
+
+    let executor = Executor::default();
+    for statement in program.statements {
+        executor.execute_statement(statement, Arc::clone(&context), &fds);
+    }
+
+    let read_file = |mut file: std::fs::File| {
+        let _ = file.seek(std::io::SeekFrom::Start(0));
+        let mut buf_reader = BufReader::new(file);
+        let mut contents = String::new();
+        let _ = buf_reader.read_to_string(&mut contents);
+        contents
+    };
+
+    (read_file(stdout), read_file(stderr))
+}
+
 /// Handles [`FileDescriptor`] redirections for some [`FileDescriptors`] in a [`Context`].
 fn redirect_file_descriptors(
     fds: &mut FileDescriptors,
@@ -241,8 +301,13 @@ fn redirect_file_descriptors(
 ) -> std::result::Result<(), ExecError> {
     for redirect in redirects {
         match (redirect.source.clone(), redirect.target.clone()) {
-            (pjsh_ast::FileDescriptor::Number(_), pjsh_ast::FileDescriptor::Number(_)) => {
-                todo!("general file descriptor redirection");
+            (pjsh_ast::FileDescriptor::Number(from), pjsh_ast::FileDescriptor::Number(to)) => {
+                if let Some(fd) = fds.get(&to) {
+                    let fd = fd.try_clone().expect("clone file descriptor");
+                    fds.set(from, fd);
+                } else {
+                    return Err(ExecError::UnknownFileDescriptor(to.to_string()));
+                }
             }
             (
                 pjsh_ast::FileDescriptor::Number(source),

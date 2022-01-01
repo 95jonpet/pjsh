@@ -10,7 +10,7 @@ use clap::{crate_version, Parser};
 use init::initialized_context;
 use parking_lot::Mutex;
 use pjsh_core::Context;
-use pjsh_exec::{interpolate_word, Executor};
+use pjsh_exec::{interpolate_word, Executor, FileDescriptors};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
 use shell::{
     command::SingleCommandShell, file::FileBufferShell, interactive::RustylineShell, Shell,
@@ -119,7 +119,8 @@ fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
                 Ok(program) => {
                     shell.add_history_entry(line.trim());
                     for statement in program.statements {
-                        executor.execute_statement(statement, Arc::clone(&context));
+                        let fds = FileDescriptors::new();
+                        executor.execute_statement(statement, Arc::clone(&context), &fds);
                     }
                     break;
                 }
