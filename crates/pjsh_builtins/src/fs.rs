@@ -6,6 +6,8 @@ use pjsh_core::{
     Context, InternalCommand, InternalIo,
 };
 
+use crate::status;
+
 pub struct Cd;
 
 impl Cd {
@@ -47,7 +49,7 @@ impl InternalCommand for Cd {
             [] => {
                 let path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
                 self.change_directory(path, &mut context.lock());
-                0
+                status::SUCCESS
             }
             [target] if target == "-" => match context.lock().scope.get_env("OLDPWD") {
                 Some(oldpwd) => {
@@ -55,26 +57,26 @@ impl InternalCommand for Cd {
                     self.change_directory(path, &mut context.lock());
                     let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
                     match writeln!(io.lock().stdout, "{}", path_to_string(&path)) {
-                        Ok(_) => 0,
+                        Ok(_) => status::SUCCESS,
                         Err(error) => {
                             let _ = writeln!(
                                 io.lock().stderr,
                                 "cd: could not write path to stdout: {}",
                                 error
                             );
-                            1
+                            status::GENERAL_ERROR
                         }
                     }
                 }
                 None => {
                     let _ = writeln!(io.lock().stderr, "cd: OLDPWD not set");
-                    1
+                    status::GENERAL_ERROR
                 }
             },
             [target] => {
                 let path = resolve_path(&context.lock(), target);
                 self.change_directory(path, &mut context.lock());
-                0
+                status::SUCCESS
             }
             _ => {
                 let _ = writeln!(
@@ -82,7 +84,7 @@ impl InternalCommand for Cd {
                     "cd: invalid arguments: {}",
                     args.join(" ")
                 );
-                2
+                status::BUILTIN_ERROR
             }
         }
     }
@@ -103,14 +105,14 @@ impl InternalCommand for Pwd {
     ) -> i32 {
         let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
         match writeln!(io.lock().stdout, "{}", path_to_string(&path)) {
-            Ok(_) => 0,
+            Ok(_) => status::SUCCESS,
             Err(error) => {
                 let _ = writeln!(
                     io.lock().stderr,
                     "pwd: could not write path to stdout: {}",
                     error
                 );
-                1
+                status::GENERAL_ERROR
             }
         }
     }

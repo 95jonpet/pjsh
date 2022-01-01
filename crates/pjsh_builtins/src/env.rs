@@ -3,6 +3,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use pjsh_core::{Context, InternalCommand, InternalIo};
 
+use crate::status;
+
 pub struct Drop;
 
 impl InternalCommand for Drop {
@@ -19,13 +21,13 @@ impl InternalCommand for Drop {
     ) -> i32 {
         if args.is_empty() {
             let _ = writeln!(io.lock().stderr, "drop: missing keys to drop");
-            return 2;
+            return status::BUILTIN_ERROR;
         }
 
         for arg in args {
             context.lock().scope.unset_env(arg);
         }
 
-        0
+        status::SUCCESS
     }
 }
