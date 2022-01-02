@@ -15,7 +15,7 @@ enum NewlineMode {
 }
 
 /// A cursor for traversing through a peekable [`Token`] iterator while skipping trivial tokens.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TokenCursor {
     /// Tokens that the cursor traverses.
     tokens: Peekable<IntoIter<Token>>,

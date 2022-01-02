@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{eval::scope::Scope, Host, StdHost};
 
 pub struct Context {
+    pub name: String,
     pub scope: Scope,
     pub arguments: Vec<String>,
     pub host: Arc<parking_lot::Mutex<dyn Host>>,
@@ -10,11 +11,12 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new() -> Self {
+    pub fn new(name: String) -> Self {
         let host = StdHost::default();
         let scope = Scope::default();
 
         Self {
+            name,
             scope,
             arguments: Vec::new(),
             host: Arc::new(parking_lot::Mutex::new(host)),
@@ -22,8 +24,9 @@ impl Context {
         }
     }
 
-    pub fn fork(&self) -> Self {
+    pub fn fork(&self, name: String) -> Self {
         Self {
+            name,
             scope: self.scope.fork(),
             arguments: Vec::new(),
             host: Arc::clone(&self.host),
@@ -34,6 +37,6 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self::new()
+        Self::new(String::from("pjsh"))
     }
 }

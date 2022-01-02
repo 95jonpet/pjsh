@@ -2,6 +2,8 @@ mod command;
 mod io;
 mod program;
 
+use std::collections::VecDeque;
+
 pub use command::Command;
 pub use io::{FileDescriptor, Redirect, RedirectOperator};
 pub use program::Program;
@@ -10,6 +12,7 @@ pub use program::Program;
 pub enum Statement {
     AndOr(AndOr),
     Assignment(Assignment),
+    Function(Function),
     Subshell(Program),
 }
 
@@ -22,6 +25,19 @@ pub struct Assignment {
 impl Assignment {
     pub fn new(key: Word, value: Word) -> Self {
         Self { key, value }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Function {
+    pub name: String,
+    pub args: VecDeque<String>,
+    pub body: Program,
+}
+
+impl Function {
+    pub fn new(name: String, args: VecDeque<String>, body: Program) -> Self {
+        Self { name, args, body }
     }
 }
 

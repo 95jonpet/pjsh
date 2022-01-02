@@ -1,5 +1,5 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, InterpolationUnit, Pipeline,
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Function, InterpolationUnit, Pipeline,
     PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
 };
 
@@ -300,6 +300,44 @@ fn parse_assignment_statement() {
         Ok(Statement::Assignment(Assignment {
             key: Word::Literal("key".into()),
             value: Word::Literal("value".into()),
+        }))
+    )
+}
+
+#[test]
+fn parse_function_statement() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("fn".into()), span),
+        Token::new(Literal("function_name".into()), span),
+        Token::new(OpenParen, span),
+        Token::new(Literal("arg".into()), span),
+        Token::new(CloseParen, span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("test".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_statement(),
+        Ok(Statement::Function(Function {
+            name: "function_name".into(),
+            args: vec!["arg".into()].into(),
+            body: Program {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("echo".into()),
+                                arguments: vec![Word::Literal("test".into())],
+                                redirects: Vec::new(),
+                            }
+                        }]
+                    }]
+                })]
+            }
         }))
     )
 }

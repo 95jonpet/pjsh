@@ -20,65 +20,65 @@ fn pipeline(exit_status: i32) -> Pipeline {
 
 #[test]
 fn execute_and_success() {
-    let mut fds = FileDescriptors::new();
+    let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
     let executor = Executor::default();
     let and_success = AndOr {
         operators: vec![AndOrOp::And],
         pipelines: vec![pipeline(0), pipeline(0)],
     };
-    executor.execute_and_or(and_success, Arc::clone(&ctx), &mut fds);
+    executor.execute_and_or(and_success, Arc::clone(&ctx), &fds);
     assert_eq!(ctx.lock().last_exit, 0);
 }
 
 #[test]
 fn execute_and_fail() {
-    let mut fds = FileDescriptors::new();
+    let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
     let executor = Executor::default();
     let and_success = AndOr {
         operators: vec![AndOrOp::And],
         pipelines: vec![pipeline(1), pipeline(0)],
     };
-    executor.execute_and_or(and_success, Arc::clone(&ctx), &mut fds);
+    executor.execute_and_or(and_success, Arc::clone(&ctx), &fds);
     assert_eq!(ctx.lock().last_exit, 1);
 }
 
 #[test]
 fn execute_or_first_success() {
-    let mut fds = FileDescriptors::new();
+    let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
     let executor = Executor::default();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(0), pipeline(1)],
     };
-    executor.execute_and_or(and_success, Arc::clone(&ctx), &mut fds);
+    executor.execute_and_or(and_success, Arc::clone(&ctx), &fds);
     assert_eq!(ctx.lock().last_exit, 0);
 }
 
 #[test]
 fn execute_or_last_success() {
-    let mut fds = FileDescriptors::new();
+    let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
     let executor = Executor::default();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(1), pipeline(0)],
     };
-    executor.execute_and_or(and_success, Arc::clone(&ctx), &mut fds);
+    executor.execute_and_or(and_success, Arc::clone(&ctx), &fds);
     assert_eq!(ctx.lock().last_exit, 0);
 }
 
 #[test]
 fn execute_or_last_fail() {
-    let mut fds = FileDescriptors::new();
+    let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
     let executor = Executor::default();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(1), pipeline(1)],
     };
-    executor.execute_and_or(and_success, Arc::clone(&ctx), &mut fds);
+    executor.execute_and_or(and_success, Arc::clone(&ctx), &fds);
     assert_eq!(ctx.lock().last_exit, 1);
 }

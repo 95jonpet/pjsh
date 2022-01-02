@@ -1,8 +1,10 @@
+use std::collections::VecDeque;
+
 use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, InterpolationUnit, Pipeline,
+    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Function, InterpolationUnit, Pipeline,
     PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
 };
 
@@ -285,6 +287,13 @@ impl Parser {
             return Ok(subshell_statement);
         }
 
+        // Try to parse a function declaration.
+        match self.parse_function() {
+            Ok(function_statement) => return Ok(function_statement),
+            Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+            _ => (),
+        }
+
         // Try to parse an assignment.
         let mut assignment_iter = self.tokens.clone();
         assignment_iter.next();
@@ -453,6 +462,64 @@ impl Parser {
             }
         }
         Ok(Word::Quoted(quoted))
+    }
+
+    fn parse_function(&mut self) -> Result<Statement, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::Literal("fn".into()))
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        match self.tokens.next().contents {
+            TokenContents::Literal(name) => {
+                if self.tokens.next_if_eq(TokenContents::OpenParen).is_none() {
+                    return Err(self.unexpected_token());
+                }
+
+                // Parse argument list.
+                let mut args = VecDeque::new();
+                while let Some(token) = self
+                    .tokens
+                    .next_if(|t| matches!(&t.contents, &TokenContents::Literal(_)))
+                {
+                    match token.contents {
+                        TokenContents::Literal(arg) => args.push_back(arg),
+                        _ => unreachable!(),
+                    };
+                }
+
+                if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
+                    return Err(self.unexpected_token());
+                }
+
+                if self.tokens.next_if_eq(TokenContents::OpenBrace).is_none() {
+                    return Err(self.unexpected_token());
+                }
+
+                // Parse function body.
+                let mut body = Program::new();
+                loop {
+                    match &self.tokens.peek().contents {
+                        TokenContents::Eol => self.skip_newlines(),
+                        TokenContents::Eof => return Err(ParseError::IncompleteSequence),
+                        TokenContents::CloseBrace => break,
+                        _ => {
+                            body.statement(self.parse_statement()?);
+                        }
+                    }
+                }
+
+                if self.tokens.next_if_eq(TokenContents::CloseBrace).is_none() {
+                    return Err(self.unexpected_token());
+                }
+
+                Ok(Statement::Function(Function::new(name, args, body)))
+            }
+            _ => Err(self.unexpected_token()),
+        }
     }
 
     /// Advances the token cursor until the next token is not an end-of-line token.

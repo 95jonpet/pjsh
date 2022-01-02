@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use parking_lot::Mutex;
+use pjsh_ast::Function;
 
 pub struct Scope {
     frames: Arc<Mutex<Vec<Frame>>>,
@@ -84,6 +85,21 @@ impl Scope {
             frames: Arc::new(Mutex::new(frames)),
         }
     }
+
+    pub fn add_function(&self, function: Function) {
+        if let Some(frame) = self.frames.lock().last_mut() {
+            frame.functions.insert(function.name.clone(), function);
+        }
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<Function> {
+        for frame in self.frames.lock().iter().rev() {
+            if let Some(function) = frame.functions.get(name) {
+                return Some(function.clone());
+            }
+        }
+        None
+    }
 }
 
 impl Default for Scope {
@@ -94,10 +110,11 @@ impl Default for Scope {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Frame {
     pub aliases: HashMap<String, String>,
     pub env: HashMap<String, String>,
+    pub functions: HashMap<String, Function>,
 }
 
 impl Frame {
@@ -105,6 +122,7 @@ impl Frame {
         Self {
             aliases: HashMap::new(),
             env: HashMap::new(),
+            functions: HashMap::new(),
         }
     }
 }

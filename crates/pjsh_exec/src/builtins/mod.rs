@@ -39,8 +39,13 @@ impl InternalCommand for Type {
                 continue;
             }
 
+            if ctx.lock().scope.get_function(arg).is_some() {
+                let _ = writeln!(io.lock().stdout, "{} is a function", arg);
+                continue;
+            }
+
             if let Some(path) = find_in_path(arg, &ctx.lock()) {
-                let _ = writeln!(io.lock().stdout, "{} is {}", arg, path_to_string(&path));
+                let _ = writeln!(io.lock().stdout, "{} is `{}'", arg, path_to_string(&path));
                 continue;
             }
 

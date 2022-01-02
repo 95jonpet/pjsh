@@ -31,7 +31,7 @@ fn execute_program() {
     let (stdout, stderr) =
         crate::executor::execute_program(&executor, program, Arc::new(Mutex::new(ctx)));
 
-    assert_eq!(stdout, String::from("Hello, world!\n")); // Echo adds newline.
+    assert_eq!(stdout, String::from("Hello, world!")); // Final newline from echo is trimmed.
     assert_eq!(stderr, String::new());
 }
 
@@ -63,5 +63,5 @@ fn execute_program_stderr() {
         crate::executor::execute_program(&executor, program, Arc::new(Mutex::new(ctx)));
 
     assert_eq!(stdout, String::new()); // Stdout is redirected to stderr.
-    assert_eq!(stderr, String::from("Hello, world!\n")); // Echo adds newline.
+    assert_eq!(stderr, String::from("Hello, world!")); // Final newline from echo is trimmed.
 }

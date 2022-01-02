@@ -591,6 +591,7 @@ name = "pjsh_core"
 version = "0.1.0"
 dependencies = [
  "parking_lot",
+ "pjsh_ast",
 ]
 
 [[package]]
