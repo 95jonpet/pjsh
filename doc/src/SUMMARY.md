@@ -1,9 +1,23 @@
 # Summary
 
-- [Introduction](./introduction.md)
-  - [Known Issues](./known-issues.md)
-- [The Basics](./basics.md)
-- [Digging Deeper](./digging-deeper.md)
-  - [Init Scripts](./init-scripts.md)
-  - [Standard environment variables](./standard-environment-variables.md)
-  - [Grammar](./grammar.md)
+# Getting Started
+- [Introduction](./index.md)
+- [Installation](./installation.md)
+- [Configuration](./configuration.md)
+- [Command Line Interface](./command-line-interface.md)
+
+# Concepts
+- [Commands](./commands.md)
+- [Quoting](./quoting.md)
+- [Environment](./environment.md)
+- [Aliasing](./aliasing.md)
+- [Globbing](./globbing.md)
+- [Conditionals](./conditionals.md)
+- [Functions](./functions.md)
+- [Pipelines](./pipelines.md)
+- [Redirection](./redirection.md)
+
+# Advanced Topics
+- [Command Resolution](./command-resolution.md)
+- [Special Environment Variables](./special-environment-variables.md)
+- [Built-in Commands](./built-in-commands.md)
