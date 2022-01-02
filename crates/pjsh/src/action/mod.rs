@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use clap::StructOpt;
 use parking_lot::Mutex;
 use pjsh_builtins::status;
 use pjsh_core::{Context, InternalCommand, InternalIo};
@@ -41,6 +42,38 @@ impl InternalCommand for Interpolate {
         }
 
         exit
+    }
+}
+
+#[derive(clap::Parser)]
+#[clap(name = "sleep")]
+struct SleepOpts {
+    #[clap(parse(try_from_str))]
+    seconds: u64,
+}
+
+#[derive(Clone)]
+pub(crate) struct Sleep;
+impl InternalCommand for Sleep {
+    fn name(&self) -> &str {
+        "sleep"
+    }
+
+    fn run(&self, args: &[String], _: Arc<Mutex<Context>>, io: Arc<Mutex<InternalIo>>) -> i32 {
+        let name = vec![self.name().to_string()];
+        let iter = name.iter().chain(args);
+        match SleepOpts::try_parse_from(iter) {
+            Ok(opts) => {
+                let duration = std::time::Duration::from_secs(opts.seconds);
+                std::thread::sleep(duration);
+            }
+            Err(error) => {
+                let _ = writeln!(io.lock().stderr, "{}", error);
+                return status::BUILTIN_ERROR;
+            }
+        }
+
+        status::SUCCESS
     }
 }
 
