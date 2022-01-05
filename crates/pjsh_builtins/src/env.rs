@@ -6,13 +6,13 @@ use pjsh_core::{Context, InternalCommand, InternalIo};
 use crate::status;
 
 #[derive(Clone)]
-pub struct Drop;
-impl InternalCommand for Drop {
+pub struct Unset;
+impl InternalCommand for Unset {
     fn name(&self) -> &str {
-        "drop"
+        "unset"
     }
 
-    /// Drops all environment variables with keys defined in `args`.
+    /// Removes all environment variables with keys defined in `args`.
     fn run(
         &self,
         args: &[String],
@@ -20,7 +20,7 @@ impl InternalCommand for Drop {
         io: Arc<Mutex<InternalIo>>,
     ) -> i32 {
         if args.is_empty() {
-            let _ = writeln!(io.lock().stderr, "drop: missing keys to drop");
+            let _ = writeln!(io.lock().stderr, "unset: missing keys to unset");
             return status::BUILTIN_ERROR;
         }
 
