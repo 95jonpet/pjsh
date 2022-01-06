@@ -7,7 +7,7 @@ use pjsh_core::{Context, InternalCommand, InternalIo};
 use pjsh_exec::interpolate_word;
 use pjsh_parse::parse_interpolation;
 
-use crate::{exec::create_executor, run_shell, shell::file::FileBufferShell};
+use crate::{exec::create_executor, file_shell::FileBufferShell, run_shell};
 
 #[derive(Clone)]
 pub(crate) struct Interpolate;

@@ -1,18 +1,24 @@
+mod complete;
+mod utils;
+
 use std::borrow::Cow;
 
-use lazy_static::lazy_static;
-use regex::Regex;
 use rustyline::{
-    completion::{Completer, FilenameCompleter, Pair},
+    completion::{Completer, Pair},
     error::ReadlineError,
     highlight::{Highlighter, MatchingBracketHighlighter},
     hint::{Hinter, HistoryHinter},
-    validate::{self, MatchingBracketValidator, Validator},
+    validate::{self, ValidationResult, Validator},
     Config, Context, Editor,
 };
 use rustyline_derive::Helper;
 
-use super::{Shell, ShellInput};
+use crate::{
+    completion::FileCompleter,
+    shell::{Shell, ShellInput},
+};
+
+use self::{complete::CombinationCompleter, utils::strip_ansi_escapes};
 
 pub struct RustylineShell {
     editor: Editor<ShellHelper>,
@@ -22,11 +28,10 @@ pub struct RustylineShell {
 impl RustylineShell {
     pub fn new(history_file: &std::path::Path) -> Self {
         let helper = ShellHelper {
-            completer: FilenameCompleter::new(),
+            completer: CombinationCompleter::new(vec![Box::new(FileCompleter {})]),
             highlighter: MatchingBracketHighlighter::new(),
             hinter: HistoryHinter {},
             colored_prompt: "$ ".to_owned(),
-            validator: MatchingBracketValidator::new(),
         };
 
         let config = Config::builder().build();
@@ -99,9 +104,8 @@ impl Shell for RustylineShell {
 
 #[derive(Helper)]
 struct ShellHelper {
-    completer: FilenameCompleter,
+    completer: CombinationCompleter,
     highlighter: MatchingBracketHighlighter,
-    validator: MatchingBracketValidator,
     hinter: HistoryHinter,
     colored_prompt: String,
 }
@@ -154,24 +158,13 @@ impl Highlighter for ShellHelper {
 }
 
 impl Validator for ShellHelper {
-    fn validate(
-        &self,
-        ctx: &mut validate::ValidationContext,
-    ) -> rustyline::Result<validate::ValidationResult> {
-        self.validator.validate(ctx)
+    fn validate(&self, _: &mut validate::ValidationContext) -> rustyline::Result<ValidationResult> {
+        // The lexer/parser is responsible for validating input. Thus, the interactive shell should
+        // consider all input valid at this point.
+        rustyline::Result::Ok(ValidationResult::Valid(None))
     }
 
     fn validate_while_typing(&self) -> bool {
-        self.validator.validate_while_typing()
+        false
     }
-}
-
-/// Strips all ANSI control sequences from some text.
-fn strip_ansi_escapes(text: &str) -> Cow<str> {
-    lazy_static! {
-        // This regex was taken from the following page:
-        // https://superuser.com/questions/380772/removing-ansi-color-codes-from-text-stream
-        static ref RE: Regex = Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]").unwrap();
-    }
-    RE.replace_all(text, "")
 }
