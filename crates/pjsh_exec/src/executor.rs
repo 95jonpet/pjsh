@@ -266,6 +266,10 @@ impl Executor {
         cmd.envs(context.scope.envs());
         cmd.args(args);
 
+        if let Some(path) = context.scope.get_env("PWD") {
+            cmd.current_dir(path);
+        }
+
         if let Some(stdin) = fds.input(&FD_STDIN) {
             cmd.stdin(stdin?);
         }
