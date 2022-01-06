@@ -89,14 +89,14 @@ fn lex_variable() {
 #[test]
 fn lex_interpolation_token() {
     assert_eq!(
-        tokens(r#"$"literal $variable literal""#),
+        tokens("`literal $variable literal`"),
         vec![Token::new(
             Interpolation(vec![
                 InterpolationUnit::Literal("literal ".into()),
                 InterpolationUnit::Variable("variable".into()),
                 InterpolationUnit::Literal(" literal".into()),
             ]),
-            Span::new(0, 28)
+            Span::new(0, 27)
         )]
     );
 }

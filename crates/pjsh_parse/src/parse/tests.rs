@@ -471,7 +471,7 @@ fn parse_subshell() {
 #[test]
 fn parse_subshell_interpolation() {
     assert_eq!(
-        crate::parse("echo $\"today: $(date)\""),
+        crate::parse("echo `today: $(date)`"),
         Ok(Program {
             statements: vec![Statement::AndOr(AndOr {
                 operators: Vec::new(),

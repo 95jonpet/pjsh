@@ -143,6 +143,7 @@ impl<'a> Lexer<'a> {
             "]" => self.eat_char(CloseBracket),
             "\"" => self.eat_quoted_string("\""),
             "'" => self.eat_quoted_string("'"),
+            "`" => self.eat_interpolation(Some("`")),
             "$" => self.eat_expandable(),
             ":" => self.eat_assign_or_literal(),
             "-" => self.eat_pipeline_start_or_literal(),
@@ -341,8 +342,6 @@ impl<'a> Lexer<'a> {
         let span_start = self.input.next().0;
 
         let result = match self.input.peek().1 {
-            "\"" => self.eat_interpolation(Some("\"")),
-            "'" => self.eat_interpolation(Some("'")),
             "(" => self.eat_char(OpenParen),
             _ => self.eat_variable(),
         };
