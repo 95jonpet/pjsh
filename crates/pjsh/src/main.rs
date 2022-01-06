@@ -39,6 +39,9 @@ struct Opts {
     /// Input file
     #[clap(parse(from_os_str))]
     input: Option<PathBuf>,
+
+    /// Script arguments
+    args: Vec<String>,
 }
 
 /// Entrypoint for the application.

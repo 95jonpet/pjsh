@@ -36,7 +36,8 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: &Context) -> S
                         output.push_str(&context.scope.get_env(&variable).unwrap_or_default())
                     }
                     pjsh_ast::InterpolationUnit::Subshell(program) => {
-                        let inner_context = Arc::new(Mutex::new(context.fork()));
+                        let inner_context =
+                            Arc::new(Mutex::new(context.fork(context.name.clone())));
                         output.push_str(&execute_program(executor, program, inner_context).0)
                     }
                 }
@@ -45,7 +46,7 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: &Context) -> S
             output
         }
         Word::Subshell(program) => {
-            let inner_context = Arc::new(Mutex::new(context.fork()));
+            let inner_context = Arc::new(Mutex::new(context.fork(context.name.clone())));
             execute_program(executor, program, inner_context).0
         }
     }

@@ -125,7 +125,7 @@ impl<'a> Lexer<'a> {
         Token::new(Eof, Span::new(self.input_length, self.input_length + 1))
     }
 
-    /// Returns the next token in unqouted mode.
+    /// Returns the next token in unquoted mode.
     fn next_unquoted_token(&mut self) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::Unquoted);
         match self.input.peek().1 {
@@ -154,7 +154,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Returns the next token in qouted mode.
+    /// Returns the next token in quoted mode.
     fn next_quoted_token(&mut self, delimiter: &str) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::Quoted(delimiter));
         let is_quoted = |ch: &str| ch != delimiter && ch != "\\";
@@ -184,7 +184,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Returns the next token in qouted multiline mode.
+    /// Returns the next token in quoted multiline mode.
     fn next_quoted_multiline_token(&mut self, delimiter: &str) -> LexResult<'a> {
         debug_assert_eq!(self.mode, LexerMode::QuotedMultiline(delimiter));
         let start = self.input.peek().0;
@@ -419,6 +419,16 @@ impl<'a> Lexer<'a> {
                                 }
                             }
                             units.push(InterpolationUnit::Subshell(subshell_tokens));
+                        }
+                        "{" => {
+                            self.input.next();
+                            let (_, content) = self.input.eat_while(|c| c != "}");
+                            if self.input.next_if_eq("}").is_none() {
+                                return Err(LexError::UnexpectedChar(
+                                    self.input.peek().1.to_string(),
+                                ));
+                            }
+                            units.push(InterpolationUnit::Variable(content));
                         }
                         _ => {
                             let (_, content) = self

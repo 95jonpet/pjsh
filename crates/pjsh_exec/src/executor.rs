@@ -32,7 +32,7 @@ enum Value {
 }
 
 /// An executor is responsible for executing a parsed AST.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Executor {
     actions: HashMap<String, Box<dyn InternalCommand>>,
 }
@@ -168,8 +168,10 @@ impl Executor {
         match statement {
             Statement::AndOr(and_or) => self.execute_and_or(and_or, context, fds),
             Statement::Assignment(assignment) => self.execute_assignment(assignment, context),
+            Statement::Function(function) => context.lock().scope.add_function(function),
             Statement::Subshell(subshell) => {
-                let inner_context = Arc::new(Mutex::new(context.lock().fork()));
+                let name = context.lock().name.clone();
+                let inner_context = Arc::new(Mutex::new(context.lock().fork(name)));
                 for subshell_statement in subshell.statements {
                     self.execute_statement(subshell_statement, Arc::clone(&inner_context), fds);
                 }
@@ -196,13 +198,41 @@ impl Executor {
         let mut args = self.expand(command, Arc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
 
+        // Attempt to use the program as a built-in action.
         if let Some(action) = self.actions.get(&program) {
             return execute_internal_command(action.clone(), args, context, fds);
         }
 
-        // Attempt to use the program as a builtin.
+        // Attempt to use the program as a built-in command.
         if let Some(builtin) = builtin(&program) {
             return execute_internal_command(builtin, args, context, fds);
+        }
+
+        // Attempt to use the program as a function.
+        let maybe_function = context.lock().scope.get_function(&program);
+        if let Some(function) = maybe_function {
+            let mut inner_context = context.lock().fork(function.name);
+
+            for arg_name in function.args {
+                match args.pop_front() {
+                    Some(arg_value) => inner_context.scope.set_env(arg_name, arg_value),
+                    None => return Err(ExecError::MissingFunctionArgument(arg_name)),
+                }
+            }
+
+            // Finalize the forked context and enable thread sharing.
+            inner_context.arguments = Vec::from(args);
+            let inner_context = Arc::new(Mutex::new(inner_context));
+
+            let executor = self.clone();
+            let fds = fds.try_clone().expect("clone file descriptor");
+            let thread_handle = thread::spawn(move || {
+                for statement in function.body.statements {
+                    executor.execute_statement(statement, Arc::clone(&inner_context), &fds);
+                }
+                inner_context.lock().last_exit
+            });
+            return Ok(Value::Thread(thread_handle));
         }
 
         // Attempt to start a program from an absolute path, or from a path relative to $PWD if the
@@ -315,6 +345,15 @@ pub(crate) fn execute_program(
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
         let _ = buf_reader.read_to_string(&mut contents);
+
+        // Trim any final newline that are normally used to separate the shell output and prompt.
+        if let Some('\n') = contents.chars().last() {
+            contents.truncate(contents.len() - 1);
+            if let Some('\r') = contents.chars().last() {
+                contents.truncate(contents.len() - 1);
+            }
+        }
+
         contents
     };
 

@@ -1,0 +1,9 @@
+#!/bin/pjsh
+
+fn print_greeting(name) {
+  echo `Hello, $(whoami)!`
+}
+
+type print_greeting
+
+print_greeting World

@@ -1,11 +1,14 @@
 use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 
-use pjsh_core::Context;
+use pjsh_core::{utils::path_to_string, Context};
 
 /// Constructs a new initialized execution context containing some common environment variables such
 /// as `$PS1` and `$PS2`.
 pub fn initialized_context() -> Context {
-    let context = Context::new();
+    let name = std::env::current_exe()
+        .map(|path| path_to_string(&path))
+        .unwrap_or_else(|_| String::from("pjsh"));
+    let context = Context::new(name);
 
     // Inject independent defaults.
     inject_static_defaults(&context);
@@ -19,15 +22,15 @@ pub fn initialized_context() -> Context {
 
 /// Injects shell specific environment variables into a context.
 fn inject_shell_specific_env(context: &Context) {
-    if let Ok(exe) = std::env::current_exe().map(|path| path.to_string_lossy().to_string()) {
+    if let Ok(exe) = std::env::current_exe().map(|path| path_to_string(&path)) {
         context.scope.set_env(String::from("SHELL"), exe);
     }
 
-    if let Ok(pwd) = std::env::current_dir().map(|dir| dir.to_string_lossy().to_string()) {
+    if let Ok(pwd) = std::env::current_dir().map(|path| path_to_string(&path)) {
         context.scope.set_env(String::from("PWD"), pwd);
     }
 
-    if let Some(home_dir) = dirs::home_dir().map(|path| path.to_string_lossy().to_string()) {
+    if let Some(home_dir) = dirs::home_dir().map(|path| path_to_string(&path)) {
         context.scope.set_env(String::from("HOME"), home_dir);
     }
 
