@@ -70,3 +70,6 @@ package() {
 package "deb" "alanfranz/fpm-within-docker:debian-bullseye"
 package "rpm" "alanfranz/fpm-within-docker:centos-8"
 package "tar" "alanfranz/fpm-within-docker:debian-bullseye"
+
+# Compress the built .tar archive to a .tar.gz file using gzip.
+find "${PACKAGE_PATH}" -name "*.tar" -exec gzip -v9 {} \;

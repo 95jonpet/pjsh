@@ -2,12 +2,12 @@
 
 _PJSH_ is built for _Linux_ and _Windows_. There is currently no build for _macOS_.
 
-| Description          | Download link |
-| :------------------- | :------------ |
-| Windows installer    | TBA           |
-| Linux (.deb) package | TBA           |
-| Linux (.rpm) package | TBA           |
-| Linux (.tar)         | TBA           |
+| Description             | Download link |
+| :---------------------- | :------------ |
+| Windows installer       | TBA           |
+| Linux (.deb) package    | TBA           |
+| Linux (.rpm) package    | TBA           |
+| Linux (.tar.gz) archive | TBA           |
 
 ## Installing From Source Code
 
