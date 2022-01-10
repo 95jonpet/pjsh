@@ -5,6 +5,7 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
+atty = "0.2.14"
 clap = { version = "3.0.0", features = ["cargo", "derive"] }
 dirs = "4.0"
 lazy_static = "1.4.0"

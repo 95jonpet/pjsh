@@ -49,6 +49,7 @@ fn shell_interrupt() {
     let mut counter = 0;
     let mut mock_shell = MockShell::new();
     mock_shell.expect_is_interactive().returning(|| true);
+    mock_shell.expect_save_history().times(1).return_const(());
     mock_shell
         .expect_prompt_line()
         .times(2)

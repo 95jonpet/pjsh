@@ -557,6 +557,7 @@ dependencies = [
 name = "pjsh"
 version = "0.1.0"
 dependencies = [
+ "atty",
  "clap",
  "dirs",
  "lazy_static",

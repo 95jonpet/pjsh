@@ -19,11 +19,15 @@ impl Shell for SingleCommandShell {
         ShellInput::None
     }
 
+    fn is_interactive(&self) -> bool {
+        false
+    }
+
     fn add_history_entry(&mut self, _line: &str) {
         // Intentionally left blank.
     }
 
-    fn is_interactive(&self) -> bool {
-        false
+    fn save_history(&mut self, _path: &std::path::Path) {
+        // Intentionally left blank.
     }
 }

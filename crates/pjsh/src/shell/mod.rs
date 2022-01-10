@@ -29,5 +29,12 @@ pub trait Shell {
     /// Appends a line entry to the shell's history.
     ///
     /// Previous entries may be removed if the history is limited in size.
+    ///
+    /// This feature is optional to implement, and may be a no-op.
     fn add_history_entry(&mut self, line: &str);
+
+    /// Saves the shell's history to a file.
+    ///
+    /// This feature is optional to implement, and may be a no-op.
+    fn save_history(&mut self, history_file: &std::path::Path);
 }
