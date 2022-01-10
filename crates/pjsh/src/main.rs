@@ -25,6 +25,9 @@ const INIT_ALWAYS_SCRIPT_NAME: &str = ".pjsh/init-always.pjsh";
 /// Init script to source when starting an interactive shell.
 const INIT_INTERACTIVE_SCRIPT_NAME: &str = ".pjsh/init-interactive.pjsh";
 
+/// Path to the user's shell history file relative to the user's home directory.
+const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
+
 /// Command line options for the application's CLI.
 #[derive(Parser)]
 #[clap(
@@ -51,7 +54,7 @@ pub fn main() {
     let shell: Box<dyn Shell> = match opts.input {
         Some(script_file) => Box::new(FileBufferShell::new(script_file)),
         None if opts.command.is_some() => Box::new(SingleCommandShell::new(opts.command.unwrap())),
-        _ => Box::new(RustylineShell::new()),
+        _ => Box::new(RustylineShell::new(history_file().as_path())),
     };
     let context = Arc::new(Mutex::new(initialized_context()));
 
@@ -155,6 +158,8 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
             }
         }
     }
+
+    shell.save_history(history_file().as_path());
 }
 
 /// Interrupts the currently running threads and processes in a context.
@@ -193,4 +198,11 @@ fn source_init_scripts(interactive: bool, context: Arc<Mutex<Context>>) {
             }
         }
     }
+}
+
+/// Returns a path to the current user's shell history file.
+fn history_file() -> PathBuf {
+    let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+    path.push(USER_HISTORY_FILE_NAME);
+    path
 }

@@ -14,14 +14,13 @@ use rustyline_derive::Helper;
 
 use super::{Shell, ShellInput};
 
-const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
-
 pub struct RustylineShell {
     editor: Editor<ShellHelper>,
+    interactive: bool,
 }
 
 impl RustylineShell {
-    pub fn new() -> Self {
+    pub fn new(history_file: &std::path::Path) -> Self {
         let helper = ShellHelper {
             completer: FilenameCompleter::new(),
             highlighter: MatchingBracketHighlighter::new(),
@@ -34,21 +33,26 @@ impl RustylineShell {
         let mut editor = Editor::with_config(config);
         editor.set_helper(Some(helper));
 
-        let mut shell = Self { editor };
+        let interactive = atty::is(atty::Stream::Stdin);
+        let mut shell = Self {
+            editor,
+            interactive,
+        };
 
-        shell.load_history_file();
+        if interactive {
+            shell.load_history_file(history_file);
+        }
 
         shell
     }
 
-    fn load_history_file(&mut self) {
-        if let Some(history_file) = dirs::home_dir().map(|mut path| {
-            path.push(USER_HISTORY_FILE_NAME);
-            path
-        }) {
-            if history_file.exists() {
-                let _ = self.editor.load_history(&history_file);
-            }
+    fn load_history_file(&mut self, history_file: &std::path::Path) {
+        if !history_file.exists() {
+            return;
+        }
+
+        if let Err(error) = self.editor.load_history(&history_file) {
+            eprintln!("pjsh: Could not load history file: {}", error);
         }
     }
 }
@@ -80,17 +84,16 @@ impl Shell for RustylineShell {
 
     fn add_history_entry(&mut self, line: &str) {
         self.editor.add_history_entry(line);
-
-        if let Some(history_file) = dirs::home_dir().map(|mut path| {
-            path.push(USER_HISTORY_FILE_NAME);
-            path
-        }) {
-            let _ = self.editor.append_history(&history_file);
-        }
     }
 
     fn is_interactive(&self) -> bool {
-        true
+        self.interactive
+    }
+
+    fn save_history(&mut self, path: &std::path::Path) {
+        if let Err(error) = self.editor.append_history(&path) {
+            println!("pjsh: Could not write history file: {}", error);
+        }
     }
 }
 
