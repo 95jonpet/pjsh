@@ -1,11 +1,7 @@
-pub(crate) mod command;
-pub(crate) mod file;
-pub(crate) mod interactive;
-
 #[cfg(test)]
 use mockall::automock;
 
-pub enum ShellInput {
+pub(crate) enum ShellInput {
     /// A line of input.
     Line(String),
     /// Interrupt the current process.
@@ -17,7 +13,7 @@ pub enum ShellInput {
 }
 
 #[cfg_attr(test, automock)]
-pub trait Shell {
+pub(crate) trait Shell {
     /// Prompts the user for a line of input using a `prompt` text that may contain ANSI control
     /// sequences.
     fn prompt_line(&mut self, prompt: &str) -> ShellInput;

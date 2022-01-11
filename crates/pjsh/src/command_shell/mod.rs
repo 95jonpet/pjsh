@@ -1,4 +1,4 @@
-use super::{Shell, ShellInput};
+use crate::shell::{Shell, ShellInput};
 
 pub struct SingleCommandShell {
     it: Option<String>,

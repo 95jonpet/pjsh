@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use super::{Shell, ShellInput};
+use crate::shell::{Shell, ShellInput};
 
 pub struct FileBufferShell {
     reader: BufReader<fs::File>,
