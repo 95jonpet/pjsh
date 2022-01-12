@@ -11,5 +11,5 @@ parking_lot = {version = "0.11", features = ["deadlock_detection"] }
 tempfile = "3.2.0"
 
 pjsh_ast = { path = "../pjsh_ast" }
-pjsh_builtins = { path = "../pjsh_builtins" }
 pjsh_core = { path = "../pjsh_core" }
+pjsh_parse = { path = "../pjsh_parse" }

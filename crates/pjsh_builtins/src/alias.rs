@@ -1,80 +1,163 @@
-use std::sync::Arc;
+use clap::Parser;
+use pjsh_core::{
+    command::Io,
+    command::{Args, Command, CommandResult},
+    Context,
+};
 
-use parking_lot::Mutex;
-use pjsh_core::{Context, InternalCommand, InternalIo};
+use crate::{status, utils};
 
-use crate::status;
+/// Command name.
+const NAME: &str = "alias";
 
+/// Define or display aliases.
+///
+/// If called without any arguments, alias prints a list of all aliases.
+///
+/// This is a built-in shell command.
+#[derive(Parser)]
+#[clap(name = NAME, version)]
+struct AliasOpts {
+    /// Optional name of the alias to display or define.
+    name: Option<String>,
+
+    /// Optional alias value to define.
+    value: Option<String>,
+}
+
+/// Implementation for the "alias" built-in command.
 #[derive(Clone)]
 pub struct Alias;
-impl InternalCommand for Alias {
+impl Command for Alias {
     fn name(&self) -> &str {
-        "alias"
+        NAME
     }
 
-    fn run(
-        &self,
-        args: &[String],
-        context: Arc<Mutex<Context>>,
-        io: Arc<Mutex<InternalIo>>,
-    ) -> i32 {
-        match args {
-            [] => {
-                for (key, value) in context.lock().scope.aliases() {
-                    let _ = writeln!(io.lock().stdout, "alias {} = '{}'", &key, &value);
-                }
-                status::SUCCESS
-            }
-            [key, op, value] if op == "=" => {
-                context.lock().scope.set_alias(key.clone(), value.clone());
-                status::SUCCESS
-            }
-            [_, op] if op == "=" => {
-                let _ = writeln!(
-                    io.lock().stderr,
-                    "alias: invalid arguments: {}",
-                    args.join(" ")
-                );
-                status::BUILTIN_ERROR
-            }
-            keys => {
-                let mut exit = status::SUCCESS;
-                for key in keys {
-                    if let Some(value) = context.lock().scope.get_alias(key) {
-                        let _ = writeln!(io.lock().stdout, "alias {} = '{}'", &key, &value);
-                    } else {
-                        let _ = writeln!(io.lock().stderr, "alias: {}: not found", &key);
-                        exit = status::GENERAL_ERROR;
-                    }
-                }
-                exit
-            }
+    fn run(&self, mut args: Args) -> CommandResult {
+        match AliasOpts::try_parse_from(args.iter()) {
+            Ok(opts) => match (opts.name, opts.value) {
+                (None, None) => display_aliases(&args.context, &mut args.io),
+                (Some(name), None) => display_alias(&name, &args.context, &mut args.io),
+                (Some(name), Some(value)) => set_alias(name, value, &mut args.context),
+                (None, Some(_)) => unreachable!(),
+            },
+            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
     }
 }
 
-#[derive(Clone)]
-pub struct Unalias;
-impl InternalCommand for Unalias {
-    fn name(&self) -> &str {
-        "unalias"
+/// Displays an alias with a given name if it is defined within a context.
+/// Otherwise, an error message is printed to stdout.
+///
+/// Returns an exit code.
+fn display_alias(name: &str, ctx: &Context, io: &mut Io) -> CommandResult {
+    match ctx.scope.get_alias(name) {
+        Some(value) => {
+            print_alias(name, &value, io);
+            CommandResult::code(status::SUCCESS)
+        }
+        None => {
+            let _ = writeln!(io.stderr, "{NAME}: {name}: not found");
+            CommandResult::code(status::GENERAL_ERROR)
+        }
+    }
+}
+
+/// Displays all aliases that are defined within a context.
+///
+/// Returns an exit code.
+fn display_aliases(ctx: &Context, io: &mut Io) -> CommandResult {
+    // Aliases should be printed in alphabetical order based on their names.
+    let mut aliases: Vec<(String, String)> = ctx.scope.aliases().into_iter().collect();
+    aliases.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
+
+    for (name, value) in aliases {
+        print_alias(&name, &value, io);
+    }
+    CommandResult::code(status::SUCCESS)
+}
+
+/// Prints an alias to stdout.
+fn print_alias(name: &str, value: &str, io: &mut Io) {
+    if let Err(error) = writeln!(io.stdout, "alias {name} \"{value}\"") {
+        let _ = writeln!(io.stderr, "{NAME}: unable to write to stdout: {error}");
+    }
+}
+
+/// Sets an alias within a context.
+///
+/// Returns an exit code.
+fn set_alias(name: String, value: String, ctx: &mut Context) -> CommandResult {
+    ctx.scope.set_alias(name, value);
+    CommandResult::code(status::SUCCESS)
+}
+
+#[cfg(test)]
+mod tests {
+    use pjsh_core::Context;
+
+    use crate::utils::{file_contents, mock_io};
+
+    use super::*;
+
+    #[test]
+    fn it_can_print_a_matching_alias() {
+        let mut ctx = Context::new("test".into());
+        let (io, mut stdout, mut stderr) = mock_io();
+
+        ctx.scope.set_alias("ls".into(), "ls -lah".into());
+        ctx.arguments = vec!["alias".into(), "ls".into()];
+        let alias = Alias {};
+
+        let args = Args { context: ctx, io };
+        let result = alias.run(args);
+
+        assert_eq!(result.code, 0);
+        assert!(result.actions.is_empty());
+        assert_eq!(&file_contents(&mut stdout), "alias ls \"ls -lah\"\n");
+        assert_eq!(&file_contents(&mut stderr), "");
     }
 
-    fn run(
-        &self,
-        args: &[String],
-        context: Arc<Mutex<Context>>,
-        io: Arc<Mutex<InternalIo>>,
-    ) -> i32 {
-        if args.is_empty() {
-            let _ = writeln!(io.lock().stderr, "unalias: usage: unalias name [name ...]");
-            return status::BUILTIN_ERROR;
-        }
+    #[test]
+    fn it_can_print_aliases() {
+        let mut ctx = Context::new("test".into());
+        let (io, mut stdout, mut stderr) = mock_io();
 
-        for arg in args {
-            context.lock().scope.unset_alias(arg);
-        }
+        ctx.scope.set_alias("x".into(), "xyz".into());
+        ctx.scope.set_alias("a".into(), "abc".into());
+        ctx.arguments = vec!["alias".into()];
+        let alias = Alias {};
 
-        status::SUCCESS
+        let args = Args { context: ctx, io };
+        let result = alias.run(args);
+
+        assert_eq!(result.code, 0);
+        assert!(result.actions.is_empty());
+        assert_eq!(
+            &file_contents(&mut stdout),
+            "alias a \"abc\"\nalias x \"xyz\"\n" // Should be sorted by name.
+        );
+        assert_eq!(&file_contents(&mut stderr), "");
+    }
+
+    #[test]
+    fn it_can_define_an_alias() {
+        let mut ctx = Context::new("test".into());
+        let (io, mut stdout, mut stderr) = mock_io();
+
+        ctx.arguments = vec!["alias".into(), "name".into(), "value".into()];
+        let alias = Alias {};
+
+        let args = Args {
+            context: ctx.clone(),
+            io,
+        };
+        let result = alias.run(args);
+
+        assert_eq!(ctx.scope.get_alias("name"), Some("value".into()));
+        assert_eq!(result.code, 0);
+        assert!(result.actions.is_empty());
+        assert_eq!(&file_contents(&mut stdout), "");
+        assert_eq!(&file_contents(&mut stderr), "");
     }
 }

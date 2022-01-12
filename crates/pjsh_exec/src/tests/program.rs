@@ -6,12 +6,12 @@ use pjsh_ast::{
 };
 use pjsh_core::Context;
 
-use crate::Executor;
+use crate::tests::utils::test_executor;
 
 #[test]
 fn execute_program() {
     let ctx = Context::default();
-    let executor = Executor::default();
+    let executor = test_executor();
     let program = Program {
         statements: vec![Statement::AndOr(AndOr {
             operators: Vec::new(),
@@ -38,7 +38,7 @@ fn execute_program() {
 #[test]
 fn execute_program_stderr() {
     let ctx = Context::default();
-    let executor = Executor::default();
+    let executor = test_executor();
     let program = Program {
         statements: vec![Statement::AndOr(AndOr {
             operators: Vec::new(),

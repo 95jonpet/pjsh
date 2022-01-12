@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use parking_lot::Mutex;
 use pjsh_ast::Function;
 
+#[derive(Clone)]
 pub struct Scope {
     frames: Arc<Mutex<Vec<Frame>>>,
 }

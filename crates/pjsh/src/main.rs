@@ -1,4 +1,3 @@
-mod action;
 mod command_shell;
 mod completion;
 mod exec;

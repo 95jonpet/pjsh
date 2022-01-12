@@ -1,4 +1,3 @@
-mod builtins;
 mod error;
 mod executor;
 mod exit;
@@ -11,5 +10,5 @@ mod tests;
 
 pub use executor::Executor;
 pub use expand::expand;
-pub use io::{FileDescriptors, Input};
+pub use io::FileDescriptors;
 pub use word::interpolate_word;

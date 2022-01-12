@@ -35,8 +35,9 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
     None
 }
 
-/// Returns a list of all paths in `$PATH` separated by ':' on Unix systems, and by ';' on Windows.
-fn paths(context: &Context) -> Vec<PathBuf> {
+/// Returns a list of all paths in `$PATH` separated by ':' on Unix systems, and
+/// by ';' on Windows.
+pub fn paths(context: &Context) -> Vec<PathBuf> {
     let separator = if cfg!(windows) { ';' } else { ':' };
     let path_string = context.scope.get_env("PATH").unwrap_or_default();
     path_string.split(separator).map(PathBuf::from).collect()
