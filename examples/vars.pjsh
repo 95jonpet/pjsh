@@ -6,4 +6,4 @@ echo $message
 
 # Print "Hello, <user>" to stdout.
 name := "<user>"
-echo $"Hello, $name"
+echo `Hello, $name`
