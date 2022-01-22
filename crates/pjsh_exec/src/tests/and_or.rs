@@ -3,7 +3,7 @@ use std::sync::Arc;
 use pjsh_ast::{AndOr, AndOrOp, Command, Pipeline, PipelineSegment, Word};
 use pjsh_core::Context;
 
-use crate::{Executor, FileDescriptors};
+use crate::{tests::utils::test_executor, FileDescriptors};
 
 fn pipeline(exit_status: i32) -> Pipeline {
     Pipeline {
@@ -22,7 +22,7 @@ fn pipeline(exit_status: i32) -> Pipeline {
 fn execute_and_success() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let and_success = AndOr {
         operators: vec![AndOrOp::And],
         pipelines: vec![pipeline(0), pipeline(0)],
@@ -35,7 +35,7 @@ fn execute_and_success() {
 fn execute_and_fail() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let and_success = AndOr {
         operators: vec![AndOrOp::And],
         pipelines: vec![pipeline(1), pipeline(0)],
@@ -48,7 +48,7 @@ fn execute_and_fail() {
 fn execute_or_first_success() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(0), pipeline(1)],
@@ -61,7 +61,7 @@ fn execute_or_first_success() {
 fn execute_or_last_success() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(1), pipeline(0)],
@@ -74,7 +74,7 @@ fn execute_or_last_success() {
 fn execute_or_last_fail() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let and_success = AndOr {
         operators: vec![AndOrOp::Or],
         pipelines: vec![pipeline(1), pipeline(1)],

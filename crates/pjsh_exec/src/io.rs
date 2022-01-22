@@ -3,11 +3,11 @@ use std::{
     fs::{File, OpenOptions},
     io::{self, Read, Write},
     path::PathBuf,
-    process::{ChildStdout, Stdio},
+    process::Stdio,
 };
 
 use os_pipe::{PipeReader, PipeWriter};
-use pjsh_core::utils::path_to_string;
+use pjsh_core::{command::Io, utils::path_to_string};
 
 use crate::error::ExecError;
 
@@ -19,12 +19,6 @@ pub(crate) const FD_STDOUT: usize = 1;
 
 /// Index for the stderr file descriptor.
 pub(crate) const FD_STDERR: usize = 2;
-
-pub enum Input {
-    Piped(ChildStdout),
-    Value(String),
-    Inherit,
-}
 
 /// A file descriptor is a source, and/or, target for IO operations and redirections within a shell.
 #[derive(Debug)]
@@ -187,7 +181,7 @@ impl FileDescriptor {
     }
 }
 
-/// A collection of numbered [`FileDescriptor`] instances.
+/// A collection of numbered file descriptors.
 #[derive(Debug)]
 pub struct FileDescriptors {
     /// Numbered file descriptors.
@@ -204,6 +198,26 @@ impl FileDescriptors {
         fds.insert(FD_STDERR, FileDescriptor::Stderr);
 
         Self { fds }
+    }
+
+    /// Returns a minimal input/output wrapper around the three standard file
+    /// descriptors.
+    pub fn io(&mut self) -> Io {
+        let mut stdin: Box<dyn Read + Send> = Box::new(std::io::empty());
+        let mut stdout: Box<dyn Write + Send> = Box::new(std::io::sink());
+        let mut stderr: Box<dyn Write + Send> = Box::new(std::io::sink());
+
+        if let Some(Ok(fd)) = self.reader(&FD_STDIN) {
+            stdin = fd;
+        }
+        if let Some(Ok(fd)) = self.writer(&FD_STDOUT) {
+            stdout = fd;
+        }
+        if let Some(Ok(fd)) = self.writer(&FD_STDERR) {
+            stderr = fd;
+        }
+
+        Io::new(stdin, stdout, stderr)
     }
 
     /// Returns the file descriptor with index `k`.

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
-    io::{BufReader, Read, Seek},
+    fs,
+    io::{BufRead, BufReader, Read, Seek},
     path::PathBuf,
     process,
     sync::Arc,
@@ -10,14 +11,14 @@ use std::{
 use parking_lot::Mutex;
 use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
 use pjsh_core::{
+    command::{self, Action, CommandType},
     find_in_path,
     utils::{path_to_string, resolve_path},
-    Context, InternalCommand, InternalIo,
+    Context,
 };
 use tempfile::tempfile;
 
 use crate::{
-    builtins::builtin,
     error::ExecError,
     exit::{EXIT_GENERAL_ERROR, EXIT_SUCCESS},
     expand::{expand, expand_single},
@@ -32,24 +33,28 @@ enum Value {
 }
 
 /// An executor is responsible for executing a parsed AST.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Executor {
-    actions: HashMap<String, Box<dyn InternalCommand>>,
+    /// Built-in commands keyed by their name.
+    builtins: HashMap<String, Box<dyn command::Command>>,
 }
 
 impl Executor {
     /// Creates an empty executor.
-    pub fn new() -> Self {
-        Self {
-            actions: HashMap::new(),
+    pub fn new(commands: Vec<Box<dyn command::Command>>) -> Self {
+        let mut builtins = HashMap::with_capacity(commands.len());
+        for command in commands {
+            builtins.insert(command.name().to_owned(), command);
         }
+
+        Self { builtins }
     }
 
-    /// Registers a built-in [`InternalCommand`] action within the executor.
+    /// Registers a built-in [`command::Command`] within the executor.
     ///
-    /// Any previous built-in action with the same name is replaced.
-    pub fn register_action(&mut self, builtin: Box<dyn InternalCommand>) {
-        self.actions.insert(builtin.name().to_string(), builtin);
+    /// Any previous built-in command with the same name is replaced.
+    pub fn register_command(&mut self, builtin: Box<dyn command::Command>) {
+        self.builtins.insert(builtin.name().to_string(), builtin);
     }
 
     /// Executes an [`AndOr`].
@@ -198,20 +203,24 @@ impl Executor {
         let mut args = self.expand(command, Arc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
 
-        // Attempt to use the program as a built-in action.
-        if let Some(action) = self.actions.get(&program) {
-            return execute_internal_command(action.clone(), args, context, fds);
-        }
-
         // Attempt to use the program as a built-in command.
-        if let Some(builtin) = builtin(&program) {
-            return execute_internal_command(builtin, args, context, fds);
+        if let Some(builtin) = self.builtins.get(&program).cloned() {
+            // The command trait requires the first argument should be the
+            // program name. Fulfill that requirement by reinserting it.
+            args.push_front(program);
+
+            let thread_fds = fds.try_clone().unwrap();
+            let executor = self.clone();
+            let thread_handle = thread::spawn(move || {
+                executor.execute_builtin_command(builtin, context, thread_fds, args)
+            });
+            return Ok(Value::Thread(thread_handle));
         }
 
         // Attempt to use the program as a function.
         let maybe_function = context.lock().scope.get_function(&program);
         if let Some(function) = maybe_function {
-            let mut inner_context = context.lock().fork(function.name);
+            let mut inner_context = context.lock().fork(function.name.clone());
 
             for arg_name in function.args {
                 match args.pop_front() {
@@ -221,6 +230,7 @@ impl Executor {
             }
 
             // Finalize the forked context and enable thread sharing.
+            args.push_front(function.name); // Ensure that $0 is set to the program's name.
             inner_context.arguments = Vec::from(args);
             let inner_context = Arc::new(Mutex::new(inner_context));
 
@@ -235,8 +245,8 @@ impl Executor {
             return Ok(Value::Thread(thread_handle));
         }
 
-        // Attempt to start a program from an absolute path, or from a path relative to $PWD if the
-        // program looks like a path.
+        // Attempt to start a program from an absolute path, or from a path relative to
+        // $PWD if the program looks like a path.
         let ctx = &context.lock();
         if program.starts_with('.') || program.contains('/') {
             let program_in_pwd = resolve_path(ctx, &program);
@@ -251,6 +261,109 @@ impl Executor {
         }
 
         Err(ExecError::UnknownProgram(program))
+    }
+
+    /// Executes a built-in command within a context.
+    ///
+    /// The first argument of `args` is expected to be the command's name as
+    /// returned by [`pjsh_core::command::Command::name()`].
+    ///
+    /// Returns an exit code.
+    pub fn execute_builtin_command(
+        &self,
+        cmd: Box<dyn pjsh_core::command::Command>,
+        ctx: Arc<Mutex<Context>>,
+        mut fds: FileDescriptors,
+        args: VecDeque<String>,
+    ) -> i32 {
+        // Ensure that the first argument ($0) is the command's name.
+        debug_assert_eq!(args.front(), Some(&cmd.name().to_owned()));
+
+        // Create a new modified context for the command.
+        ctx.lock().arguments = Vec::from(args);
+        let args = pjsh_core::command::Args {
+            context: ctx.lock().clone(),
+            io: fds.io(),
+        };
+
+        let result = cmd.run(args);
+
+        // Perform all asynchronous that have been requested.
+        let mut code = result.code;
+        for action in result.actions {
+            if let Some(action_code) = self.perform_action(action, &mut ctx.lock(), &mut fds) {
+                if action_code != 0 {
+                    code = action_code;
+                }
+            }
+        }
+
+        code
+    }
+
+    /// Performs an asynchronous action that requested by a command.
+    fn perform_action(
+        &self,
+        action: Action,
+        context: &mut Context,
+        fds: &mut FileDescriptors,
+    ) -> Option<i32> {
+        match action {
+            Action::Interpolate(text, callback) => match pjsh_parse::parse_interpolation(&text) {
+                Ok(word) => {
+                    let value = interpolate_word(self, word, context);
+                    Some(callback(fds.io(), Ok(&value)))
+                }
+                Err(error) => Some(callback(fds.io(), Err(&error.to_string()))),
+            },
+            Action::ResolveCommandType(name, callback) => Some(callback(
+                fds.io(),
+                self.resolve_command_type(&name, context),
+            )),
+            Action::ResolveCommandPath(name, callback) => Some(callback(
+                name.clone(),
+                fds.io(),
+                find_in_path(&name, context).as_ref(),
+            )),
+            Action::SourceFile(script_file, ctx, args) => {
+                self.source_file(ctx, args, script_file, fds)
+            }
+        }
+    }
+
+    /// Sources a file within the current executor and context.
+    ///
+    /// Returns the exit code for the last command in the sourced file.
+    fn source_file(
+        &self,
+        mut ctx: Context,
+        args: Vec<String>,
+        script_file: PathBuf,
+        fds: &mut FileDescriptors,
+    ) -> Option<i32> {
+        ctx.arguments = args;
+        let ctx = Arc::new(Mutex::new(ctx));
+        let mut reader = BufReader::new(fs::File::open(script_file).unwrap());
+        let mut line = String::new();
+        loop {
+            match reader.read_line(&mut line) {
+                Ok(0) | Err(_) => break,
+                _ => (),
+            }
+
+            match pjsh_parse::parse(&line) {
+                Ok(program) => {
+                    line = String::new();
+                    for statement in program.statements {
+                        self.execute_statement(statement, Arc::clone(&ctx), fds);
+                    }
+                }
+                Err(pjsh_parse::ParseError::IncompleteSequence) => continue,
+                _ => break,
+            }
+        }
+        let ctx = &ctx.lock();
+        Some(ctx.last_exit)
     }
 
     /// Starts a program as a [`std::process::Command`] by spawning a child process.
@@ -291,6 +404,27 @@ impl Executor {
         }
     }
 
+    /// Resolves the type of a command given a name.
+    fn resolve_command_type(&self, name: &str, ctx: &Context) -> CommandType {
+        if self.builtins.contains_key(name) {
+            return CommandType::Builtin;
+        }
+
+        if let Some(alias) = ctx.scope.get_alias(name) {
+            return CommandType::Alias(alias);
+        }
+
+        if ctx.scope.get_function(name).is_some() {
+            return CommandType::Function;
+        }
+
+        if let Some(path) = find_in_path(name, ctx) {
+            return CommandType::Program(path);
+        }
+
+        CommandType::Unknown
+    }
+
     /// Expands a [`Command`] into a [`VecDeque`] of arguments.
     /// Evaluates variables and resolves aliases.
     fn expand(&self, command: Command, context: Arc<Mutex<Context>>) -> VecDeque<String> {
@@ -302,24 +436,6 @@ impl Executor {
 
         expand(args, &context.lock(), self)
     }
-}
-
-/// Executes an internal command.
-fn execute_internal_command(
-    command: Box<dyn InternalCommand>,
-    mut args: VecDeque<String>,
-    ctx: Arc<Mutex<Context>>,
-    fds: &mut FileDescriptors,
-) -> Result<Value, ExecError> {
-    args.make_contiguous();
-    let io = Arc::new(Mutex::new(InternalIo::new(
-        fds.reader(&FD_STDIN).unwrap().unwrap(),
-        fds.writer(&FD_STDOUT).unwrap().unwrap(),
-        fds.writer(&FD_STDERR).unwrap().unwrap(),
-    )));
-    let thread_handle =
-        thread::spawn(move || command.run(args.as_slices().0, Arc::clone(&ctx), io));
-    Ok(Value::Thread(thread_handle))
 }
 
 /// Executes a program and returns a tuple of stdout and stderr.

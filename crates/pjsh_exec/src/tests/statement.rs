@@ -3,13 +3,13 @@ use std::sync::Arc;
 use pjsh_ast::{Assignment, Statement, Word};
 use pjsh_core::Context;
 
-use crate::{Executor, FileDescriptors};
+use crate::{tests::utils::test_executor, FileDescriptors};
 
 #[test]
 fn execute_assign() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let assignment = Assignment::new(Word::Literal("key".into()), Word::Literal("value".into()));
 
     executor.execute_statement(Statement::Assignment(assignment), Arc::clone(&ctx), &fds);
@@ -21,7 +21,7 @@ fn execute_assign() {
 fn execute_assign_replace() {
     let fds = FileDescriptors::new();
     let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
-    let executor = Executor::default();
+    let executor = test_executor();
     let assignment = Assignment::new(Word::Literal("key".into()), Word::Literal("new".into()));
 
     ctx.lock().scope.set_env("key".into(), "old".into());

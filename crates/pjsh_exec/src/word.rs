@@ -12,12 +12,11 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: &Context) -> S
         Word::Quoted(quoted) => quoted,
         Word::Variable(key) => match key.as_str() {
             "?" => context.last_exit.to_string(),
-            "0" => todo!(),
             _ => {
                 if let Ok(positional) = key.parse::<usize>() {
                     return context
                         .arguments
-                        .get(positional - 1)
+                        .get(positional)
                         .map(String::to_owned)
                         .unwrap_or_else(String::new);
                 }

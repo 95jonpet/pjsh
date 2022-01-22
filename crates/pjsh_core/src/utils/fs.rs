@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 use crate::Context;
 
@@ -18,13 +21,13 @@ pub fn path_to_string<P: AsRef<Path>>(path: &P) -> String {
 /// resolution is not guaranteed when `$PWD` is not set.
 ///
 /// Returns a canonicalized (absolute) path.
-pub fn resolve_path(context: &Context, path: &str) -> PathBuf {
+pub fn resolve_path<P: AsRef<OsStr>>(context: &Context, path: P) -> PathBuf {
     let mut resolved_path = context
         .scope
         .get_env("PWD")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("/"));
-    resolved_path.push(path);
+    resolved_path.push(path.as_ref());
 
     // Attempt to canonicalize the path into an absolute path.
     resolved_path.canonicalize().unwrap_or(resolved_path)

@@ -582,9 +582,9 @@ version = "0.1.0"
 name = "pjsh_builtins"
 version = "0.1.0"
 dependencies = [
- "dirs",
- "parking_lot",
+ "clap",
  "pjsh_core",
+ "tempfile",
 ]
 
 [[package]]
@@ -603,8 +603,8 @@ dependencies = [
  "os_pipe",
  "parking_lot",
  "pjsh_ast",
- "pjsh_builtins",
  "pjsh_core",
+ "pjsh_parse",
  "tempfile",
 ]
 
