@@ -9,7 +9,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, Pipeline, Statement};
+use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, ConditionalChain, Pipeline, Statement};
 use pjsh_core::{
     command::{self, Action, CommandType},
     find_in_path,
@@ -79,6 +79,37 @@ impl Executor {
         }
 
         ctx.lock().last_exit = exit_status;
+    }
+
+    /// Executes a [`ConditionalChain`].
+    pub fn execute_conditional_chain(
+        &self,
+        conditionals: ConditionalChain,
+        ctx: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) {
+        debug_assert!(
+            conditionals.branches.len() == conditionals.conditions.len()
+                || conditionals.branches.len() == conditionals.conditions.len() + 1
+        );
+        let mut branches = conditionals.branches.into_iter();
+
+        for condition in conditionals.conditions.into_iter() {
+            let branch = branches.next().expect("branch exists");
+            self.execute_and_or(condition, Arc::clone(&ctx), fds);
+
+            if std::mem::replace(&mut ctx.lock().last_exit, EXIT_SUCCESS) != EXIT_SUCCESS {
+                continue;
+            }
+
+            return self.execute_statements(branch.statements, Arc::clone(&ctx), fds);
+        }
+
+        // The "else" branch does not have a condition. It is always executed if no
+        // other condition has been met.
+        if let Some(branch) = branches.next() {
+            self.execute_statements(branch.statements, Arc::clone(&ctx), fds);
+        }
     }
 
     /// Executes a [`Pipeline`].
@@ -163,24 +194,37 @@ impl Executor {
         status
     }
 
+    /// Executes a [`Vec<Statement>`].
+    pub fn execute_statements(
+        &self,
+        statements: Vec<Statement>,
+        ctx: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) {
+        for statement in statements {
+            self.execute_statement(statement, Arc::clone(&ctx), fds);
+        }
+    }
+
     /// Executes a [`Statement`].
     pub fn execute_statement(
         &self,
         statement: Statement,
-        context: Arc<Mutex<Context>>,
+        ctx: Arc<Mutex<Context>>,
         fds: &FileDescriptors,
     ) {
         match statement {
-            Statement::AndOr(and_or) => self.execute_and_or(and_or, context, fds),
-            Statement::Assignment(assignment) => self.execute_assignment(assignment, context),
-            Statement::Function(function) => context.lock().scope.add_function(function),
+            Statement::AndOr(and_or) => self.execute_and_or(and_or, ctx, fds),
+            Statement::Assignment(assignment) => self.execute_assignment(assignment, ctx),
+            Statement::Function(function) => ctx.lock().scope.add_function(function),
             Statement::Subshell(subshell) => {
-                let name = context.lock().name.clone();
-                let inner_context = Arc::new(Mutex::new(context.lock().fork(name)));
+                let name = ctx.lock().name.clone();
+                let inner_context = Arc::new(Mutex::new(ctx.lock().fork(name)));
                 for subshell_statement in subshell.statements {
                     self.execute_statement(subshell_statement, Arc::clone(&inner_context), fds);
                 }
             }
+            Statement::If(conditionals) => self.execute_conditional_chain(conditionals, ctx, fds),
         }
     }
 
@@ -237,9 +281,11 @@ impl Executor {
             let executor = self.clone();
             let fds = fds.try_clone().expect("clone file descriptor");
             let thread_handle = thread::spawn(move || {
-                for statement in function.body.statements {
-                    executor.execute_statement(statement, Arc::clone(&inner_context), &fds);
-                }
+                executor.execute_statements(
+                    function.body.statements,
+                    Arc::clone(&inner_context),
+                    &fds,
+                );
                 inner_context.lock().last_exit
             });
             return Ok(Value::Thread(thread_handle));
@@ -354,9 +400,7 @@ impl Executor {
             match pjsh_parse::parse(&line) {
                 Ok(program) => {
                     line = String::new();
-                    for statement in program.statements {
-                        self.execute_statement(statement, Arc::clone(&ctx), fds);
-                    }
+                    self.execute_statements(program.statements, Arc::clone(&ctx), fds);
                 }
                 Err(pjsh_parse::ParseError::IncompleteSequence) => continue,
                 _ => break,
@@ -456,9 +500,7 @@ pub(crate) fn execute_program(
         FileDescriptor::FileHandle(stderr.try_clone().unwrap()),
     );
 
-    for statement in program.statements {
-        executor.execute_statement(statement, Arc::clone(&context), &fds);
-    }
+    executor.execute_statements(program.statements, Arc::clone(&context), &fds);
 
     let read_file = |mut file: std::fs::File| {
         let _ = file.seek(std::io::SeekFrom::Start(0));

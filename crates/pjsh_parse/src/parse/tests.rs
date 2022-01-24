@@ -1,6 +1,7 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Function, InterpolationUnit, Pipeline,
-    PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, FileDescriptor, Function,
+    InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator, Statement,
+    Word,
 };
 
 use super::parser::*;
@@ -338,6 +339,157 @@ fn parse_function_statement() {
                     }]
                 })]
             }
+        }))
+    )
+}
+
+#[test]
+fn parse_if_statement() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("if".into()), span),
+        Token::new(Literal("true".into()), span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("test".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_statement(),
+        Ok(Statement::If(ConditionalChain {
+            conditions: vec![AndOr {
+                operators: Vec::new(),
+                pipelines: vec![Pipeline {
+                    is_async: false,
+                    segments: vec![PipelineSegment {
+                        command: Command {
+                            program: Word::Literal("true".into()),
+                            arguments: Vec::new(),
+                            redirects: Vec::new(),
+                        }
+                    }]
+                }]
+            }],
+            branches: vec![Program {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("echo".into()),
+                                arguments: vec![Word::Literal("test".into())],
+                                redirects: Vec::new(),
+                            }
+                        }]
+                    }]
+                })]
+            }]
+        }))
+    )
+}
+
+#[test]
+fn parse_if_statement_with_multiple_branches() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("if".into()), span),
+        Token::new(Literal("false".into()), span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("first".into()), span),
+        Token::new(CloseBrace, span),
+        Token::new(Literal("else".into()), span),
+        Token::new(Literal("if".into()), span),
+        Token::new(Literal("false".into()), span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("second".into()), span),
+        Token::new(CloseBrace, span),
+        Token::new(Literal("else".into()), span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("third".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_statement(),
+        Ok(Statement::If(ConditionalChain {
+            conditions: vec![
+                AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("false".into()),
+                                arguments: Vec::new(),
+                                redirects: Vec::new(),
+                            }
+                        }]
+                    }]
+                },
+                AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment {
+                            command: Command {
+                                program: Word::Literal("false".into()),
+                                arguments: Vec::new(),
+                                redirects: Vec::new(),
+                            }
+                        }]
+                    }]
+                }
+            ],
+            branches: vec![
+                Program {
+                    statements: vec![Statement::AndOr(AndOr {
+                        operators: Vec::new(),
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment {
+                                command: Command {
+                                    program: Word::Literal("echo".into()),
+                                    arguments: vec![Word::Literal("first".into())],
+                                    redirects: Vec::new(),
+                                }
+                            }]
+                        }]
+                    })]
+                },
+                Program {
+                    statements: vec![Statement::AndOr(AndOr {
+                        operators: Vec::new(),
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment {
+                                command: Command {
+                                    program: Word::Literal("echo".into()),
+                                    arguments: vec![Word::Literal("second".into())],
+                                    redirects: Vec::new(),
+                                }
+                            }]
+                        }]
+                    })]
+                },
+                Program {
+                    statements: vec![Statement::AndOr(AndOr {
+                        operators: Vec::new(),
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment {
+                                command: Command {
+                                    program: Word::Literal("echo".into()),
+                                    arguments: vec![Word::Literal("third".into())],
+                                    redirects: Vec::new(),
+                                }
+                            }]
+                        }]
+                    })]
+                }
+            ]
         }))
     )
 }

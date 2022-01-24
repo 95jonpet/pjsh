@@ -42,3 +42,37 @@ A small example:
 # Always exit with code 0.
 rm output.tmp || true
 ```
+
+### If-statements
+
+The shell supports more complex conditionals using _if-statements_. Such statements contain a body that is executed if a condition is met.
+
+```pjsh
+if true {
+  echo "This should be printed"
+}
+```
+
+Finally, an optional _else_ clause can be executed if the condition is not met.
+
+```pjsh
+if false {
+  echo "This should not be printed"
+} else {
+  echo "This should be printed"
+}
+```
+
+Multiple _if_ and _else if_ clauses can be combined to cover multiple branches.
+
+```pjsh
+if false {
+  echo "This should not be printed"
+} else if false {
+  echo "This should not be printed either"
+} else {
+  echo "This should be printed"
+}
+```
+
+If-statements always exit with code `0` unless a command fails within the executed branch.
