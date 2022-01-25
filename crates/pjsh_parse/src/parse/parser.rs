@@ -4,8 +4,9 @@ use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, FileDescriptor, Function, InterpolationUnit, Pipeline,
-    PipelineSegment, Program, Redirect, RedirectOperator, Statement, Word,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, FileDescriptor, Function,
+    InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator, Statement,
+    Word,
 };
 
 use super::cursor::TokenCursor;
@@ -287,6 +288,13 @@ impl Parser {
             return Ok(subshell_statement);
         }
 
+        // Try to parse an if-statement.
+        match self.parse_if_statement() {
+            Ok(function_statement) => return Ok(function_statement),
+            Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+            _ => (),
+        }
+
         // Try to parse a function declaration.
         match self.parse_function() {
             Ok(function_statement) => return Ok(function_statement),
@@ -495,31 +503,77 @@ impl Parser {
                     return Err(self.unexpected_token());
                 }
 
-                if self.tokens.next_if_eq(TokenContents::OpenBrace).is_none() {
-                    return Err(self.unexpected_token());
-                }
-
-                // Parse function body.
-                let mut body = Program::new();
-                loop {
-                    match &self.tokens.peek().contents {
-                        TokenContents::Eol => self.skip_newlines(),
-                        TokenContents::Eof => return Err(ParseError::IncompleteSequence),
-                        TokenContents::CloseBrace => break,
-                        _ => {
-                            body.statement(self.parse_statement()?);
-                        }
-                    }
-                }
-
-                if self.tokens.next_if_eq(TokenContents::CloseBrace).is_none() {
-                    return Err(self.unexpected_token());
-                }
-
-                Ok(Statement::Function(Function::new(name, args, body)))
+                Ok(Statement::Function(Function::new(
+                    name,
+                    args,
+                    self.parse_body()?,
+                )))
             }
             _ => Err(self.unexpected_token()),
         }
+    }
+
+    fn parse_if_statement(&mut self) -> Result<Statement, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::Literal("if".into()))
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        // Parse the initial condition and branch.
+        let mut conditions = vec![self.parse_and_or()?];
+        let mut branches = vec![self.parse_body()?];
+
+        loop {
+            if self
+                .tokens
+                .next_if_eq(TokenContents::Literal("else".into()))
+                .is_none()
+            {
+                break;
+            }
+
+            if self
+                .tokens
+                .next_if_eq(TokenContents::Literal("if".into()))
+                .is_some()
+            {
+                conditions.push(self.parse_and_or()?);
+                branches.push(self.parse_body()?);
+                continue;
+            }
+
+            branches.push(self.parse_body()?);
+            break;
+        }
+
+        Ok(Statement::If(ConditionalChain {
+            conditions,
+            branches,
+        }))
+    }
+
+    fn parse_body(&mut self) -> Result<Program, ParseError> {
+        if self.tokens.next_if_eq(TokenContents::OpenBrace).is_none() {
+            return Err(self.unexpected_token());
+        }
+        let mut branch = Program::new();
+        loop {
+            match &self.tokens.peek().contents {
+                TokenContents::Eol => self.skip_newlines(),
+                TokenContents::Eof => return Err(ParseError::IncompleteSequence),
+                TokenContents::CloseBrace => break,
+                _ => {
+                    branch.statement(self.parse_statement()?);
+                }
+            }
+        }
+        if self.tokens.next_if_eq(TokenContents::CloseBrace).is_none() {
+            return Err(self.unexpected_token());
+        }
+        Ok(branch)
     }
 
     /// Advances the token cursor until the next token is not an end-of-line token.

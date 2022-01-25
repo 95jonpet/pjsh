@@ -1,10 +1,12 @@
 mod command;
+mod control;
 mod io;
 mod program;
 
 use std::collections::VecDeque;
 
 pub use command::Command;
+pub use control::ConditionalChain;
 pub use io::{FileDescriptor, Redirect, RedirectOperator};
 pub use program::Program;
 
@@ -13,6 +15,7 @@ pub enum Statement {
     AndOr(AndOr),
     Assignment(Assignment),
     Function(Function),
+    If(ConditionalChain),
     Subshell(Program),
 }
 

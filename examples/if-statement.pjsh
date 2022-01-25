@@ -1,0 +1,17 @@
+#!/bin/pjsh
+
+if true {
+  echo "This should be printed"
+}
+
+if false {
+  echo "This should not be printed"
+}
+
+if false {
+  echo "This should not be printed"
+} else if false {
+  echo "This should not be printed either"
+} else {
+  echo "This should be printed"
+}
