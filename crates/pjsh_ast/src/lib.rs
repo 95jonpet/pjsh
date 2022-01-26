@@ -6,7 +6,7 @@ mod program;
 use std::collections::VecDeque;
 
 pub use command::Command;
-pub use control::ConditionalChain;
+pub use control::{ConditionalChain, ConditionalLoop};
 pub use io::{FileDescriptor, Redirect, RedirectOperator};
 pub use program::Program;
 
@@ -16,6 +16,7 @@ pub enum Statement {
     Assignment(Assignment),
     Function(Function),
     If(ConditionalChain),
+    While(ConditionalLoop),
     Subshell(Program),
 }
 

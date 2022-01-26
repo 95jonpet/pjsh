@@ -10,7 +10,8 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, Pipeline, PipelineSegment, Statement,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, Pipeline,
+    PipelineSegment, Statement,
 };
 use pjsh_core::{
     command::{self, Action, CommandType},
@@ -102,6 +103,11 @@ impl Executor {
             let branch = branches.next().expect("branch exists");
             self.execute_and_or(condition, Arc::clone(&ctx), fds);
 
+            // Skip to the next condition in the chain if the current condition is not met
+            // (the condition exits with a non 0 code). Furthermore, set the last exit to 0
+            // in order to not pollute the shell's last exit code from evaluating
+            // if-statement conditions. An intentional side effect of this is that
+            // unevaluated branches always exit with code 0.
             if std::mem::replace(&mut ctx.lock().last_exit, EXIT_SUCCESS) != EXIT_SUCCESS {
                 continue;
             }
@@ -113,6 +119,28 @@ impl Executor {
         // other condition has been met.
         if let Some(branch) = branches.next() {
             self.execute_statements(branch.statements, Arc::clone(&ctx), fds);
+        }
+    }
+
+    /// Executes a [`ConditionalLoop`].
+    pub fn execute_conditional_loop(
+        &self,
+        conditional: ConditionalLoop,
+        ctx: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) {
+        loop {
+            // Evaluate the condition and break the loop if it is not met (the condition
+            // exits with a non 0 code). Furthermore, set the last exit to 0 in order to not
+            // pollute the shell's last exit code from evaluating while-loop conditions.
+            // An intentional side effect of this is a while-loop exits with a code of 0
+            // when the loop exits normally.
+            self.execute_and_or(conditional.condition.clone(), Arc::clone(&ctx), fds);
+            if std::mem::replace(&mut ctx.lock().last_exit, EXIT_SUCCESS) != EXIT_SUCCESS {
+                break;
+            }
+
+            self.execute_statements(conditional.body.statements.clone(), Arc::clone(&ctx), fds);
         }
     }
 
@@ -247,6 +275,7 @@ impl Executor {
                 }
             }
             Statement::If(conditionals) => self.execute_conditional_chain(conditionals, ctx, fds),
+            Statement::While(conditional) => self.execute_conditional_loop(conditional, ctx, fds),
         }
     }
 

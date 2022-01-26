@@ -1,7 +1,7 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, FileDescriptor, Function,
-    InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator, Statement,
-    Word,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
+    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator,
+    Statement, Word,
 };
 
 use super::parser::*;
@@ -478,6 +478,48 @@ fn parse_if_statement_with_multiple_branches() {
                     })]
                 }
             ]
+        }))
+    )
+}
+
+#[test]
+fn parse_while_loop() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("while".into()), span),
+        Token::new(Literal("false".into()), span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Literal("test".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_statement(),
+        Ok(Statement::While(ConditionalLoop {
+            condition: AndOr {
+                operators: Vec::new(),
+                pipelines: vec![Pipeline {
+                    is_async: false,
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("false".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    })]
+                }]
+            },
+            body: Program {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("echo".into()),
+                            arguments: vec![Word::Literal("test".into())],
+                            redirects: Vec::new(),
+                        })]
+                    }]
+                })]
+            }
         }))
     )
 }
