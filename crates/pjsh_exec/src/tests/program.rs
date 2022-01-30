@@ -17,13 +17,11 @@ fn execute_program() {
             operators: Vec::new(),
             pipelines: vec![Pipeline {
                 is_async: false,
-                segments: vec![PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("echo".into()),
-                        arguments: vec![Word::Literal("Hello, world!".into())],
-                        redirects: Vec::new(),
-                    },
-                }],
+                segments: vec![PipelineSegment::Command(Command {
+                    program: Word::Literal("echo".into()),
+                    arguments: vec![Word::Literal("Hello, world!".into())],
+                    redirects: Vec::new(),
+                })],
             }],
         })],
     };
@@ -44,17 +42,15 @@ fn execute_program_stderr() {
             operators: Vec::new(),
             pipelines: vec![Pipeline {
                 is_async: false,
-                segments: vec![PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("echo".into()),
-                        arguments: vec![Word::Literal("Hello, world!".into())],
-                        redirects: vec![Redirect {
-                            source: FileDescriptor::Number(1), // Stdout
-                            target: FileDescriptor::Number(2), // Stderr
-                            operator: pjsh_ast::RedirectOperator::Write,
-                        }],
-                    },
-                }],
+                segments: vec![PipelineSegment::Command(Command {
+                    program: Word::Literal("echo".into()),
+                    arguments: vec![Word::Literal("Hello, world!".into())],
+                    redirects: vec![Redirect {
+                        source: FileDescriptor::Number(1), // Stdout
+                        target: FileDescriptor::Number(2), // Stderr
+                        operator: pjsh_ast::RedirectOperator::Write,
+                    }],
+                })],
             }],
         })],
     };

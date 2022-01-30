@@ -80,6 +80,7 @@ pub struct Pipeline {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PipelineSegment {
-    pub command: Command,
+pub enum PipelineSegment {
+    Command(Command),
+    Condition(Vec<Word>),
 }
