@@ -8,13 +8,11 @@ use crate::{tests::utils::test_executor, FileDescriptors};
 fn pipeline(exit_status: i32) -> Pipeline {
     Pipeline {
         is_async: false,
-        segments: vec![PipelineSegment {
-            command: Command {
-                program: Word::Literal("exit".into()),
-                arguments: vec![Word::Literal(format!("{}", exit_status))],
-                redirects: Vec::new(),
-            },
-        }],
+        segments: vec![PipelineSegment::Command(Command {
+            program: Word::Literal("exit".into()),
+            arguments: vec![Word::Literal(format!("{}", exit_status))],
+            redirects: Vec::new(),
+        })],
     }
 }
 

@@ -9,16 +9,19 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use pjsh_ast::{AndOr, AndOrOp, Assignment, Command, ConditionalChain, Pipeline, Statement};
+use pjsh_ast::{
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, Pipeline, PipelineSegment, Statement,
+};
 use pjsh_core::{
     command::{self, Action, CommandType},
     find_in_path,
     utils::{path_to_string, resolve_path},
-    Context,
+    Condition, Context,
 };
 use tempfile::tempfile;
 
 use crate::{
+    condition::parse_condition,
     error::ExecError,
     exit::{EXIT_GENERAL_ERROR, EXIT_SUCCESS},
     expand::{expand, expand_single},
@@ -28,6 +31,7 @@ use crate::{
 
 #[derive(Debug)]
 enum Value {
+    Constant(i32),
     Process(process::Child),
     Thread(thread::JoinHandle<i32>),
 }
@@ -134,7 +138,22 @@ impl Executor {
                 fds.set(FD_STDOUT, FileDescriptor::Pipe(os_pipe::pipe().unwrap()));
             }
 
-            let result = self.execute_command(segment.command, Arc::clone(&ctx), &mut fds);
+            let result = match segment {
+                PipelineSegment::Command(command) => {
+                    self.execute_command(command, Arc::clone(&ctx), &mut fds)
+                }
+                PipelineSegment::Condition(input) => {
+                    let expanded = expand(input, &ctx.lock(), self);
+                    let input: Vec<_> = expanded.iter().map(String::as_str).collect();
+                    let maybe_condition = parse_condition(&input, &ctx.lock());
+                    match maybe_condition {
+                        Ok(condition) => {
+                            self.evaluate_condition(condition, Arc::clone(&ctx), &mut fds)
+                        }
+                        Err(err) => Err(err),
+                    }
+                }
+            };
             match result {
                 Ok(value) => {
                     // Set the pipe that was previously used for output as input for the next
@@ -148,6 +167,7 @@ impl Executor {
                 }
                 Err(err) => {
                     ctx.lock().host.lock().eprintln(&format!("pjsh: {}", &err));
+                    values.push_back(Value::Constant(EXIT_GENERAL_ERROR));
                 }
             }
 
@@ -160,6 +180,7 @@ impl Executor {
         if pipeline.is_async {
             while let Some(value) = values.pop_front() {
                 match value {
+                    Value::Constant(_) => (), // Constants are always synchronous.
                     Value::Process(process) => ctx.lock().host.lock().add_child_process(process),
                     Value::Thread(thread) => ctx.lock().host.lock().add_thread(thread),
                 }
@@ -173,6 +194,7 @@ impl Executor {
         let mut status = EXIT_SUCCESS;
         while let Some(value) = values.pop_back() {
             let segment_status = match value {
+                Value::Constant(constant) => constant,
                 Value::Process(mut child) => match child.wait() {
                     Ok(status) => status.code().unwrap_or(EXIT_GENERAL_ERROR),
                     Err(error) => {
@@ -307,6 +329,24 @@ impl Executor {
         }
 
         Err(ExecError::UnknownProgram(program))
+    }
+
+    /// Evaluates a [`Condition`].
+    fn evaluate_condition(
+        &self,
+        condition: Box<dyn Condition>,
+        ctx: Arc<Mutex<Context>>,
+        fds: &mut FileDescriptors,
+    ) -> Result<Value, ExecError> {
+        let args = pjsh_core::command::Args {
+            context: ctx.lock().clone(),
+            io: fds.io(),
+        };
+
+        Ok(match condition.evaluate(args) {
+            true => Value::Constant(EXIT_SUCCESS),
+            false => Value::Constant(EXIT_GENERAL_ERROR),
+        })
     }
 
     /// Executes a built-in command within a context.

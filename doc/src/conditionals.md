@@ -48,6 +48,14 @@ rm output.tmp || true
 The shell supports more complex conditionals using _if-statements_. Such statements contain a body that is executed if a condition is met.
 
 ```pjsh
+if <condition> {
+  # Conditional code goes here.
+}
+```
+
+An example:
+
+```pjsh
 if true {
   echo "This should be printed"
 }
@@ -76,3 +84,30 @@ if false {
 ```
 
 If-statements always exit with code `0` unless a command fails within the executed branch.
+
+### Conditions
+
+Compact conditions can be declared using the `[[ ... ]]` syntax.
+
+| Expression           | Description                                    |
+| :------------------- | :--------------------------------------------- |
+| `[[ -e path ]]`      | True if `path` exists.                         |
+| `[[ is-path path ]]` | True if `path` exists.                         |
+| `[[ -f path ]]`      | True if `path` is a file.                      |
+| `[[ is-file path ]]` | True if `path` is a file.                      |
+| `[[ -d path ]]`      | True if `path` is a directory.                 |
+| `[[ is-dir path ]]`  | True if `path` is a directory.                 |
+| `[[ a != b ]]`       | True if the strings `a` and `b` are different. |
+| `[[ a == b ]]`       | True if the strings `a` and `b` are equal.     |
+| `[[ a = b ]]`        | True if the strings `a` and `b` are equal.     |
+| `[[ -z string ]]`    | True if the string `string` is empty.          |
+| `[[ -n string ]]`    | True if the string `string` is not empty.      |
+| `[[ string ]]`       | True if the string `string` is not empty.      |
+
+Furthermore, a condition can be inverted using the `!` symbol:
+
+```pjsh
+if [[ ! -e path ]] {
+  echo "The path does not exist!"
+}
+```

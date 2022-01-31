@@ -139,8 +139,8 @@ impl<'a> Lexer<'a> {
             ")" => self.eat_char(CloseParen),
             "{" => self.eat_char(OpenBrace),
             "}" => self.eat_char(CloseBrace),
-            "[" => self.eat_char(OpenBracket),
-            "]" => self.eat_char(CloseBracket),
+            "[" => self.eat_chars(&["[", "["], DoubleOpenBracket),
+            "]" => self.eat_chars(&["]", "]"], DoubleCloseBracket),
             "\"" => self.eat_quoted_string("\""),
             "'" => self.eat_quoted_string("'"),
             "`" => self.eat_interpolation(Some("`")),
@@ -221,6 +221,28 @@ impl<'a> Lexer<'a> {
     fn eat_char(&mut self, contents: TokenContents) -> LexResult<'a> {
         let (index, _) = self.input.next();
         Ok(Token::new(contents, Span::new(index, index + 1)))
+    }
+
+    /// Eats a sequence of characters.
+    fn eat_chars(&mut self, chars: &[&str], contents: TokenContents) -> LexResult<'a> {
+        let peeked = self.input.peek_n(chars.len());
+        for i in 0..chars.len() {
+            let wanted_char = chars[i];
+            let peeked_char = peeked[i];
+
+            if peeked_char != wanted_char {
+                return Err(LexError::UnexpectedChar(peeked_char.to_owned()));
+            }
+        }
+
+        // Get the first character's index and skip forward. All positions have already
+        // been checked at this point.
+        let (index, _) = self.input.next();
+        for _ in 1..chars.len() {
+            self.input.next();
+        }
+
+        Ok(Token::new(contents, Span::new(index, index + chars.len())))
     }
 
     /// Eats [`FileAppend`] ">>" or [`FileWrite`] ">".

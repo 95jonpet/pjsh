@@ -46,6 +46,32 @@ fn parse_multiline_word() {
 }
 
 #[test]
+fn parse_condition() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(DoubleOpenBracket, span),
+        Token::new(Literal("a".into()), span),
+        Token::new(Literal("=".into()), span),
+        Token::new(Literal("b".into()), span),
+        Token::new(DoubleCloseBracket, span),
+    ]);
+    assert_eq!(
+        parser.parse_and_or(),
+        Ok(AndOr {
+            operators: Vec::new(),
+            pipelines: vec![Pipeline {
+                is_async: false,
+                segments: vec![PipelineSegment::Condition(vec![
+                    Word::Literal("a".into()),
+                    Word::Literal("=".into()),
+                    Word::Literal("b".into()),
+                ])]
+            },]
+        })
+    );
+}
+
+#[test]
 fn parse_and_or_andif() {
     let span = Span::new(0, 0); // Does not matter during this test.
     let mut parser = Parser::new(vec![
@@ -60,23 +86,19 @@ fn parse_and_or_andif() {
             pipelines: vec![
                 Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("first".into()),
-                            arguments: Vec::new(),
-                            redirects: Vec::new(),
-                        }
-                    },]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("first".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    }),]
                 },
                 Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("second".into()),
-                            arguments: Vec::new(),
-                            redirects: Vec::new(),
-                        }
-                    },]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("second".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    })]
                 }
             ]
         })
@@ -98,23 +120,19 @@ fn parse_and_or_orif() {
             pipelines: vec![
                 Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("first".into()),
-                            arguments: Vec::new(),
-                            redirects: Vec::new(),
-                        }
-                    },]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("first".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    }),]
                 },
                 Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("second".into()),
-                            arguments: Vec::new(),
-                            redirects: Vec::new(),
-                        }
-                    },]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("second".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    }),]
                 }
             ]
         })
@@ -134,20 +152,16 @@ fn parse_legacy_pipeline() {
         Ok(Pipeline {
             is_async: false,
             segments: vec![
-                PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("first".into()),
-                        arguments: vec![Word::Literal("second".into())],
-                        redirects: Vec::new(),
-                    }
-                },
-                PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("third".into()),
-                        arguments: Vec::new(),
-                        redirects: Vec::new(),
-                    }
-                }
+                PipelineSegment::Command(Command {
+                    program: Word::Literal("first".into()),
+                    arguments: vec![Word::Literal("second".into())],
+                    redirects: Vec::new(),
+                }),
+                PipelineSegment::Command(Command {
+                    program: Word::Literal("third".into()),
+                    arguments: Vec::new(),
+                    redirects: Vec::new(),
+                }),
             ]
         })
     );
@@ -163,13 +177,11 @@ fn parse_legacy_pipeline_async() {
         parser.parse_pipeline(),
         Ok(Pipeline {
             is_async: true,
-            segments: vec![PipelineSegment {
-                command: Command {
-                    program: Word::Literal("command".into()),
-                    arguments: Vec::new(),
-                    redirects: Vec::new(),
-                }
-            },]
+            segments: vec![PipelineSegment::Command(Command {
+                program: Word::Literal("command".into()),
+                arguments: Vec::new(),
+                redirects: Vec::new(),
+            }),]
         })
     );
 }
@@ -191,20 +203,16 @@ fn parse_smart_pipeline() {
         Ok(Pipeline {
             is_async: false,
             segments: vec![
-                PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("cmd1".into()),
-                        arguments: Vec::new(),
-                        redirects: Vec::new(),
-                    }
-                },
-                PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("cmd2".into()),
-                        arguments: Vec::new(),
-                        redirects: Vec::new(),
-                    }
-                }
+                PipelineSegment::Command(Command {
+                    program: Word::Literal("cmd1".into()),
+                    arguments: Vec::new(),
+                    redirects: Vec::new(),
+                }),
+                PipelineSegment::Command(Command {
+                    program: Word::Literal("cmd2".into()),
+                    arguments: Vec::new(),
+                    redirects: Vec::new(),
+                }),
             ]
         })
     );
@@ -227,13 +235,11 @@ fn parse_smart_pipeline_whitespace() {
         parser.parse_pipeline(),
         Ok(Pipeline {
             is_async: false,
-            segments: vec![PipelineSegment {
-                command: Command {
-                    program: Word::Literal("cmd".into()),
-                    arguments: vec![Word::Literal("arg1".into()), Word::Literal("arg2".into())],
-                    redirects: Vec::new(),
-                }
-            },]
+            segments: vec![PipelineSegment::Command(Command {
+                program: Word::Literal("cmd".into()),
+                arguments: vec![Word::Literal("arg1".into()), Word::Literal("arg2".into())],
+                redirects: Vec::new(),
+            }),]
         })
     );
 }
@@ -278,13 +284,11 @@ fn parse_smart_async_pipeline() {
         parser.parse_pipeline(),
         Ok(Pipeline {
             is_async: true,
-            segments: vec![PipelineSegment {
-                command: Command {
-                    program: Word::Literal("command".into()),
-                    arguments: Vec::new(),
-                    redirects: Vec::new(),
-                }
-            },]
+            segments: vec![PipelineSegment::Command(Command {
+                program: Word::Literal("command".into()),
+                arguments: Vec::new(),
+                redirects: Vec::new(),
+            }),]
         })
     );
 }
@@ -329,13 +333,11 @@ fn parse_function_statement() {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("echo".into()),
-                                arguments: vec![Word::Literal("test".into())],
-                                redirects: Vec::new(),
-                            }
-                        }]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("echo".into()),
+                            arguments: vec![Word::Literal("test".into())],
+                            redirects: Vec::new(),
+                        })]
                     }]
                 })]
             }
@@ -361,13 +363,11 @@ fn parse_if_statement() {
                 operators: Vec::new(),
                 pipelines: vec![Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("true".into()),
-                            arguments: Vec::new(),
-                            redirects: Vec::new(),
-                        }
-                    }]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("true".into()),
+                        arguments: Vec::new(),
+                        redirects: Vec::new(),
+                    })]
                 }]
             }],
             branches: vec![Program {
@@ -375,13 +375,11 @@ fn parse_if_statement() {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("echo".into()),
-                                arguments: vec![Word::Literal("test".into())],
-                                redirects: Vec::new(),
-                            }
-                        }]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("echo".into()),
+                            arguments: vec![Word::Literal("test".into())],
+                            redirects: Vec::new(),
+                        })]
                     }]
                 })]
             }]
@@ -420,26 +418,22 @@ fn parse_if_statement_with_multiple_branches() {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("false".into()),
-                                arguments: Vec::new(),
-                                redirects: Vec::new(),
-                            }
-                        }]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("false".into()),
+                            arguments: Vec::new(),
+                            redirects: Vec::new(),
+                        })]
                     }]
                 },
                 AndOr {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("false".into()),
-                                arguments: Vec::new(),
-                                redirects: Vec::new(),
-                            }
-                        }]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("false".into()),
+                            arguments: Vec::new(),
+                            redirects: Vec::new(),
+                        })]
                     }]
                 }
             ],
@@ -449,13 +443,11 @@ fn parse_if_statement_with_multiple_branches() {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
                             is_async: false,
-                            segments: vec![PipelineSegment {
-                                command: Command {
-                                    program: Word::Literal("echo".into()),
-                                    arguments: vec![Word::Literal("first".into())],
-                                    redirects: Vec::new(),
-                                }
-                            }]
+                            segments: vec![PipelineSegment::Command(Command {
+                                program: Word::Literal("echo".into()),
+                                arguments: vec![Word::Literal("first".into())],
+                                redirects: Vec::new(),
+                            })]
                         }]
                     })]
                 },
@@ -464,13 +456,11 @@ fn parse_if_statement_with_multiple_branches() {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
                             is_async: false,
-                            segments: vec![PipelineSegment {
-                                command: Command {
-                                    program: Word::Literal("echo".into()),
-                                    arguments: vec![Word::Literal("second".into())],
-                                    redirects: Vec::new(),
-                                }
-                            }]
+                            segments: vec![PipelineSegment::Command(Command {
+                                program: Word::Literal("echo".into()),
+                                arguments: vec![Word::Literal("second".into())],
+                                redirects: Vec::new(),
+                            })]
                         }]
                     })]
                 },
@@ -479,13 +469,11 @@ fn parse_if_statement_with_multiple_branches() {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
                             is_async: false,
-                            segments: vec![PipelineSegment {
-                                command: Command {
-                                    program: Word::Literal("echo".into()),
-                                    arguments: vec![Word::Literal("third".into())],
-                                    redirects: Vec::new(),
-                                }
-                            }]
+                            segments: vec![PipelineSegment::Command(Command {
+                                program: Word::Literal("echo".into()),
+                                arguments: vec![Word::Literal("third".into())],
+                                redirects: Vec::new(),
+                            })]
                         }]
                     })]
                 }
@@ -510,13 +498,11 @@ fn parse_statement_before_unexpected() {
             operators: Vec::new(),
             pipelines: vec![Pipeline {
                 is_async: false,
-                segments: vec![PipelineSegment {
-                    command: Command {
-                        program: Word::Literal("echo".into()),
-                        arguments: vec![Word::Literal("test".into())],
-                        redirects: Vec::new(),
-                    }
-                }]
+                segments: vec![PipelineSegment::Command(Command {
+                    program: Word::Literal("echo".into()),
+                    arguments: vec![Word::Literal("test".into())],
+                    redirects: Vec::new(),
+                })]
             }]
         }))
     );
@@ -592,26 +578,22 @@ fn parse_program() {
                     operators: vec![],
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("cmd1".into()),
-                                arguments: vec![Word::Literal("arg1".into())],
-                                redirects: Vec::new(),
-                            }
-                        },]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("cmd1".into()),
+                            arguments: vec![Word::Literal("arg1".into())],
+                            redirects: Vec::new(),
+                        }),]
                     }]
                 }),
                 Statement::AndOr(AndOr {
                     operators: vec![],
                     pipelines: vec![Pipeline {
                         is_async: false,
-                        segments: vec![PipelineSegment {
-                            command: Command {
-                                program: Word::Literal("cmd2".into()),
-                                arguments: vec![Word::Literal("arg2".into())],
-                                redirects: Vec::new(),
-                            }
-                        },]
+                        segments: vec![PipelineSegment::Command(Command {
+                            program: Word::Literal("cmd2".into()),
+                            arguments: vec![Word::Literal("arg2".into())],
+                            redirects: Vec::new(),
+                        }),]
                     }]
                 })
             ]
@@ -630,26 +612,22 @@ fn parse_subshell() {
                         operators: vec![],
                         pipelines: vec![Pipeline {
                             is_async: false,
-                            segments: vec![PipelineSegment {
-                                command: Command {
-                                    program: Word::Literal("cmd1".into()),
-                                    arguments: vec![Word::Literal("arg1".into())],
-                                    redirects: Vec::new(),
-                                }
-                            },]
+                            segments: vec![PipelineSegment::Command(Command {
+                                program: Word::Literal("cmd1".into()),
+                                arguments: vec![Word::Literal("arg1".into())],
+                                redirects: Vec::new(),
+                            }),]
                         }]
                     }),
                     Statement::AndOr(AndOr {
                         operators: vec![],
                         pipelines: vec![Pipeline {
                             is_async: false,
-                            segments: vec![PipelineSegment {
-                                command: Command {
-                                    program: Word::Literal("cmd2".into()),
-                                    arguments: vec![Word::Literal("arg2".into())],
-                                    redirects: Vec::new(),
-                                }
-                            },]
+                            segments: vec![PipelineSegment::Command(Command {
+                                program: Word::Literal("cmd2".into()),
+                                arguments: vec![Word::Literal("arg2".into())],
+                                redirects: Vec::new(),
+                            }),]
                         }]
                     })
                 ]
@@ -667,30 +645,26 @@ fn parse_subshell_interpolation() {
                 operators: Vec::new(),
                 pipelines: vec![Pipeline {
                     is_async: false,
-                    segments: vec![PipelineSegment {
-                        command: Command {
-                            program: Word::Literal("echo".into()),
-                            arguments: vec![Word::Interpolation(vec![
-                                InterpolationUnit::Literal("today: ".into()),
-                                InterpolationUnit::Subshell(Program {
-                                    statements: vec![Statement::AndOr(AndOr {
-                                        operators: vec![],
-                                        pipelines: vec![Pipeline {
-                                            is_async: false,
-                                            segments: vec![PipelineSegment {
-                                                command: Command {
-                                                    program: Word::Literal("date".into()),
-                                                    arguments: Vec::new(),
-                                                    redirects: Vec::new(),
-                                                }
-                                            },]
-                                        }]
-                                    }),]
-                                })
-                            ])],
-                            redirects: Vec::new(),
-                        }
-                    }]
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("echo".into()),
+                        arguments: vec![Word::Interpolation(vec![
+                            InterpolationUnit::Literal("today: ".into()),
+                            InterpolationUnit::Subshell(Program {
+                                statements: vec![Statement::AndOr(AndOr {
+                                    operators: vec![],
+                                    pipelines: vec![Pipeline {
+                                        is_async: false,
+                                        segments: vec![PipelineSegment::Command(Command {
+                                            program: Word::Literal("date".into()),
+                                            arguments: Vec::new(),
+                                            redirects: Vec::new(),
+                                        }),]
+                                    }]
+                                }),]
+                            })
+                        ])],
+                        redirects: Vec::new(),
+                    })]
                 }]
             })]
         })

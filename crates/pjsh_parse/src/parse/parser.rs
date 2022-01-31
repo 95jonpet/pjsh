@@ -253,10 +253,37 @@ impl Parser {
         Ok(Pipeline { is_async, segments })
     }
 
-    /// Parses a pipeline segment consisting of a [`Command`].
+    /// Parses a pipeline segment.
     pub fn parse_pipeline_segment(&mut self) -> Result<PipelineSegment, ParseError> {
-        let command = self.parse_command()?;
-        Ok(PipelineSegment { command })
+        if let Ok(condition) = self.parse_condition() {
+            return Ok(PipelineSegment::Condition(condition));
+        }
+
+        Ok(PipelineSegment::Command(self.parse_command()?))
+    }
+
+    /// Tries to parse a [`Condition`] from the next tokens of input.
+    pub fn parse_condition(&mut self) -> Result<Vec<Word>, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::DoubleOpenBracket)
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        let mut words = Vec::new();
+        while let Ok(word) = self.parse_word() {
+            words.push(word);
+        }
+
+        match self.tokens.peek().contents {
+            TokenContents::DoubleCloseBracket => self.tokens.next(),
+            TokenContents::Eol => return Err(ParseError::IncompleteSequence),
+            _ => return Err(self.unexpected_token()),
+        };
+
+        Ok(words)
     }
 
     /// Tries to parse a [`Command`] from the next tokens of input.

@@ -47,6 +47,22 @@ fn lex_comment() {
 }
 
 #[test]
+fn lex_surrounding_chars() {
+    assert_eq!(tokens("("), vec![Token::new(OpenParen, Span::new(0, 1))]);
+    assert_eq!(tokens(")"), vec![Token::new(CloseParen, Span::new(0, 1))]);
+    assert_eq!(tokens("{"), vec![Token::new(OpenBrace, Span::new(0, 1))]);
+    assert_eq!(tokens("}"), vec![Token::new(CloseBrace, Span::new(0, 1))]);
+    assert_eq!(
+        tokens("[["),
+        vec![Token::new(DoubleOpenBracket, Span::new(0, 2))]
+    );
+    assert_eq!(
+        tokens("]]"),
+        vec![Token::new(DoubleCloseBracket, Span::new(0, 2))]
+    );
+}
+
+#[test]
 fn lex_literal() {
     assert_eq!(
         tokens("literal"),
