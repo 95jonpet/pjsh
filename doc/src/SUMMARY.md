@@ -13,6 +13,7 @@
 - [Aliasing](./aliasing.md)
 - [Globbing](./globbing.md)
 - [Conditionals](./conditionals.md)
+- [Loops](./loops.md)
 - [Functions](./functions.md)
 - [Pipelines](./pipelines.md)
 - [Redirection](./redirection.md)

@@ -4,9 +4,9 @@ use crate::lex::lexer::{LexError, Token};
 use crate::tokens::{self, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, FileDescriptor, Function,
-    InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator, Statement,
-    Word,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
+    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator,
+    Statement, Word,
 };
 
 use super::cursor::TokenCursor;
@@ -317,7 +317,14 @@ impl Parser {
 
         // Try to parse an if-statement.
         match self.parse_if_statement() {
-            Ok(function_statement) => return Ok(function_statement),
+            Ok(statement) => return Ok(statement),
+            Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+            _ => (),
+        }
+
+        // Try to parse a while-loop.
+        match self.parse_while_loop() {
+            Ok(statement) => return Ok(statement),
             Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
             _ => (),
         }
@@ -579,6 +586,21 @@ impl Parser {
         Ok(Statement::If(ConditionalChain {
             conditions,
             branches,
+        }))
+    }
+
+    fn parse_while_loop(&mut self) -> Result<Statement, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::Literal("while".into()))
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        Ok(Statement::While(ConditionalLoop {
+            condition: self.parse_and_or()?,
+            body: self.parse_body()?,
         }))
     }
 

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use pjsh_ast::{
-    AndOr, Assignment, Command, ConditionalChain, Pipeline, PipelineSegment, Statement, Word,
+    AndOr, Assignment, Command, ConditionalChain, ConditionalLoop, Pipeline, PipelineSegment,
+    Statement, Word,
 };
 use pjsh_core::Context;
 
@@ -183,5 +184,41 @@ fn execute_if_statement_else() {
         ctx.lock().scope.get_env("key"),
         Some("else".into()),
         "the else branch is not taken"
+    );
+}
+
+#[test]
+fn execute_while_loop() {
+    let fds = FileDescriptors::new();
+    let ctx = Arc::new(parking_lot::Mutex::new(Context::default()));
+    let executor = test_executor();
+    let conditional = ConditionalLoop {
+        condition: AndOr {
+            operators: Vec::new(),
+            pipelines: vec![Pipeline {
+                is_async: false,
+                segments: vec![PipelineSegment::Condition(vec![
+                    // Is true exactly once.
+                    Word::Variable("key".into()),
+                    Word::Literal("==".into()),
+                    Word::Literal("old".into()),
+                ])],
+            }],
+        },
+        body: pjsh_ast::Program {
+            statements: vec![Statement::Assignment(Assignment::new(
+                Word::Literal("key".into()),
+                Word::Literal("new".into()),
+            ))],
+        },
+    };
+
+    ctx.lock().scope.set_env("key".into(), "old".into());
+    executor.execute_statement(Statement::While(conditional), Arc::clone(&ctx), &fds);
+
+    assert_eq!(
+        ctx.lock().scope.get_env("key"),
+        Some("new".into()),
+        "the body is executed"
     );
 }
