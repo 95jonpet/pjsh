@@ -92,7 +92,7 @@ fn get_prompts(interactive: bool, context: &Context, executor: &Executor) -> (St
         &context
             .scope
             .get_env("PS1")
-            .unwrap_or_else(|| String::from("$ ")),
+            .unwrap_or_else(|| String::from("\\$ ")),
         context,
         executor,
     );
@@ -123,7 +123,10 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
                 interrupt(&mut context.lock());
                 continue;
             }
-            shell::ShellInput::Logout => break 'main,
+            shell::ShellInput::Logout => {
+                context.lock().host.lock().eprintln("pjsh: logout");
+                break 'main;
+            }
             shell::ShellInput::None => break,
         };
 
@@ -149,7 +152,10 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
                             interrupt(&mut context.lock());
                             continue 'main;
                         }
-                        shell::ShellInput::Logout => break 'main,
+                        shell::ShellInput::Logout => {
+                            context.lock().host.lock().eprintln("pjsh: logout");
+                            break 'main;
+                        }
                         shell::ShellInput::None => break,
                     };
                 }

@@ -33,6 +33,10 @@ fn shell_interrupt() {
         .expect_eprintln()
         .with(eq("pjsh: interrupt"))
         .return_const(());
+    mock_host
+        .expect_eprintln()
+        .with(eq("pjsh: logout"))
+        .return_const(());
 
     mock_host
         .expect_kill_all_processes()

@@ -61,7 +61,7 @@ fn inject_external_envs(ctx: &Context) {
 
 /// Injects static default environment variables into a context.
 fn inject_static_defaults(ctx: &Context) {
-    ctx.scope.set_env(String::from("PS1"), String::from("$ "));
+    ctx.scope.set_env(String::from("PS1"), String::from("\\$ "));
     ctx.scope.set_env(String::from("PS2"), String::from("> "));
     ctx.scope.set_env(String::from("PS4"), String::from("+ "));
 }
