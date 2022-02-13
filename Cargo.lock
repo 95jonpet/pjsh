@@ -609,6 +609,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pjsh_experimental"
+version = "0.1.0"
+dependencies = [
+ "mockall",
+]
+
+[[package]]
 name = "pjsh_parse"
 version = "0.1.0"
 dependencies = [

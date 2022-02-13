@@ -1,0 +1,8 @@
+[package]
+name = "pjsh_experimental"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dev-dependencies]
+mockall = "0.11.0"
