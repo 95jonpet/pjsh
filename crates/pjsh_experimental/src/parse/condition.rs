@@ -1,21 +1,41 @@
 use crate::{
-    ast::{Command, Word},
+    ast::{Condition, Word},
+    error::ParseError,
     input::Tokens,
+    token::TokenContents,
     traits::{Parse, ParseResult},
 };
 
-struct CommandParser<'a> {
+struct ConditionParser<'a> {
     word_parser: Box<dyn Parse<'a, Word<'a>>>,
 }
-impl<'a> Parse<'a, Command<'a>> for CommandParser<'a> {
-    fn parse(&self, tokens: &mut Tokens<'a>) -> ParseResult<Command<'a>> {
+impl<'a> Parse<'a, Condition<'a>> for ConditionParser<'a> {
+    fn parse(&self, tokens: &mut Tokens<'a>) -> ParseResult<Condition<'a>> {
+        if tokens
+            .next_if_eq(TokenContents::DoubleOpenBracket)
+            .is_none()
+        {
+            return Err(ParseError::UnexpectedToken);
+        }
+
         let mut words = Vec::with_capacity(tokens.len());
 
         while let Ok(word) = self.word_parser.parse(tokens) {
             words.push(word);
         }
 
-        Ok(Command(words))
+        if tokens.peek().it == TokenContents::Eof {
+            return Err(ParseError::IncompleteSequence);
+        }
+
+        if tokens
+            .next_if_eq(TokenContents::DoubleCloseBracket)
+            .is_none()
+        {
+            return Err(ParseError::UnexpectedToken);
+        }
+
+        Ok(Condition(words))
     }
 }
 
@@ -37,10 +57,10 @@ mod tests {
         }
     }
 
-    fn parse_command(
-        parser: Box<dyn Parse<'static, Command<'static>>>,
+    fn parse_condition(
+        parser: Box<dyn Parse<'static, Condition<'static>>>,
         tokens: Vec<TokenContents<'static>>,
-    ) -> ParseResult<Command<'static>> {
+    ) -> ParseResult<Condition<'static>> {
         let tokens: Vec<Token> = tokens
             .into_iter()
             .map(|contents| Token::new(Span::new(0, 0), contents))
@@ -50,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn it_parses_commands() {
+    fn it_parses_conditions() {
         let mut word_parser = MockWordParser::new();
         word_parser
             .expect_parse()
@@ -60,17 +80,22 @@ mod tests {
             .expect_parse()
             .returning(|_| Err(ParseError::UnexpectedToken));
 
-        let parser = CommandParser {
+        let parser = ConditionParser {
             word_parser: Box::new(word_parser),
         };
 
         assert_eq!(
-            Ok(Command(vec![Word::Literal("word"), Word::Literal("word")])),
-            parse_command(
+            Ok(Condition(vec![
+                Word::Literal("word"),
+                Word::Literal("word")
+            ])),
+            parse_condition(
                 Box::new(parser),
                 vec![
-                    TokenContents::Literal("word"),
-                    TokenContents::Literal("word"),
+                    TokenContents::DoubleOpenBracket,
+                    // Mock TokenContents::Literal("word"),
+                    // Mock TokenContents::Literal("word"),
+                    TokenContents::DoubleCloseBracket,
                 ]
             )
         );

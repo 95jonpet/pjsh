@@ -29,6 +29,7 @@ pub enum TokenContents<'a> {
 
     Literal(&'a str),
     Quoted(&'a str),
+    TripleQuoted(&'a str),
     Variable(&'a str),
 
     /// "\"" or "'"
