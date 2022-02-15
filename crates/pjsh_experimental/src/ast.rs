@@ -42,3 +42,10 @@ pub enum PipelineSegment<'a> {
     Command(Command<'a>),
     Condition(Condition<'a>),
 }
+
+#[derive(Debug, PartialEq)]
+pub enum Expression<'a> {
+    And(Box<Expression<'a>>, Box<Expression<'a>>),
+    Or(Box<Expression<'a>>, Box<Expression<'a>>),
+    Pipeline(Pipeline<'a>),
+}
