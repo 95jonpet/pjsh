@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Expression, Pipeline},
+    ast::{Condition, Expression, Pipeline},
     error::ParseError,
     input::Tokens,
     token::TokenContents,
@@ -7,6 +7,7 @@ use crate::{
 };
 
 struct ExpressionParser<'a> {
+    condition_parser: Box<dyn Parse<'a, Condition<'a>>>,
     pipeline_parser: Box<dyn Parse<'a, Pipeline<'a>>>,
 }
 
@@ -20,8 +21,10 @@ impl<'a> ExpressionParser<'a> {
             return Err(ParseError::UnexpectedToken);
         }
 
-        let right_node = Expression::Pipeline(self.pipeline_parser.parse(tokens)?);
-        Ok(Expression::And(Box::new(root_node), Box::new(right_node)))
+        Ok(Expression::And(
+            Box::new(root_node),
+            Box::new(self.parse_next(tokens)?),
+        ))
     }
 
     fn parse_or_if(
@@ -33,14 +36,24 @@ impl<'a> ExpressionParser<'a> {
             return Err(ParseError::UnexpectedToken);
         }
 
-        let right_node = Expression::Pipeline(self.pipeline_parser.parse(tokens)?);
-        Ok(Expression::Or(Box::new(root_node), Box::new(right_node)))
+        Ok(Expression::Or(
+            Box::new(root_node),
+            Box::new(self.parse_next(tokens)?),
+        ))
+    }
+
+    fn parse_next(&self, tokens: &mut Tokens<'a>) -> ParseResult<Expression<'a>> {
+        if let Ok(condition) = self.condition_parser.parse(tokens) {
+            return Ok(Expression::Condition(condition));
+        }
+
+        Ok(Expression::Pipeline(self.pipeline_parser.parse(tokens)?))
     }
 }
 
 impl<'a> Parse<'a, Expression<'a>> for ExpressionParser<'a> {
     fn parse(&self, tokens: &mut Tokens<'a>) -> ParseResult<Expression<'a>> {
-        let mut root = Expression::Pipeline(self.pipeline_parser.parse(tokens)?);
+        let mut root = self.parse_next(tokens)?;
 
         loop {
             match tokens.peek().it {
@@ -60,7 +73,7 @@ mod tests {
     use mockall::mock;
 
     use crate::{
-        ast::{Command, Pipeline, PipelineSegment, Word},
+        ast::{Command, Pipeline, Word},
         token::{Span, Token, TokenContents},
     };
 
@@ -74,6 +87,13 @@ mod tests {
     }
 
     mock! {
+        ConditionParser {}
+        impl Parse<'static, Condition<'static>> for ConditionParser {
+            fn parse(&self, tokens: &mut Tokens<'static>) -> ParseResult<Condition<'static>>;
+        }
+    }
+
+    mock! {
         PipelineParser {}
         impl Parse<'static, Pipeline<'static>> for PipelineParser {
             fn parse(&self, tokens: &mut Tokens<'static>) -> ParseResult<Pipeline<'static>>;
@@ -83,7 +103,7 @@ mod tests {
     fn pipeline(name: &str) -> Pipeline {
         Pipeline {
             is_async: false,
-            segments: vec![PipelineSegment::Command(Command(vec![Word::Literal(name)]))],
+            commands: vec![Command(vec![Word::Literal(name)])],
         }
     }
 
@@ -100,9 +120,56 @@ mod tests {
     }
 
     #[test]
-    fn it_parses_and_expressions() {
-        let mut pipeline_parser = MockPipelineParser::new();
+    fn it_parses_condition_expressions() {
+        let mut condition_parser = MockConditionParser::new();
+        condition_parser
+            .expect_parse()
+            .return_once(move |_| Ok(Condition(vec![Word::Literal("condition")])));
 
+        let parser = ExpressionParser {
+            pipeline_parser: Box::new(MockPipelineParser::new()),
+            condition_parser: Box::new(condition_parser),
+        };
+
+        assert_eq!(
+            Ok(Expression::Condition(Condition(vec![Word::Literal(
+                "condition"
+            )]))),
+            parse_expression(Box::new(parser), vec![])
+        );
+    }
+
+    #[test]
+    fn it_parses_pipeline_expressions() {
+        let mut condition_parser = MockConditionParser::new();
+        condition_parser
+            .expect_parse()
+            .return_once(|_| Err(ParseError::UnexpectedToken));
+
+        let mut pipeline_parser = MockPipelineParser::new();
+        pipeline_parser
+            .expect_parse()
+            .return_once(move |_| Ok(pipeline("pipeline")));
+
+        let parser = ExpressionParser {
+            pipeline_parser: Box::new(pipeline_parser),
+            condition_parser: Box::new(condition_parser),
+        };
+
+        assert_eq!(
+            Ok(Expression::Pipeline(pipeline("pipeline"))),
+            parse_expression(Box::new(parser), vec![])
+        );
+    }
+
+    #[test]
+    fn it_parses_and_expressions() {
+        let mut condition_parser = MockConditionParser::new();
+        condition_parser
+            .expect_parse()
+            .returning(|_| Err(ParseError::UnexpectedToken));
+
+        let mut pipeline_parser = MockPipelineParser::new();
         pipeline_parser
             .expect_parse()
             .once()
@@ -114,6 +181,7 @@ mod tests {
 
         let parser = ExpressionParser {
             pipeline_parser: Box::new(pipeline_parser),
+            condition_parser: Box::new(condition_parser),
         };
 
         assert_eq!(
@@ -127,8 +195,12 @@ mod tests {
 
     #[test]
     fn it_parses_or_expressions() {
-        let mut pipeline_parser = MockPipelineParser::new();
+        let mut condition_parser = MockConditionParser::new();
+        condition_parser
+            .expect_parse()
+            .returning(|_| Err(ParseError::UnexpectedToken));
 
+        let mut pipeline_parser = MockPipelineParser::new();
         pipeline_parser
             .expect_parse()
             .once()
@@ -140,6 +212,7 @@ mod tests {
 
         let parser = ExpressionParser {
             pipeline_parser: Box::new(pipeline_parser),
+            condition_parser: Box::new(condition_parser),
         };
 
         assert_eq!(
@@ -153,8 +226,12 @@ mod tests {
 
     #[test]
     fn it_parses_complex_expressions() {
-        let mut pipeline_parser = MockPipelineParser::new();
+        let mut condition_parser = MockConditionParser::new();
+        condition_parser
+            .expect_parse()
+            .returning(|_| Err(ParseError::UnexpectedToken));
 
+        let mut pipeline_parser = MockPipelineParser::new();
         pipeline_parser
             .expect_parse()
             .once()
@@ -170,6 +247,7 @@ mod tests {
 
         let parser = ExpressionParser {
             pipeline_parser: Box::new(pipeline_parser),
+            condition_parser: Box::new(condition_parser),
         };
 
         // Parse `A || B && C` into `And(Or(A, B), C)`.

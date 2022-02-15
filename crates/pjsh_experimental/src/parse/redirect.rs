@@ -82,9 +82,7 @@ mod tests {
             .expect_parse()
             .return_once(|_| Ok(Word::Literal("target")));
 
-        let parser = RedirectParser {
-            word_parser: Box::new(word_parser),
-        };
+        let parser = RedirectParser::new(Box::new(word_parser));
 
         assert_eq!(
             Ok(Redirect {
