@@ -155,10 +155,12 @@ mod tests {
     #[test]
     fn it_parses_legacy_pipelines() {
         let mut command_parser = MockCommandParser::new();
-        command_parser
-            .expect_parse()
-            .times(2)
-            .returning(|_| Ok(Command(vec![Word::Literal("command")])));
+        command_parser.expect_parse().times(2).returning(|_| {
+            Ok(Command {
+                arguments: vec![Word::Literal("command")],
+                redirects: vec![],
+            })
+        });
         command_parser
             .expect_parse()
             .return_once(|_| Err(ParseError::UnexpectedToken));
@@ -169,8 +171,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")])
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    }
                 ]
             }),
             parse_pipeline(
@@ -183,10 +191,12 @@ mod tests {
     #[test]
     fn it_parses_async_legacy_pipelines() {
         let mut command_parser = MockCommandParser::new();
-        command_parser
-            .expect_parse()
-            .times(2)
-            .returning(|_| Ok(Command(vec![Word::Literal("command")])));
+        command_parser.expect_parse().times(2).returning(|_| {
+            Ok(Command {
+                arguments: vec![Word::Literal("command")],
+                redirects: vec![],
+            })
+        });
         command_parser
             .expect_parse()
             .return_once(|_| Err(ParseError::UnexpectedToken));
@@ -197,8 +207,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: true,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")])
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    }
                 ]
             }),
             parse_pipeline(
@@ -211,10 +227,12 @@ mod tests {
     #[test]
     fn it_parses_smart_pipelines() {
         let mut command_parser = MockCommandParser::new();
-        command_parser
-            .expect_parse()
-            .times(2)
-            .returning(|_| Ok(Command(vec![Word::Literal("command")])));
+        command_parser.expect_parse().times(2).returning(|_| {
+            Ok(Command {
+                arguments: vec![Word::Literal("command")],
+                redirects: vec![],
+            })
+        });
         command_parser
             .expect_parse()
             .return_once(|_| Err(ParseError::UnexpectedToken));
@@ -225,8 +243,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")])
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    }
                 ]
             }),
             parse_pipeline(
@@ -243,10 +267,12 @@ mod tests {
     #[test]
     fn it_parses_async_smart_pipelines() {
         let mut command_parser = MockCommandParser::new();
-        command_parser
-            .expect_parse()
-            .times(2)
-            .returning(|_| Ok(Command(vec![Word::Literal("command")])));
+        command_parser.expect_parse().times(2).returning(|_| {
+            Ok(Command {
+                arguments: vec![Word::Literal("command")],
+                redirects: vec![],
+            })
+        });
         command_parser
             .expect_parse()
             .return_once(|_| Err(ParseError::UnexpectedToken));
@@ -257,8 +283,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: true,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")])
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    }
                 ]
             }),
             parse_pipeline(
@@ -279,8 +311,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")]),
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![],
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![],
+                    },
                 ],
             })
         });
@@ -294,8 +332,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")]),
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
                 ],
             }),
             parse_pipeline(Box::new(parser), vec![]) // No smart pipeline start, parse legacy pipeline.
@@ -309,8 +353,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")]),
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![],
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![],
+                    },
                 ],
             })
         });
@@ -324,8 +374,14 @@ mod tests {
             Ok(Pipeline {
                 is_async: false,
                 commands: vec![
-                    Command(vec![Word::Literal("command")]),
-                    Command(vec![Word::Literal("command")]),
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
+                    Command {
+                        arguments: vec![Word::Literal("command")],
+                        redirects: vec![]
+                    },
                 ],
             }),
             parse_pipeline(Box::new(parser), vec![TokenContents::PipeStart])

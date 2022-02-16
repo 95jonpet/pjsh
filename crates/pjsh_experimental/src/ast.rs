@@ -7,7 +7,10 @@ pub enum Word<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Command<'a>(pub Vec<Word<'a>>);
+pub struct Command<'a> {
+    pub arguments: Vec<Word<'a>>,
+    pub redirects: Vec<Redirect<'a>>,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Condition<'a>(pub Vec<Word<'a>>);
@@ -15,8 +18,8 @@ pub struct Condition<'a>(pub Vec<Word<'a>>);
 #[derive(Debug, PartialEq)]
 pub struct Redirect<'a> {
     pub source: FileDescriptor<'a>,
-    pub method: RedirectMethod,
     pub target: FileDescriptor<'a>,
+    pub method: RedirectMethod,
 }
 
 #[derive(Debug, PartialEq)]

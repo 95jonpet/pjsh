@@ -103,7 +103,10 @@ mod tests {
     fn pipeline(name: &str) -> Pipeline {
         Pipeline {
             is_async: false,
-            commands: vec![Command(vec![Word::Literal(name)])],
+            commands: vec![Command {
+                arguments: vec![Word::Literal(name)],
+                redirects: vec![],
+            }],
         }
     }
 
