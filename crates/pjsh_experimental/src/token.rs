@@ -37,6 +37,13 @@ pub enum TokenContents<'a> {
     /// "\"\"\"" or "'''"
     TripleQuote,
 
+    /// "(...)"
+    ParenGroup(Vec<TokenContents<'a>>),
+    /// "{...}"
+    BraceGroup(Vec<TokenContents<'a>>),
+    /// "[[...]]"
+    DoubleBracketGroup(Vec<TokenContents<'a>>),
+
     /// "("
     OpenParen,
     /// ")"
