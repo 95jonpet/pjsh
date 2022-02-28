@@ -1,0 +1,5 @@
+#!/bin/pjsh
+
+transact {
+  echo "This is only run once."
+}

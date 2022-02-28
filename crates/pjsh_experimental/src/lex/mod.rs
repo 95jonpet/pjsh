@@ -1,3 +1,5 @@
+mod lexer;
+mod macros;
 mod operator;
 
 use crate::{error::LexError, lex::operator::potential_operators, token::Token};
