@@ -2,7 +2,9 @@ use std::io;
 
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+use crate::tok;
+
+#[derive(Debug, Error, PartialEq)]
 pub enum LexError<'a> {
     #[error("Was expecting {expected:?}, found {found:?}")]
     MissingExpectedSymbol {
@@ -23,16 +25,25 @@ pub enum LexError<'a> {
 pub type Token<'a> = TokenType<'a>;
 type BalancingDepthType = i32;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenType<'a> {
     Eof,
     Punctuation { raw: char, kind: PunctuationKind },
-    Operator(&'a str),
+    Operator { raw: &'a str, kind: OperatorKind },
     Identifier(&'a str),
-    String(&'a str),
+    String(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+pub enum OperatorKind {
+    Amp,
+    AndIf,
+    OrIf,
+    Pipe,
+    PipeStart,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum PunctuationKind {
     Open(BalancingDepthType),
     Close(BalancingDepthType),
@@ -105,31 +116,47 @@ impl<'a> Lexer<'a> {
 
     fn transform_to_type(&mut self, c: char) -> Result<TokenType<'a>, LexError<'a>> {
         match c {
-            '(' | '[' | '{' => Ok(TokenType::Punctuation {
-                raw: c,
-                kind: PunctuationKind::Open(self.push_symbol(&c)),
-            }),
-            ')' | ']' | '}' => Ok(TokenType::Punctuation {
-                raw: c,
-                kind: PunctuationKind::Close(self.pop_symbol(&c)?),
-            }),
-            '"' => self.parse_string('"'),
-            _ => Err(LexError::UnknownSymbol {
-                symbol: c.to_string(),
-            }),
+            '(' | '[' | '{' => Ok(tok!(Punct c (Open self.push_symbol(&c)))),
+            ')' | ']' | '}' => Ok(tok!(Punct c (Close self.pop_symbol(&c)?))),
+            ';' => Ok(tok!(Punct c (Separator))),
+            '"' | '\'' => self.parse_string(c),
+            c => self.parse_identifier(c),
         }
     }
 
+    fn parse_identifier(&mut self, first_char: char) -> Result<TokenType<'a>, LexError<'a>> {
+        let start_offset = self.codepoint_offset - first_char.len_utf8();
+
+        while let Some(c) = self.chars.peek() {
+            if c.is_whitespace() {
+                break;
+            }
+
+            self.consume_char();
+        }
+
+        Ok(TokenType::Identifier(
+            &self.input[start_offset..self.codepoint_offset],
+        ))
+    }
+
     fn parse_string(&mut self, delimiter: char) -> Result<TokenType<'a>, LexError<'a>> {
-        let start_offset = self.codepoint_offset;
+        let mut start_offset = self.codepoint_offset;
         let mut is_escaped = false;
+        let mut string = String::new();
 
         loop {
             if is_escaped {
-                if self.consume_char().is_none() {
-                    return Err(LexError::UnexpectedEof {
-                        expected: delimiter.to_string(),
-                    });
+                match self.consume_char() {
+                    Some(c) => {
+                        start_offset = self.codepoint_offset;
+                        string.push(c);
+                    }
+                    None => {
+                        return Err(LexError::UnexpectedEof {
+                            expected: delimiter.to_string(),
+                        })
+                    }
                 }
 
                 is_escaped = false;
@@ -138,7 +165,12 @@ impl<'a> Lexer<'a> {
 
             match self.consume_char() {
                 Some(c) if c == delimiter => break,
-                Some('\\') => is_escaped = true,
+                Some('\\') => {
+                    string.push_str(
+                        &self.input[start_offset..(self.codepoint_offset - '\\'.len_utf8())],
+                    );
+                    is_escaped = true;
+                }
                 Some(_) => (),
                 None => {
                     return Err(LexError::UnexpectedEof {
@@ -148,8 +180,8 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let end_offset = self.codepoint_offset - delimiter.len_utf8();
-        Ok(TokenType::String(&self.input[start_offset..end_offset]))
+        string.push_str(&self.input[start_offset..(self.codepoint_offset - '\\'.len_utf8())]);
+        Ok(TokenType::String(string))
     }
 
     pub fn consume_char(&mut self) -> Option<char> {
@@ -177,8 +209,23 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn skip_comments(&mut self) {
+        if self.chars.peek() != Some(&'#') {
+            return;
+        }
+
+        while let Some(c) = self.consume_char() {
+            if c == '\n' {
+                break;
+            }
+        }
+
+        self.skip_whitespace();
+    }
+
     pub fn next_token(&mut self) -> Result<TokenType<'a>, LexError<'a>> {
         self.skip_whitespace();
+        self.skip_comments();
 
         if let Some(c) = self.consume_char() {
             self.transform_to_type(c)
@@ -194,27 +241,44 @@ mod tests {
 
     use super::*;
 
-    fn tokens<'a>(input: &'a str) -> Vec<TokenType<'a>> {
+    fn tokens<'a>(input: &'a str) -> Result<Vec<TokenType<'a>>, LexError<'a>> {
         let mut lexer = Lexer::new(input);
         let mut tokens = Vec::new();
         loop {
             match lexer.next_token() {
                 Ok(TokenType::Eof) => break,
-                Ok(token) => {
-                    println!("{token:?}");
-                    tokens.push(token)
-                }
-                Err(err) => eprintln!("{err:?}"),
+                Ok(token) => tokens.push(token),
+                Err(err) => panic!("Unexpected error: {err:?}"),
             }
         }
-        tokens
+        Ok(tokens)
     }
 
     #[test]
     fn it_works() {
-        println!("{:?}", tokens("if () { echo \"This is a \\\"test\\\".\" }"));
-        // println!("{:?}", tokens("(()())"));
+        assert_eq!(
+            tokens("if () { echo \"This is a \\\"test\\\".\" }"),
+            Ok(vec![
+                tok!(Id "if"),
+                tok!(Punct '(' (Open 0)),
+                tok!(Punct ')' (Close 0)),
+                tok!(Punct '{' (Open 0)),
+                tok!(Id "echo"),
+                tok!(Str r#"This is a "test"."#),
+                tok!(Punct '}' (Close 0)),
+            ])
+        );
 
-        // println!("{:?}", tok!(Eof));
+        assert_eq!(
+            tokens("(()())"),
+            Ok(vec![
+                tok!(Punct '(' (Open 0)),
+                tok!(Punct '(' (Open 1)),
+                tok!(Punct ')' (Close 1)),
+                tok!(Punct '(' (Open 1)),
+                tok!(Punct ')' (Close 1)),
+                tok!(Punct ')' (Close 0)),
+            ])
+        );
     }
 }
