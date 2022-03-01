@@ -27,7 +27,7 @@ fn lex_eol() {
     assert_eq!(tokens("\n"), vec![Token::new(Eol, Span::new(0, 1))]);
     assert_eq!(tokens("\r"), vec![Token::new(Eol, Span::new(0, 1))]);
     // \r\n is considered a single char.
-    assert_eq!(tokens("\r\n"), vec![Token::new(Eol, Span::new(0, 1))]);
+    assert_eq!(tokens("\r\n"), vec![Token::new(Eol, Span::new(0, 2))]);
 
     assert_eq!(
         tokens("\n\n"),
