@@ -96,8 +96,15 @@ impl Shell for RustylineShell {
     }
 
     fn save_history(&mut self, path: &std::path::Path) {
+        if let Some(parent) = path.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                println!("pjsh: Could not write history file: {error}");
+                return;
+            }
+        }
+
         if let Err(error) = self.editor.append_history(&path) {
-            println!("pjsh: Could not write history file: {}", error);
+            println!("pjsh: Could not write history file: {error}");
         }
     }
 }
