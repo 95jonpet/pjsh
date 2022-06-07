@@ -100,6 +100,10 @@ fn lex_variable() {
         tokens("$?"),
         vec![Token::new(Variable("?".into()), Span::new(0, 2))]
     );
+    assert_eq!(
+        tokens("$0"),
+        vec![Token::new(Variable("0".into()), Span::new(0, 2))]
+    );
 }
 
 #[test]
