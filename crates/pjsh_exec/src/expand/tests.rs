@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::vec;
 
 use mockall::mock;
 
@@ -112,6 +113,18 @@ fn expand_tilde() {
             ("file~".into(), true)
         ])
     )
+}
+
+#[test]
+fn expand_positional_arguments() {
+    let mut context = Context::default();
+    let executor = test_executor();
+    context.arguments = vec!["arg0".into(), "arg1".into()];
+
+    let arg0 = expand_single(Word::Variable("0".into()), &context, &executor);
+    assert_eq!(arg0, Some("arg0".into()));
+    let arg1 = expand_single(Word::Variable("1".into()), &context, &executor);
+    assert_eq!(arg1, Some("arg1".into()));
 }
 
 #[test]

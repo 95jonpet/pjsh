@@ -361,6 +361,10 @@ impl<'a> Lexer<'a> {
                 let (span, content) = self.input.eat_while(|c| c.is_alphanumeric() || c == '_');
                 Ok(Token::new(Variable(content), span))
             }
+            ch if ch.is_numeric() => {
+                let (span, content) = self.input.eat_while(char::is_numeric);
+                Ok(Token::new(Variable(content), span))
+            }
             ch => Err(LexError::UnexpectedChar(ch)),
         }
     }
