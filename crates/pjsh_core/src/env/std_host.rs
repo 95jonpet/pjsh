@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    process::Child,
+    process::{self, Child},
     thread::JoinHandle,
 };
 
@@ -39,6 +39,10 @@ impl Host for StdHost {
         for mut child in std::mem::take(&mut self.child_processes) {
             let _ = child.kill();
         }
+    }
+
+    fn process_id(&self) -> u32 {
+        process::id()
     }
 
     fn join_all_threads(&mut self) {

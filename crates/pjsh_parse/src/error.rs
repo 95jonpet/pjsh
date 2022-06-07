@@ -19,7 +19,7 @@ pub enum ParseError {
     /// Error indicating that the syntax is invalid.
     ///
     /// This error is not recoverable.
-    InvalidSyntax,
+    InvalidSyntax(String),
 
     /// Error indicating that there is no more input to parse.
     ///
@@ -41,7 +41,7 @@ impl Display for ParseError {
         match self {
             ParseError::EmptySubshell => write!(f, "empty subshell"),
             ParseError::IncompleteSequence => write!(f, "incomplete sequence"),
-            ParseError::InvalidSyntax => write!(f, "invalid syntax"),
+            ParseError::InvalidSyntax(message) => write!(f, "invalid syntax: {message}"),
             ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
             ParseError::UnexpectedToken(token) => {
                 write!(f, "unexpected token {:? }", token.contents)

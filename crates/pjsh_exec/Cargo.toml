@@ -13,3 +13,6 @@ tempfile = "3.2.0"
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_core = { path = "../pjsh_core" }
 pjsh_parse = { path = "../pjsh_parse" }
+
+[dev-dependencies]
+mockall = "0.11.1"

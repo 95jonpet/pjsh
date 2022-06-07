@@ -355,6 +355,7 @@ impl<'a> Lexer<'a> {
 
                 Ok(Token::new(Variable(content), span))
             }
+            '$' => self.eat_char(Variable(String::from('$'))),
             '?' => self.eat_char(Variable(String::from('?'))),
             ch if ch.is_alphabetic() || ch == '_' => {
                 let (span, content) = self.input.eat_while(|c| c.is_alphanumeric() || c == '_');
