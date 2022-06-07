@@ -20,10 +20,7 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
             parser.parse_program()
         }
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
-        Err(error) => {
-            eprintln!("pjsh: {}", error);
-            Err(ParseError::InvalidSyntax)
-        }
+        Err(error) => Err(ParseError::InvalidSyntax(error.to_string())),
     }
 }
 
@@ -36,10 +33,7 @@ pub fn parse_interpolation(src: &str) -> Result<Word, ParseError> {
             parser.parse_word()
         }
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
-        Err(error) => {
-            eprintln!("pjsh: {}", error);
-            Err(ParseError::InvalidSyntax)
-        }
+        Err(error) => Err(ParseError::InvalidSyntax(error.to_string())),
     }
 }
 

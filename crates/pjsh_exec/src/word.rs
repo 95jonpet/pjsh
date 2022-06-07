@@ -11,6 +11,7 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: &Context) -> S
         Word::Literal(literal) => literal,
         Word::Quoted(quoted) => quoted,
         Word::Variable(key) => match key.as_str() {
+            "$" => context.host.lock().process_id().to_string(),
             "?" => context.last_exit.to_string(),
             _ => {
                 if let Ok(positional) = key.parse::<usize>() {

@@ -31,6 +31,9 @@ pub trait Host: Send {
     /// Kills all registered child processes.
     fn kill_all_processes(&mut self);
 
+    /// Returns the OS-assigned process identifier associated with this process.
+    fn process_id(&self) -> u32;
+
     /// Joins all registered threads.
     fn join_all_threads(&mut self);
 

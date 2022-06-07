@@ -644,6 +644,7 @@ name = "pjsh_exec"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "mockall",
  "os_pipe",
  "parking_lot",
  "pjsh_ast",

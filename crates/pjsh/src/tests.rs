@@ -13,6 +13,7 @@ mock! {
         fn add_child_process(&mut self, child: std::process::Child);
         fn add_thread(&mut self, thread: std::thread::JoinHandle<i32>);
         fn kill_all_processes(&mut self);
+        fn process_id(&self) -> u32;
         fn join_all_threads(&mut self);
         fn take_exited_child_processes(&mut self) -> std::collections::HashSet<u32>;
         fn env_vars(&self) -> std::collections::HashMap<std::ffi::OsString, std::ffi::OsString>;

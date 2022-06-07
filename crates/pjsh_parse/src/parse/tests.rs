@@ -712,3 +712,23 @@ fn parse_subshell_interpolation() {
         })
     );
 }
+
+#[test]
+fn parse_dollar_dollar() {
+    assert_eq!(
+        crate::parse("echo $$"),
+        Ok(Program {
+            statements: vec![Statement::AndOr(AndOr {
+                operators: Vec::new(),
+                pipelines: vec![Pipeline {
+                    is_async: false,
+                    segments: vec![PipelineSegment::Command(Command {
+                        program: Word::Literal("echo".into()),
+                        arguments: vec![Word::Variable("$".into())],
+                        redirects: Vec::new(),
+                    })]
+                }]
+            })]
+        })
+    );
+}
