@@ -107,11 +107,6 @@ pub fn is_newline(ch: char) -> bool {
     )
 }
 
-/// Returns `true` if a character is allowed in a variable name.
-pub fn is_variable_char(c: char) -> bool {
-    c == '_' || c.is_alphanumeric()
-}
-
 /// Returns `true` if a unicode grapheme cluster should be considered whitespace.
 pub fn is_whitespace(ch: char) -> bool {
     matches!(
