@@ -542,13 +542,7 @@ impl Executor {
     /// Expands a [`Command`] into a [`VecDeque`] of arguments.
     /// Evaluates variables and resolves aliases.
     fn expand(&self, command: Command, context: Arc<Mutex<Context>>) -> VecDeque<String> {
-        let mut args = Vec::with_capacity(command.arguments.len() + 1);
-        args.push(command.program);
-        for arg in command.arguments {
-            args.push(arg);
-        }
-
-        expand(args, &context.lock(), self)
+        expand(command.arguments, &context.lock(), self)
     }
 }
 

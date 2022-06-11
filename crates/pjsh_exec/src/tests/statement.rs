@@ -12,8 +12,10 @@ fn pipeline(exit_status: i32) -> Pipeline {
     Pipeline {
         is_async: false,
         segments: vec![PipelineSegment::Command(Command {
-            program: Word::Literal("exit".into()),
-            arguments: vec![Word::Literal(format!("{}", exit_status))],
+            arguments: vec![
+                Word::Literal("exit".into()),
+                Word::Literal(format!("{}", exit_status)),
+            ],
             redirects: Vec::new(),
         })],
     }
