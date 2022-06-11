@@ -246,6 +246,14 @@ fn lex_word_interpolation() {
             span: Span::new(2, 4)
         }])])
     );
+    assert_eq!(
+        crate::lex_interpolation(r#"$0"#).unwrap().contents,
+        Interpolation(vec![InterpolationUnit::Variable("0".into())])
+    );
+    assert_eq!(
+        crate::lex_interpolation(r#"$$"#).unwrap().contents,
+        Interpolation(vec![InterpolationUnit::Variable("$".into())])
+    );
 }
 
 fn tokens(src: &str) -> Vec<Token> {

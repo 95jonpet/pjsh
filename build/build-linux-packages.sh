@@ -55,7 +55,7 @@ package() {
     --maintainer "Peter Jonsson" \
     --after-install "/scripts/after-install.sh" \
     --before-remove "/scripts/before-remove.sh" \
-    "/src/pjsh=/usr/bin/pjsh"
+    "/src/pjsh=/bin/pjsh"
 
   # Correct file ownership.
   MSYS_NO_PATHCONV=1 docker run \

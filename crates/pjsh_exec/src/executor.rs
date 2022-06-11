@@ -395,9 +395,10 @@ impl Executor {
         debug_assert_eq!(args.front(), Some(&cmd.name().to_owned()));
 
         // Create a new modified context for the command.
-        ctx.lock().arguments = Vec::from(args);
+        let mut inner_context = ctx.lock().clone();
+        inner_context.arguments = Vec::from(args);
         let args = pjsh_core::command::Args {
-            context: ctx.lock().clone(),
+            context: inner_context,
             io: fds.io(),
         };
 

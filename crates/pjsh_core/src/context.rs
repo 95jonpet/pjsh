@@ -2,6 +2,12 @@ use std::sync::Arc;
 
 use crate::{eval::scope::Scope, Host, StdHost};
 
+/// Status code representing success.
+///
+/// This is the only valid status indicating the successful completion of a program.
+/// Thus, all other status codes represent various error states.
+const EXIT_SUCCESS: i32 = 0;
+
 #[derive(Clone)]
 pub struct Context {
     pub name: String,
@@ -22,7 +28,7 @@ impl Context {
             scope,
             arguments: args,
             host: Arc::new(parking_lot::Mutex::new(host)),
-            last_exit: 0, // Success
+            last_exit: EXIT_SUCCESS,
         }
     }
 

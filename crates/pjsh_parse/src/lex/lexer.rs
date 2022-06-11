@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::lex::input::{is_newline, is_variable_char, is_whitespace};
+use crate::lex::input::{is_newline, is_whitespace};
 use crate::tokens::TokenContents::*;
 use crate::tokens::{InterpolationUnit, TokenContents};
 
@@ -460,12 +460,12 @@ impl<'a> Lexer<'a> {
                             }
                             units.push(InterpolationUnit::Variable(content));
                         }
-                        _ => {
-                            let (_, content) = self
-                                .input
-                                .eat_while(|c| is_variable_char(c) && c != delimiter_char);
-                            units.push(InterpolationUnit::Variable(content));
-                        }
+                        _ => match self.eat_variable()?.contents {
+                            Variable(content) => units.push(InterpolationUnit::Variable(content)),
+                            _ => {
+                                return Err(LexError::UnknownToken(self.input.peek().1.to_string()))
+                            }
+                        },
                     }
                 }
                 _ => {
