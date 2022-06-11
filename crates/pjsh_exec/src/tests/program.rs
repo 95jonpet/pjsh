@@ -18,8 +18,10 @@ fn execute_program() {
             pipelines: vec![Pipeline {
                 is_async: false,
                 segments: vec![PipelineSegment::Command(Command {
-                    program: Word::Literal("echo".into()),
-                    arguments: vec![Word::Literal("Hello, world!".into())],
+                    arguments: vec![
+                        Word::Literal("echo".into()),
+                        Word::Literal("Hello, world!".into()),
+                    ],
                     redirects: Vec::new(),
                 })],
             }],
@@ -43,8 +45,10 @@ fn execute_program_stderr() {
             pipelines: vec![Pipeline {
                 is_async: false,
                 segments: vec![PipelineSegment::Command(Command {
-                    program: Word::Literal("echo".into()),
-                    arguments: vec![Word::Literal("Hello, world!".into())],
+                    arguments: vec![
+                        Word::Literal("echo".into()),
+                        Word::Literal("Hello, world!".into()),
+                    ],
                     redirects: vec![Redirect {
                         source: FileDescriptor::Number(1), // Stdout
                         target: FileDescriptor::Number(2), // Stderr

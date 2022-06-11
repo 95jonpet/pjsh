@@ -283,7 +283,8 @@ impl Parser {
     /// Tries to parse a [`Command`] from the next tokens of input.
     pub fn parse_command(&mut self) -> Result<Command, ParseError> {
         let prefix_redirects = self.parse_redirects();
-        let mut command = Command::new(self.parse_word()?);
+        let mut command = Command::default();
+        command.arg(self.parse_word()?);
 
         while let Ok(argument) = self.parse_word() {
             command.arg(argument);
