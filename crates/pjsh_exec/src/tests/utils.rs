@@ -21,7 +21,11 @@ impl Command for EchoTestCommand {
     }
 
     fn run(&self, mut args: pjsh_core::command::Args) -> pjsh_core::command::CommandResult {
-        let _ = writeln!(args.io.stdout, "{}", &args.context.arguments[1..].join(" "));
+        let _ = writeln!(
+            args.io.stdout,
+            "{}",
+            &args.context.lock().args()[1..].join(" ")
+        );
         CommandResult::code(0)
     }
 }
@@ -37,7 +41,7 @@ impl Command for ExitTestCommand {
     }
 
     fn run(&self, args: pjsh_core::command::Args) -> pjsh_core::command::CommandResult {
-        match args.context.arguments.get(1).unwrap().parse::<i32>() {
+        match args.context.lock().args().get(1).unwrap().parse::<i32>() {
             Ok(code) => CommandResult::code(code),
             Err(_) => unreachable!("only used correctly during tests"),
         }

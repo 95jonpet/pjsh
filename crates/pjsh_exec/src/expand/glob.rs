@@ -17,13 +17,10 @@ fn expand_tilde(words: &mut VecDeque<(String, bool)>, context: &Context) {
         }
 
         if word.starts_with('~') {
-            let home = context
-                .scope
-                .get_env("HOME")
-                .unwrap_or_else(|| String::from("/"));
+            let home = context.get_var("HOME").unwrap_or("/");
 
             // Replace the word.
-            *word = word.replacen('~', &home, 1);
+            *word = word.replacen('~', home, 1);
         }
     }
 }

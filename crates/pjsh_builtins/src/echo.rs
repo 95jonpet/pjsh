@@ -32,7 +32,7 @@ impl Command for Echo {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match EchoOpts::try_parse_from(args.iter()) {
+        match EchoOpts::try_parse_from(args.context.lock().args()) {
             Ok(opts) => print_text(opts, &mut args.io),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
@@ -79,7 +79,9 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use pjsh_core::Context;
+    use std::collections::{HashMap, HashSet};
+
+    use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
 
@@ -87,12 +89,18 @@ mod tests {
 
     #[test]
     fn it_prints_to_stdout() {
-        let mut ctx = Context::new("test".into());
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["echo".into(), "message".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        ctx.arguments = vec![cmd.name().into(), "message".into()];
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);
@@ -103,12 +111,18 @@ mod tests {
 
     #[test]
     fn it_separates_arguments_with_a_single_space() {
-        let mut ctx = Context::new("test".into());
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["echo".into(), "first".into(), "second".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        ctx.arguments = vec![cmd.name().into(), "first".into(), "second".into()];
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);
@@ -119,12 +133,18 @@ mod tests {
 
     #[test]
     fn it_can_print_without_final_newline() {
-        let mut ctx = Context::new("test".into());
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["echo".into(), "-n".into(), "message".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        ctx.arguments = vec![cmd.name().into(), "-n".into(), "message".into()];
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);

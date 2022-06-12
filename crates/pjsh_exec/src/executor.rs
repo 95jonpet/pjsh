@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fs,
     io::{BufRead, BufReader, Read, Seek},
     path::PathBuf,
@@ -17,7 +17,7 @@ use pjsh_core::{
     command::{self, Action, CommandType},
     find_in_path,
     utils::{path_to_string, resolve_path},
-    Condition, Context,
+    Condition, Context, Scope,
 };
 use tempfile::tempfile;
 
@@ -171,7 +171,7 @@ impl Executor {
                     self.execute_command(command, Arc::clone(&ctx), &mut fds)
                 }
                 PipelineSegment::Condition(input) => {
-                    let expanded = expand(input, &ctx.lock(), self);
+                    let expanded = expand(input, Arc::clone(&ctx), self);
                     let input: Vec<_> = expanded.iter().map(String::as_str).collect();
                     let maybe_condition = parse_condition(&input, &ctx.lock());
                     match maybe_condition {
@@ -266,13 +266,22 @@ impl Executor {
         match statement {
             Statement::AndOr(and_or) => self.execute_and_or(and_or, ctx, fds),
             Statement::Assignment(assignment) => self.execute_assignment(assignment, ctx),
-            Statement::Function(function) => ctx.lock().scope.add_function(function),
+            Statement::Function(function) => ctx.lock().register_function(function),
             Statement::Subshell(subshell) => {
-                let name = ctx.lock().name.clone();
-                let inner_context = Arc::new(Mutex::new(ctx.lock().fork(name)));
+                ctx.lock().push_scope(Scope::new(
+                    "subshell".to_owned(),
+                    Vec::new(),
+                    HashMap::default(),
+                    HashMap::default(),
+                    HashSet::default(),
+                    false,
+                ));
+
                 for subshell_statement in subshell.statements {
-                    self.execute_statement(subshell_statement, Arc::clone(&inner_context), fds);
+                    self.execute_statement(subshell_statement, ctx.clone(), fds);
                 }
+
+                ctx.lock().pop_scope();
             }
             Statement::If(conditionals) => self.execute_conditional_chain(conditionals, ctx, fds),
             Statement::While(conditional) => self.execute_conditional_loop(conditional, ctx, fds),
@@ -281,9 +290,9 @@ impl Executor {
 
     /// Executes an [`Assignment`] by modifying the [`Context`].
     fn execute_assignment(&self, assignment: Assignment, context: Arc<Mutex<Context>>) {
-        let key = interpolate_word(self, assignment.key, &context.lock());
-        let value = interpolate_word(self, assignment.value, &context.lock());
-        context.lock().scope.set_env(key, value);
+        let key = interpolate_word(self, assignment.key, Arc::clone(&context));
+        let value = interpolate_word(self, assignment.value, Arc::clone(&context));
+        context.lock().set_var(key, value);
     }
 
     /// Executes a [`Command`].
@@ -293,7 +302,7 @@ impl Executor {
         context: Arc<Mutex<Context>>,
         fds: &mut FileDescriptors,
     ) -> Result<Value, ExecError> {
-        redirect_file_descriptors(fds, &context.lock(), self, &command.redirects)?;
+        redirect_file_descriptors(fds, Arc::clone(&context), self, &command.redirects)?;
 
         let mut args = self.expand(command, Arc::clone(&context));
         let program = args.pop_front().expect("program must be defined");
@@ -313,32 +322,38 @@ impl Executor {
         }
 
         // Attempt to use the program as a function.
-        let maybe_function = context.lock().scope.get_function(&program);
+        let maybe_function = context.lock().get_function(&program).cloned();
         if let Some(function) = maybe_function {
-            let mut inner_context = context.lock().fork(function.name.clone());
-
+            let mut function_vars = HashMap::with_capacity(function.args.len());
             for arg_name in function.args {
                 match args.pop_front() {
-                    Some(arg_value) => inner_context.scope.set_env(arg_name, arg_value),
+                    Some(arg_value) => function_vars.insert(arg_name, arg_value),
                     None => return Err(ExecError::MissingFunctionArgument(arg_name)),
-                }
+                };
             }
 
-            // Finalize the forked context and enable thread sharing.
-            args.push_front(function.name); // Ensure that $0 is set to the program's name.
-            inner_context.arguments = Vec::from(args);
-            let inner_context = Arc::new(Mutex::new(inner_context));
+            // Ensure that $0 is set to the program's name.
+            args.push_front(function.name.clone());
+
+            let function_scope = Scope::new(
+                function.name,
+                Vec::from(args),
+                function_vars,
+                HashMap::new(),
+                HashSet::new(),
+                false,
+            );
+
+            context.lock().push_scope(function_scope);
 
             let executor = self.clone();
             let fds = fds.try_clone().expect("clone file descriptor");
             let thread_handle = thread::spawn(move || {
-                executor.execute_statements(
-                    function.body.statements,
-                    Arc::clone(&inner_context),
-                    &fds,
-                );
-                inner_context.lock().last_exit
+                executor.execute_statements(function.body.statements, Arc::clone(&context), &fds);
+                context.lock().pop_scope();
+                context.lock().last_exit
             });
+
             return Ok(Value::Thread(thread_handle));
         }
 
@@ -368,7 +383,7 @@ impl Executor {
         fds: &mut FileDescriptors,
     ) -> Result<Value, ExecError> {
         let args = pjsh_core::command::Args {
-            context: ctx.lock().clone(),
+            context: ctx,
             io: fds.io(),
         };
 
@@ -392,27 +407,37 @@ impl Executor {
         args: VecDeque<String>,
     ) -> i32 {
         // Ensure that the first argument ($0) is the command's name.
-        debug_assert_eq!(args.front(), Some(&cmd.name().to_owned()));
+        let cmd_name = cmd.name().to_owned();
+        debug_assert_eq!(args.front(), Some(&cmd_name));
 
         // Create a new modified context for the command.
-        let mut inner_context = ctx.lock().clone();
-        inner_context.arguments = Vec::from(args);
+        ctx.lock().push_scope(Scope::new(
+            cmd_name,
+            Vec::from(args),
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        ));
+
         let args = pjsh_core::command::Args {
-            context: inner_context,
+            context: Arc::clone(&ctx),
             io: fds.io(),
         };
 
         let result = cmd.run(args);
 
-        // Perform all asynchronous that have been requested.
+        // Perform all asynchronous actions that have been requested.
         let mut code = result.code;
         for action in result.actions {
-            if let Some(action_code) = self.perform_action(action, &mut ctx.lock(), &mut fds) {
+            if let Some(action_code) = self.perform_action(action, Arc::clone(&ctx), &mut fds) {
                 if action_code != 0 {
                     code = action_code;
                 }
             }
         }
+
+        ctx.lock().pop_scope();
 
         code
     }
@@ -421,7 +446,7 @@ impl Executor {
     fn perform_action(
         &self,
         action: Action,
-        context: &mut Context,
+        context: Arc<Mutex<Context>>,
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
         match action {
@@ -434,12 +459,12 @@ impl Executor {
             },
             Action::ResolveCommandType(name, callback) => Some(callback(
                 fds.io(),
-                self.resolve_command_type(&name, context),
+                self.resolve_command_type(&name, &context.lock()),
             )),
             Action::ResolveCommandPath(name, callback) => Some(callback(
                 name.clone(),
                 fds.io(),
-                find_in_path(&name, context).as_ref(),
+                find_in_path(&name, &context.lock()).as_ref(),
             )),
             Action::SourceFile(script_file, ctx, args) => {
                 self.source_file(ctx, args, script_file, fds)
@@ -452,13 +477,12 @@ impl Executor {
     /// Returns the exit code for the last command in the sourced file.
     fn source_file(
         &self,
-        mut ctx: Context,
+        ctx: Arc<Mutex<Context>>,
         args: Vec<String>,
         script_file: PathBuf,
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
-        ctx.arguments = args;
-        let ctx = Arc::new(Mutex::new(ctx));
+        let old_args = ctx.lock().replace_args(args);
         let mut reader = BufReader::new(fs::File::open(script_file).unwrap());
         let mut line = String::new();
         loop {
@@ -476,8 +500,8 @@ impl Executor {
                 _ => break,
             }
         }
-        let ctx = &ctx.lock();
-        Some(ctx.last_exit)
+        ctx.lock().replace_args(old_args);
+        Some(ctx.lock().last_exit)
     }
 
     /// Starts a program as a [`std::process::Command`] by spawning a child process.
@@ -490,10 +514,10 @@ impl Executor {
         context: &Context,
     ) -> Result<Value, ExecError> {
         let mut cmd = process::Command::new(program.clone());
-        cmd.envs(context.scope.envs());
+        cmd.envs(context.exported_vars());
         cmd.args(args);
 
-        if let Some(path) = context.scope.get_env("PWD") {
+        if let Some(path) = context.get_var("PWD") {
             cmd.current_dir(path);
         }
 
@@ -524,11 +548,11 @@ impl Executor {
             return CommandType::Builtin;
         }
 
-        if let Some(alias) = ctx.scope.get_alias(name) {
-            return CommandType::Alias(alias);
+        if let Some(alias) = ctx.aliases.get(name) {
+            return CommandType::Alias(alias.to_owned());
         }
 
-        if ctx.scope.get_function(name).is_some() {
+        if ctx.get_function(name).is_some() {
             return CommandType::Function;
         }
 
@@ -542,7 +566,7 @@ impl Executor {
     /// Expands a [`Command`] into a [`VecDeque`] of arguments.
     /// Evaluates variables and resolves aliases.
     fn expand(&self, command: Command, context: Arc<Mutex<Context>>) -> VecDeque<String> {
-        expand(command.arguments, &context.lock(), self)
+        expand(command.arguments, context, self)
     }
 }
 
@@ -589,7 +613,7 @@ pub(crate) fn execute_program(
 /// Handles [`FileDescriptor`] redirections for some [`FileDescriptors`] in a [`Context`].
 fn redirect_file_descriptors(
     fds: &mut FileDescriptors,
-    ctx: &Context,
+    ctx: Arc<Mutex<Context>>,
     executor: &Executor,
     redirects: &[pjsh_ast::Redirect],
 ) -> std::result::Result<(), ExecError> {
@@ -607,8 +631,8 @@ fn redirect_file_descriptors(
                 pjsh_ast::FileDescriptor::Number(source),
                 pjsh_ast::FileDescriptor::File(file_path),
             ) => {
-                if let Some(file_path) = expand_single(file_path, ctx, executor) {
-                    let path = resolve_path(ctx, &file_path);
+                if let Some(file_path) = expand_single(file_path, Arc::clone(&ctx), executor) {
+                    let path = resolve_path(&ctx.lock(), &file_path);
                     match redirect.operator {
                         pjsh_ast::RedirectOperator::Write => {
                             fds.set(source, FileDescriptor::File(path));
@@ -629,8 +653,8 @@ fn redirect_file_descriptors(
                 pjsh_ast::FileDescriptor::File(file_path),
                 pjsh_ast::FileDescriptor::Number(target),
             ) => {
-                if let Some(file_path) = expand_single(file_path, ctx, executor) {
-                    let path = resolve_path(ctx, &file_path);
+                if let Some(file_path) = expand_single(file_path, Arc::clone(&ctx), executor) {
+                    let path = resolve_path(&ctx.lock(), &file_path);
                     fds.set(target, FileDescriptor::File(path));
                 } else {
                     // TODO: Print error with the fully expanded file name word.

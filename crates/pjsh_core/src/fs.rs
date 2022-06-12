@@ -12,7 +12,7 @@ use crate::Context;
 pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
     // Define all possible file extensions that can be matched.
     let mut extensions = vec![String::new()]; // Empty string = no file extension.
-    if let Some(ext_env) = context.scope.get_env("PATHEXT") {
+    if let Some(ext_env) = context.get_var("PATHEXT") {
         extensions.extend(ext_env.split(';').map(str::to_owned));
     }
 
@@ -39,6 +39,6 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
 /// by ';' on Windows.
 pub fn paths(context: &Context) -> Vec<PathBuf> {
     let separator = if cfg!(windows) { ';' } else { ':' };
-    let path_string = context.scope.get_env("PATH").unwrap_or_default();
+    let path_string = context.get_var("PATH").unwrap_or_default();
     path_string.split(separator).map(PathBuf::from).collect()
 }

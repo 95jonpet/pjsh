@@ -21,7 +21,7 @@ pub fn expand_aliases(words: &mut VecDeque<(String, bool)>, context: &Context) {
         }
 
         // Alias - expand to multiple words.
-        if let Some(alias) = context.scope.get_alias(&head) {
+        if let Some(alias) = context.aliases.get(&head) {
             for word in alias.trim_end().split(char::is_whitespace).rev() {
                 words.push_front((word.to_string(), true));
             }

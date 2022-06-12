@@ -1,6 +1,7 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;
+use parking_lot::Mutex;
 use pjsh_core::{
     command::Io,
     command::{Action, Args, Command, CommandResult},
@@ -35,15 +36,15 @@ impl Command for Source {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match SourceOpts::try_parse_from(args.iter()) {
-            Ok(opts) => source_file(opts, args.context, &mut args.io),
+        match SourceOpts::try_parse_from(args.context.lock().args()) {
+            Ok(opts) => source_file(opts, args.context.clone(), &mut args.io),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
     }
 }
 
 /// Sources a file within a [`Context`].
-fn source_file(opts: SourceOpts, ctx: Context, io: &mut Io) -> CommandResult {
+fn source_file(opts: SourceOpts, ctx: Arc<Mutex<Context>>, io: &mut Io) -> CommandResult {
     if !opts.file.is_file() {
         let path = path_to_string(&opts.file);
         let _ = writeln!(io.stderr, "{NAME}: No such file: {}", path);
