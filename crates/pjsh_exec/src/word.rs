@@ -50,7 +50,7 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
 
             output
         }
-        Word::ProcessSubstutution(program) => {
+        Word::ProcessSubstitution(program) => {
             let name: u32 = rand::thread_rng().gen_range(100000..=999999);
             let mut stdout = temp_dir();
             stdout.push(format!("pjsh_{name}_stdout"));

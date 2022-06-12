@@ -1,0 +1,12 @@
+[package]
+name = "pjsh_eval"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+pjsh_ast = { path = "../pjsh_ast" }
+pjsh_core = { path = "../pjsh_core" }
+
+os_pipe = "1.0.1"
+parking_lot = {version = "0.12.1", features = ["deadlock_detection"] }

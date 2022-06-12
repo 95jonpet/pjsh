@@ -794,7 +794,7 @@ fn parse_process_substitution() {
             segments: vec![PipelineSegment::Command(Command {
                 arguments: vec![
                     Word::Literal("cat".into()),
-                    Word::ProcessSubstutution(Program {
+                    Word::ProcessSubstitution(Program {
                         statements: vec![Statement::AndOr(AndOr {
                             operators: vec![],
                             pipelines: vec![Pipeline {

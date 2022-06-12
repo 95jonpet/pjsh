@@ -1,3 +1,5 @@
+pub(crate) mod io;
+
 use std::{
     collections::{HashMap, HashSet},
     mem::replace,
@@ -7,13 +9,21 @@ use std::{
 
 use pjsh_ast::Function;
 
-use crate::{Host, StdHost};
+use crate::{command::Command, Host, StdHost};
+
+use self::io::FileDescriptor;
 
 /// An execution context consisting of a number of execution scopes.
 #[derive(Clone)]
 pub struct Context {
     /// Registered aliases keyed by their name.
     pub aliases: HashMap<String, String>,
+
+    /// Registered built-in commands keyed by their name.
+    pub builtins: HashMap<String, Box<dyn Command>>,
+
+    /// Registered file descriptors.
+    pub files: HashMap<usize, FileDescriptor>,
 
     /// The context's host.
     pub host: Arc<parking_lot::Mutex<dyn Host>>,
@@ -46,8 +56,16 @@ impl Context {
     ///
     /// Scopes should be provided in increasing order of specificity.
     pub fn with_scopes(scopes: Vec<Scope>) -> Self {
+        let files = HashMap::from([
+            (0, FileDescriptor::Stdin),
+            (1, FileDescriptor::Stdout),
+            (2, FileDescriptor::Stderr),
+        ]);
+
         Self {
             aliases: HashMap::default(),
+            builtins: HashMap::default(),
+            files,
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
             last_exit: 0,
             scopes,
@@ -108,6 +126,11 @@ impl Context {
         None
     }
 
+    /// Registers a built-in commend within the context.
+    pub fn register_builtin(&mut self, command: Box<dyn Command>) {
+        self.builtins.insert(command.name().to_owned(), command);
+    }
+
     /// Registers a function within the current scope.
     pub fn register_function(&mut self, function: Function) {
         if let Some(scope) = self.scopes.last_mut() {
@@ -142,8 +165,16 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Self {
+        let files = HashMap::from([
+            (0, FileDescriptor::Stdin),
+            (1, FileDescriptor::Stdout),
+            (2, FileDescriptor::Stderr),
+        ]);
+
         Self {
             aliases: Default::default(),
+            builtins: Default::default(),
+            files,
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
             last_exit: Default::default(),
             scopes: vec![Scope::new(
@@ -190,6 +221,18 @@ pub struct Scope {
 }
 
 impl Scope {
+    pub fn new_named(name: String, interactive: bool) -> Self {
+        Self {
+            name,
+            args: Vec::default(),
+            vars: HashMap::default(),
+            functions: HashMap::default(),
+            exported_keys: HashSet::default(),
+            is_interactive: interactive,
+            temporary_files: Vec::default(),
+        }
+    }
+
     /// Constructs a new scope.
     pub fn new(
         name: String,

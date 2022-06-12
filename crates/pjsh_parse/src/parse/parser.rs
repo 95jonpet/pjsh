@@ -437,7 +437,7 @@ impl Parser {
             return Err(ParseError::IncompleteSequence);
         }
 
-        Ok(Word::ProcessSubstutution(program))
+        Ok(Word::ProcessSubstitution(program))
     }
 
     /// Parses an interpolation consisting of multiple interpolation units.
