@@ -4,7 +4,7 @@ use pjsh_core::{
     Context,
 };
 
-use crate::{status, utils};
+use crate::utils;
 
 /// Command name.
 const NAME: &str = "unset";
@@ -44,8 +44,9 @@ impl Command for Unset {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match UnsetOpts::try_parse_from(args.iter()) {
-            Ok(opts) => unset_names(opts, &mut args.context),
+        let mut ctx = args.context.lock();
+        match UnsetOpts::try_parse_from(ctx.args()) {
+            Ok(opts) => unset_names(opts, &mut ctx),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
     }
@@ -54,11 +55,11 @@ impl Command for Unset {
 /// Unsets a collection of names in a context.
 ///
 /// Returns an exit code.
-fn unset_names(opts: UnsetOpts, ctx: &mut Context) -> CommandResult {
+fn unset_names(opts: UnsetOpts, _ctx: &mut Context) -> CommandResult {
     match opts.r#type {
         UnsetType::Function => todo!("unset function"),
-        UnsetType::Variable => opts.name.iter().for_each(|name| ctx.scope.unset_env(name)),
+        UnsetType::Variable => todo!("unset variable"), // opts.name.iter().for_each(|name| ctx.scope.unset_env(name)),
     };
 
-    CommandResult::code(status::SUCCESS)
+    // CommandResult::code(status::SUCCESS)
 }

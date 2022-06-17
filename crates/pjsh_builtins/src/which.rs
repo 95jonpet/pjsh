@@ -29,7 +29,7 @@ impl Command for Which {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match WhichOpts::try_parse_from(args.iter()) {
+        match WhichOpts::try_parse_from(args.context.lock().args()) {
             Ok(opts) => resolve_command_paths(opts),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }

@@ -26,7 +26,7 @@ impl Command for Interpolate {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match InterpolateOpts::try_parse_from(args.iter()) {
+        match InterpolateOpts::try_parse_from(args.context.lock().args()) {
             Ok(opts) => interpolate_text_args(opts),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }

@@ -30,7 +30,7 @@ fn execute_assign() {
 
     executor.execute_statement(Statement::Assignment(assignment), Arc::clone(&ctx), &fds);
 
-    assert_eq!(ctx.lock().scope.get_env("key"), Some("value".into()));
+    assert_eq!(ctx.lock().get_var("key"), Some("value".into()));
 }
 
 #[test]
@@ -40,10 +40,10 @@ fn execute_assign_replace() {
     let executor = test_executor();
     let assignment = Assignment::new(Word::Literal("key".into()), Word::Literal("new".into()));
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::Assignment(assignment), Arc::clone(&ctx), &fds);
 
-    assert_eq!(ctx.lock().scope.get_env("key"), Some("new".into()));
+    assert_eq!(ctx.lock().get_var("key"), Some("new".into()));
 }
 
 #[test]
@@ -64,11 +64,11 @@ fn execute_if_statement_true() {
         }],
     };
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
     assert_eq!(
-        ctx.lock().scope.get_env("key"),
+        ctx.lock().get_var("key"),
         Some("new".into()),
         "the branch is taken"
     );
@@ -92,12 +92,12 @@ fn execute_if_statement_false() {
         }],
     };
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
     assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
     assert_eq!(
-        ctx.lock().scope.get_env("key"),
+        ctx.lock().get_var("key"),
         Some("old".into()),
         "the branch is not taken"
     );
@@ -141,12 +141,12 @@ fn execute_if_statement_second_branch() {
         ],
     };
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
     assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
     assert_eq!(
-        ctx.lock().scope.get_env("key"),
+        ctx.lock().get_var("key"),
         Some("second".into()),
         "the second branch is not taken"
     );
@@ -178,12 +178,12 @@ fn execute_if_statement_else() {
         ],
     };
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
     assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
     assert_eq!(
-        ctx.lock().scope.get_env("key"),
+        ctx.lock().get_var("key"),
         Some("else".into()),
         "the else branch is not taken"
     );
@@ -215,11 +215,11 @@ fn execute_while_loop() {
         },
     };
 
-    ctx.lock().scope.set_env("key".into(), "old".into());
+    ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::While(conditional), Arc::clone(&ctx), &fds);
 
     assert_eq!(
-        ctx.lock().scope.get_env("key"),
+        ctx.lock().get_var("key"),
         Some("new".into()),
         "the body is executed"
     );

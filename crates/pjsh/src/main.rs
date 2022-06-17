@@ -60,7 +60,7 @@ pub fn main() {
         None if opts.command.is_some() => Box::new(SingleCommandShell::new(opts.command.unwrap())),
         _ => Box::new(RustylineShell::new(history_file().as_path())),
     };
-    let context = Arc::new(Mutex::new(initialized_context()));
+    let context = Arc::new(Mutex::new(initialized_context(shell.is_interactive())));
 
     source_init_scripts(shell.is_interactive(), Arc::clone(&context));
 
@@ -72,7 +72,7 @@ pub fn main() {
 }
 
 /// Interpolates a string using a [`Context`].
-fn interpolate(src: &str, context: &Context, executor: &Executor) -> String {
+fn interpolate(src: &str, context: Arc<Mutex<Context>>, executor: &Executor) -> String {
     match parse_interpolation(src).map(|word| interpolate_word(executor, word, context)) {
         Ok(string) => string,
         Err(error) => {
@@ -83,25 +83,23 @@ fn interpolate(src: &str, context: &Context, executor: &Executor) -> String {
 }
 
 /// Get interpolated PS1 and PS2 prompts from a context.
-fn get_prompts(interactive: bool, context: &Context, executor: &Executor) -> (String, String) {
+fn get_prompts(
+    interactive: bool,
+    context: Arc<Mutex<Context>>,
+    executor: &Executor,
+) -> (String, String) {
     if !interactive {
         return (String::new(), String::new());
     }
 
     let ps1 = interpolate(
-        &context
-            .scope
-            .get_env("PS1")
-            .unwrap_or_else(|| String::from("\\$ ")),
-        context,
+        context.lock().get_var("PS1").unwrap_or("\\$ "),
+        Arc::clone(&context),
         executor,
     );
     let ps2 = interpolate(
-        &context
-            .scope
-            .get_env("PS2")
-            .unwrap_or_else(|| String::from("> ")),
-        context,
+        context.lock().get_var("PS2").unwrap_or("> "),
+        Arc::clone(&context),
         executor,
     );
 
@@ -114,7 +112,7 @@ fn get_prompts(interactive: bool, context: &Context, executor: &Executor) -> (St
 pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
     let executor = create_executor();
     'main: loop {
-        let (ps1, ps2) = get_prompts(shell.is_interactive(), &context.lock(), &executor);
+        let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context), &executor);
         print_exited_child_processes(&mut context.lock());
 
         let mut line = match shell.prompt_line(&ps1) {

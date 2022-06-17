@@ -30,7 +30,7 @@ impl Command for Type {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match TypeOpts::try_parse_from(args.iter()) {
+        match TypeOpts::try_parse_from(args.context.lock().args()) {
             Ok(opts) => resolve_command_types(opts),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }

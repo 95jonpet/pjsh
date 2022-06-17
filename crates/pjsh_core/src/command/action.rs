@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
+
+use parking_lot::Mutex;
 
 use crate::{command::Io, Context};
 
@@ -29,7 +31,7 @@ pub enum Action {
 
     /// Source a file within a context with some additional arguments. The first
     /// argument should correspond with the name of the sourced file.
-    SourceFile(PathBuf, Context, Vec<String>),
+    SourceFile(PathBuf, Arc<Mutex<Context>>, Vec<String>),
 }
 
 /// Command types.

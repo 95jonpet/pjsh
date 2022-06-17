@@ -23,8 +23,7 @@ pub fn path_to_string<P: AsRef<Path>>(path: &P) -> String {
 /// Returns a canonicalized (absolute) path.
 pub fn resolve_path<P: AsRef<OsStr>>(context: &Context, path: P) -> PathBuf {
     let mut resolved_path = context
-        .scope
-        .get_env("PWD")
+        .get_var("PWD")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("/"));
     resolved_path.push(path.as_ref());

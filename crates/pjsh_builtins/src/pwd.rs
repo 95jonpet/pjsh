@@ -27,8 +27,9 @@ impl Command for Pwd {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match PwdOpts::try_parse_from(args.iter()) {
-            Ok(opts) => print_working_directory(opts, &args.context, &mut args.io),
+        let ctx = args.context.lock();
+        match PwdOpts::try_parse_from(ctx.args()) {
+            Ok(opts) => print_working_directory(opts, &ctx, &mut args.io),
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
     }
@@ -36,7 +37,7 @@ impl Command for Pwd {
 
 /// Prints a contexts working directory to stdout.
 fn print_working_directory(_opts: PwdOpts, ctx: &Context, io: &mut Io) -> CommandResult {
-    if let Some(dir) = ctx.scope.get_env("PWD") {
+    if let Some(dir) = ctx.get_var("PWD") {
         if let Err(error) = writeln!(io.stdout, "{}", path_to_string(&dir)) {
             let _ = writeln!(io.stderr, "{NAME}: {error}");
             return CommandResult::code(status::GENERAL_ERROR);
@@ -59,13 +60,13 @@ mod tests {
 
     #[test]
     fn it_prints_the_current_working_directory() {
-        let ctx = Context::new("test".into());
+        let mut ctx = Context::default();
         let (io, mut stdout, mut stderr) = mock_io();
 
-        ctx.scope.set_env("PWD".into(), "/current/path".into());
+        ctx.set_var("PWD".into(), "/current/path".into());
         let alias = Pwd {};
 
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);

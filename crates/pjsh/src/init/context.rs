@@ -1,37 +1,62 @@
+use std::collections::{HashMap, HashSet};
+
 use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 
-use pjsh_core::{utils::path_to_string, Context};
+use pjsh_core::{utils::path_to_string, Context, Host, Scope, StdHost};
 
 /// Constructs a new initialized execution context containing some common environment variables such
 /// as `$PS1` and `$PS2`.
-pub fn initialized_context() -> Context {
-    let name = std::env::current_exe()
-        .map(|path| path_to_string(&path))
-        .unwrap_or_else(|_| String::from("pjsh"));
-    let context = Context::new(name);
-
-    // Inject independent defaults.
-    inject_static_defaults(&context);
-    inject_shell_specific_env(&context);
-
-    // Finally, inject external so that other defaults can be replaced.
-    inject_external_envs(&context);
-
-    context
+pub fn initialized_context(interactive: bool) -> Context {
+    let host = StdHost::default();
+    Context::with_scopes(vec![
+        environment_scope(host),
+        pjsh_scope(interactive),
+        global_scope(interactive),
+    ])
 }
 
-/// Injects shell specific environment variables into a context.
-fn inject_shell_specific_env(context: &Context) {
+/// Returns a scope containing all environment variables belonging to the
+/// current process.
+fn environment_scope<H: Host>(host: H) -> Scope {
+    let vars: HashMap<String, String> = host
+        .env_vars()
+        .iter()
+        .map(|(key, value)| {
+            (
+                key.to_string_lossy().to_string(),
+                value.to_string_lossy().to_string(),
+            )
+        })
+        .collect();
+
+    Scope::new(
+        "evironment".to_owned(),
+        vec![],
+        vars,
+        HashMap::default(),
+        HashSet::default(),
+        false,
+    )
+}
+
+/// Returns a scope containing shell-specific default variables.
+fn pjsh_scope(interactive: bool) -> Scope {
+    let mut vars = HashMap::from([
+        ("PS1".to_owned(), "\\$ ".to_owned()),
+        ("PS2".to_owned(), "> ".to_owned()),
+        ("PS4".to_owned(), "+ ".to_owned()),
+    ]);
+
     if let Ok(exe) = std::env::current_exe().map(|path| path_to_string(&path)) {
-        context.scope.set_env(String::from("SHELL"), exe);
+        vars.insert("SHELL".to_owned(), exe);
     }
 
     if let Ok(pwd) = std::env::current_dir().map(|path| path_to_string(&path)) {
-        context.scope.set_env(String::from("PWD"), pwd);
+        vars.insert("PWD".to_owned(), pwd);
     }
 
     if let Some(home_dir) = dirs::home_dir().map(|path| path_to_string(&path)) {
-        context.scope.set_env(String::from("HOME"), home_dir);
+        vars.insert("HOME".to_owned(), home_dir);
     }
 
     // Parent process id.
@@ -41,27 +66,33 @@ fn inject_shell_specific_env(context: &Context) {
         );
         if let Some(process) = system.process(pid) {
             if let Some(parent_id) = process.parent() {
-                context
-                    .scope
-                    .set_env(String::from("PPID"), parent_id.to_string());
+                vars.insert("PPID".to_owned(), parent_id.to_string());
             }
         }
     }
+
+    Scope::new(
+        "pjsh".to_owned(),
+        vec![],
+        vars,
+        HashMap::default(),
+        HashSet::default(),
+        interactive,
+    )
 }
 
-/// Injects externally defined environment variables from the host into a context.
-fn inject_external_envs(ctx: &Context) {
-    for (key, value) in ctx.host.lock().env_vars() {
-        ctx.scope.set_env(
-            key.to_string_lossy().to_string(),
-            value.to_string_lossy().to_string(),
-        );
-    }
-}
+/// Returns an empty scope for use as the shell's global scope.
+fn global_scope(interactive: bool) -> Scope {
+    let name = std::env::current_exe()
+        .map(|path| path_to_string(&path))
+        .unwrap_or_else(|_| String::from("pjsh"));
 
-/// Injects static default environment variables into a context.
-fn inject_static_defaults(ctx: &Context) {
-    ctx.scope.set_env(String::from("PS1"), String::from("\\$ "));
-    ctx.scope.set_env(String::from("PS2"), String::from("> "));
-    ctx.scope.set_env(String::from("PS4"), String::from("+ "));
+    Scope::new(
+        name,
+        vec![],
+        HashMap::default(),
+        HashMap::default(),
+        HashSet::default(),
+        interactive,
+    )
 }

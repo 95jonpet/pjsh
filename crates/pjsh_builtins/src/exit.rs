@@ -24,10 +24,11 @@ impl Command for Exit {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match ExitOpts::try_parse_from(args.iter()) {
+        let ctx = args.context.lock();
+        match ExitOpts::try_parse_from(ctx.args()) {
             Ok(opts) => match opts.status {
                 Some(status) => CommandResult::code(status),
-                None => CommandResult::code(args.context.last_exit),
+                None => CommandResult::code(ctx.last_exit),
             },
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
@@ -36,7 +37,9 @@ impl Command for Exit {
 
 #[cfg(test)]
 mod tests {
-    use pjsh_core::Context;
+    use std::collections::{HashMap, HashSet};
+
+    use pjsh_core::{Context, Scope};
 
     use crate::utils::empty_io;
 
@@ -44,15 +47,18 @@ mod tests {
 
     #[test]
     fn it_uses_the_last_exit_code_by_default() {
-        let mut ctx = Context::new("test".into());
-        ctx.arguments = vec!["exit".into()];
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["exit".to_owned()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         ctx.last_exit = 17;
         let exit = Exit {};
 
-        let args = Args {
-            context: ctx,
-            io: empty_io(),
-        };
+        let args = Args::from_context(ctx, empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 17);
@@ -61,14 +67,17 @@ mod tests {
 
     #[test]
     fn it_can_use_code_from_argument() {
-        let mut ctx = Context::new("test".into());
-        ctx.arguments = vec!["exit".into(), "1".into()];
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["exit".to_owned(), "1".to_owned()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let exit = Exit {};
 
-        let args = Args {
-            context: ctx,
-            io: empty_io(),
-        };
+        let args = Args::from_context(ctx, empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 1);
@@ -77,14 +86,17 @@ mod tests {
 
     #[test]
     fn it_exits_with_code_2_if_code_argument_is_invalid() {
-        let mut ctx = Context::new("test".into());
-        ctx.arguments = vec!["exit".into(), "non-integer".into()];
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["exit".to_owned(), "non-integer".to_owned()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let exit = Exit {};
 
-        let args = Args {
-            context: ctx,
-            io: empty_io(),
-        };
+        let args = Args::from_context(ctx, empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 2); // Exit 2 = misuse of shell built-in.

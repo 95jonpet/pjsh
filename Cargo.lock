@@ -627,6 +627,7 @@ name = "pjsh_builtins"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "parking_lot",
  "pjsh_core",
  "tempfile",
 ]

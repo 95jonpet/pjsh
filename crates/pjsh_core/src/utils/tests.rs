@@ -27,10 +27,8 @@ fn resolve_path() {
         PathBuf::from("/absolute")
     );
 
-    let linux_context = Context::default();
-    linux_context
-        .scope
-        .set_env("PWD".into(), "/home/user".into());
+    let mut linux_context = Context::default();
+    linux_context.set_var("PWD".into(), "/home/user".into());
     assert_eq!(
         super::resolve_path(&linux_context, "relative"),
         PathBuf::from("/home/user/relative")

@@ -37,8 +37,9 @@ impl Command for Cd {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match CdOpts::try_parse_from(args.iter()) {
-            Ok(opts) => change_directory(opts, &mut args.context, &mut args.io),
+        let mut ctx = args.context.lock();
+        match CdOpts::try_parse_from(ctx.args()) {
+            Ok(opts) => change_directory(opts, &mut ctx, &mut args.io),
             Err(err) => utils::exit_with_parse_error(&mut args.io, err),
         }
     }
@@ -51,9 +52,9 @@ impl Command for Cd {
 /// Returns an exit code.
 fn change_directory(opts: CdOpts, ctx: &mut Context, io: &mut Io) -> CommandResult {
     let directory = match &opts.directory {
-        Some(dir) if dir == "-" => ctx.scope.get_env("OLDPWD").map(PathBuf::from),
+        Some(dir) if dir == "-" => ctx.get_var("OLDPWD").map(PathBuf::from),
         Some(dir) => Some(resolve_path(ctx, dir)),
-        None => ctx.scope.get_env("HOME").map(PathBuf::from),
+        None => ctx.get_var("HOME").map(PathBuf::from),
     };
 
     match directory {
@@ -64,13 +65,13 @@ fn change_directory(opts: CdOpts, ctx: &mut Context, io: &mut Io) -> CommandResu
             }
 
             // Keep track of the old working directory within the context.
-            if let Some(pwd) = ctx.scope.get_env("PWD") {
-                ctx.scope.set_env("OLDPWD".to_string(), pwd);
+            if let Some(pwd) = ctx.get_var("PWD").map(|pwd| pwd.to_owned()) {
+                ctx.set_var("OLDPWD".to_owned(), pwd);
             }
 
             // Set the current working directory within the current context.
             let new_path = path_to_string(&path);
-            ctx.scope.set_env("PWD".to_string(), new_path.clone());
+            ctx.set_var("PWD".to_string(), new_path.clone());
 
             // Using "-" as a directory should be equivalent to "cd - && pwd".
             if opts.directory.filter(|p| p == "-").is_some() {

@@ -22,7 +22,7 @@ impl Command for True {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        if let Err(error) = TrueOpts::try_parse_from(args.iter()) {
+        if let Err(error) = TrueOpts::try_parse_from(args.context.lock().args()) {
             print_error(&mut args.io, error);
         };
 
@@ -46,7 +46,7 @@ impl Command for False {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        if let Err(error) = TrueOpts::try_parse_from(args.iter()) {
+        if let Err(error) = TrueOpts::try_parse_from(args.context.lock().args()) {
             print_error(&mut args.io, error);
         };
 
@@ -72,13 +72,10 @@ mod tests {
 
     #[test]
     fn true_exits_with_zero_code() {
-        let ctx = Context::new("true".into());
+        let ctx = Context::default();
         let command = True {};
 
-        let args = Args {
-            context: ctx,
-            io: empty_io(),
-        };
+        let args = Args::from_context(ctx, empty_io());
         let result = command.run(args);
 
         assert_eq!(result.code, 0);
@@ -87,13 +84,10 @@ mod tests {
 
     #[test]
     fn false_exits_with_non_zero_code() {
-        let ctx = Context::new("false".into());
+        let ctx = Context::default();
         let command = False {};
 
-        let args = Args {
-            context: ctx,
-            io: empty_io(),
-        };
+        let args = Args::from_context(ctx, empty_io());
         let result = command.run(args);
 
         assert_ne!(result.code, 0);

@@ -34,11 +34,12 @@ impl Command for Alias {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        match AliasOpts::try_parse_from(args.iter()) {
+        let mut ctx = args.context.lock();
+        match AliasOpts::try_parse_from(ctx.args()) {
             Ok(opts) => match (opts.name, opts.value) {
-                (None, None) => display_aliases(&args.context, &mut args.io),
-                (Some(name), None) => display_alias(&name, &args.context, &mut args.io),
-                (Some(name), Some(value)) => set_alias(name, value, &mut args.context),
+                (None, None) => display_aliases(&ctx, &mut args.io),
+                (Some(name), None) => display_alias(&name, &ctx, &mut args.io),
+                (Some(name), Some(value)) => set_alias(name, value, &mut ctx),
                 (None, Some(_)) => unreachable!(),
             },
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
@@ -51,9 +52,9 @@ impl Command for Alias {
 ///
 /// Returns an exit code.
 fn display_alias(name: &str, ctx: &Context, io: &mut Io) -> CommandResult {
-    match ctx.scope.get_alias(name) {
+    match ctx.aliases.get(name) {
         Some(value) => {
-            print_alias(name, &value, io);
+            print_alias(name, value, io);
             CommandResult::code(status::SUCCESS)
         }
         None => {
@@ -68,7 +69,11 @@ fn display_alias(name: &str, ctx: &Context, io: &mut Io) -> CommandResult {
 /// Returns an exit code.
 fn display_aliases(ctx: &Context, io: &mut Io) -> CommandResult {
     // Aliases should be printed in alphabetical order based on their names.
-    let mut aliases: Vec<(String, String)> = ctx.scope.aliases().into_iter().collect();
+    let mut aliases: Vec<(String, String)> = ctx
+        .aliases
+        .iter()
+        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+        .collect();
     aliases.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
 
     for (name, value) in aliases {
@@ -88,13 +93,15 @@ fn print_alias(name: &str, value: &str, io: &mut Io) {
 ///
 /// Returns an exit code.
 fn set_alias(name: String, value: String, ctx: &mut Context) -> CommandResult {
-    ctx.scope.set_alias(name, value);
+    ctx.aliases.insert(name, value);
     CommandResult::code(status::SUCCESS)
 }
 
 #[cfg(test)]
 mod tests {
-    use pjsh_core::Context;
+    use std::collections::{HashMap, HashSet};
+
+    use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
 
@@ -102,14 +109,20 @@ mod tests {
 
     #[test]
     fn it_can_print_a_matching_alias() {
-        let mut ctx = Context::new("test".into());
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["alias".into(), "ls".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
+        ctx.aliases.insert("ls".into(), "ls -lah".into());
         let (io, mut stdout, mut stderr) = mock_io();
 
-        ctx.scope.set_alias("ls".into(), "ls -lah".into());
-        ctx.arguments = vec!["alias".into(), "ls".into()];
         let alias = Alias {};
 
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);
@@ -120,15 +133,21 @@ mod tests {
 
     #[test]
     fn it_can_print_aliases() {
-        let mut ctx = Context::new("test".into());
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["alias".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
+        ctx.aliases.insert("x".into(), "xyz".into());
+        ctx.aliases.insert("a".into(), "abc".into());
         let (io, mut stdout, mut stderr) = mock_io();
 
-        ctx.scope.set_alias("x".into(), "xyz".into());
-        ctx.scope.set_alias("a".into(), "abc".into());
-        ctx.arguments = vec!["alias".into()];
         let alias = Alias {};
 
-        let args = Args { context: ctx, io };
+        let args = Args::from_context(ctx, io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);
@@ -142,19 +161,23 @@ mod tests {
 
     #[test]
     fn it_can_define_an_alias() {
-        let mut ctx = Context::new("test".into());
+        let ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            vec!["alias".into(), "name".into(), "value".into()],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            false,
+        )]);
         let (io, mut stdout, mut stderr) = mock_io();
 
-        ctx.arguments = vec!["alias".into(), "name".into(), "value".into()];
         let alias = Alias {};
 
-        let args = Args {
-            context: ctx.clone(),
-            io,
-        };
+        let args = Args::from_context(ctx, io);
+        let ctx = args.context.clone();
         let result = alias.run(args);
 
-        assert_eq!(ctx.scope.get_alias("name"), Some("value".into()));
+        assert_eq!(ctx.lock().aliases.get("name"), Some(&"value".to_owned()));
         assert_eq!(result.code, 0);
         assert!(result.actions.is_empty());
         assert_eq!(&file_contents(&mut stdout), "");

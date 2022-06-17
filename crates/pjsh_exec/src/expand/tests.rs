@@ -1,10 +1,12 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 use std::vec;
 
 use mockall::mock;
 
+use parking_lot::Mutex;
 use pjsh_ast::Word;
-use pjsh_core::{Context, Host};
+use pjsh_core::{Context, Host, Scope};
 
 use crate::expand::{alias::expand_aliases, glob::expand_globs};
 use crate::tests::utils::test_executor;
@@ -31,8 +33,8 @@ mock! {
 
 #[test]
 fn expand_single_alias() {
-    let context = Context::default();
-    context.scope.set_alias("cmd1".into(), "cmd2".into());
+    let mut context = Context::default();
+    context.aliases.insert("cmd1".into(), "cmd2".into());
     let mut words = VecDeque::from(vec![("cmd1".into(), true), ("args".into(), true)]);
     expand_aliases(&mut words, &context);
     assert_eq!(
@@ -43,9 +45,9 @@ fn expand_single_alias() {
 
 #[test]
 fn expand_recursive_alias() {
-    let context = Context::default();
-    context.scope.set_alias("cmd1".into(), "cmd2".into());
-    context.scope.set_alias("cmd2".into(), "cmd3".into());
+    let mut context = Context::default();
+    context.aliases.insert("cmd1".into(), "cmd2".into());
+    context.aliases.insert("cmd2".into(), "cmd3".into());
     // Expand cmd1 -> cmd2 -> cmd3.
     let mut words = VecDeque::from(vec![("cmd1".into(), true), ("args".into(), true)]);
     expand_aliases(&mut words, &context);
@@ -57,8 +59,8 @@ fn expand_recursive_alias() {
 
 #[test]
 fn expand_only_first_word_alias() {
-    let context = Context::default();
-    context.scope.set_alias("aliased".into(), "expanded".into());
+    let mut context = Context::default();
+    context.aliases.insert("aliased".into(), "expanded".into());
     let mut words = VecDeque::from(vec![("aliased".into(), true), ("aliased".into(), true)]);
     expand_aliases(&mut words, &context);
     assert_eq!(
@@ -69,9 +71,9 @@ fn expand_only_first_word_alias() {
 
 #[test]
 fn stop_alias_expansion_on_whitespace_ending_alias() {
-    let context = Context::default();
-    context.scope.set_alias("cmd1".into(), "cmd2 ".into()); // Ends with whitespace.
-    context.scope.set_alias("cmd2".into(), "cmd3".into());
+    let mut context = Context::default();
+    context.aliases.insert("cmd1".into(), "cmd2 ".into()); // Ends with whitespace.
+    context.aliases.insert("cmd2".into(), "cmd3".into());
     let mut words = VecDeque::from(vec![("cmd1".into(), true), ("args".into(), true)]);
     expand_aliases(&mut words, &context);
     assert_eq!(
@@ -82,9 +84,9 @@ fn stop_alias_expansion_on_whitespace_ending_alias() {
 
 #[test]
 fn stop_alias_expansion_on_duplicate() {
-    let context = Context::default();
-    context.scope.set_alias("cmd1".into(), "cmd2".into());
-    context.scope.set_alias("cmd2".into(), "cmd1".into());
+    let mut context = Context::default();
+    context.aliases.insert("cmd1".into(), "cmd2".into());
+    context.aliases.insert("cmd2".into(), "cmd1".into());
     // Expand cmd1 -> cmd2 -> cmd1 (duplicate).
     let mut words = VecDeque::from(vec![("cmd1".into(), true), ("args".into(), true)]);
     expand_aliases(&mut words, &context);
@@ -96,8 +98,8 @@ fn stop_alias_expansion_on_duplicate() {
 
 #[test]
 fn expand_tilde() {
-    let context = Context::default();
-    context.scope.set_env("HOME".into(), "HOME".into());
+    let mut context = Context::default();
+    context.set_var("HOME".into(), "HOME".into());
     let mut words = VecDeque::from(vec![
         ("~".into(), true),
         ("~/.pjsh".into(), true),
@@ -117,24 +119,30 @@ fn expand_tilde() {
 
 #[test]
 fn expand_positional_arguments() {
-    let mut context = Context::default();
+    let context = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
+        String::default(),
+        vec!["arg0".into(), "arg1".into()],
+        HashMap::default(),
+        HashMap::default(),
+        HashSet::default(),
+        false,
+    )])));
     let executor = test_executor();
-    context.arguments = vec!["arg0".into(), "arg1".into()];
 
-    let arg0 = expand_single(Word::Variable("0".into()), &context, &executor);
+    let arg0 = expand_single(Word::Variable("0".into()), Arc::clone(&context), &executor);
     assert_eq!(arg0, Some("arg0".into()));
-    let arg1 = expand_single(Word::Variable("1".into()), &context, &executor);
+    let arg1 = expand_single(Word::Variable("1".into()), context, &executor);
     assert_eq!(arg1, Some("arg1".into()));
 }
 
 #[test]
 fn expand_dollar() {
-    let mut context = Context::default();
+    let context = Arc::new(Mutex::new(Context::default()));
     let executor = test_executor();
     let mut mock_host = MockTestHost::new();
     mock_host.expect_process_id().returning(|| 4444);
-    context.host = std::sync::Arc::new(parking_lot::Mutex::new(mock_host));
+    context.lock().host = std::sync::Arc::new(parking_lot::Mutex::new(mock_host));
 
-    let word = expand_single(Word::Variable("$".into()), &context, &executor);
+    let word = expand_single(Word::Variable("$".into()), context, &executor);
     assert_eq!(word, Some("4444".into()));
 }

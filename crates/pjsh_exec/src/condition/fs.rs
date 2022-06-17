@@ -31,13 +31,16 @@ impl Condition for IsDirectory {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use parking_lot::Mutex;
     use tempfile::tempdir;
 
     use super::*;
 
     fn args() -> Args {
         Args {
-            context: pjsh_core::Context::default(),
+            context: Arc::new(Mutex::new(pjsh_core::Context::default())),
             io: pjsh_core::command::Io {
                 stdin: Box::new(std::io::empty()),
                 stdout: Box::new(std::io::sink()),
