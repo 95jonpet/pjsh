@@ -256,6 +256,18 @@ fn lex_word_interpolation() {
     );
 }
 
+#[test]
+fn lex_incomplete_word_interpolation() {
+    assert_eq!(
+        crate::lex_interpolation(r#"$("#),
+        Err(LexError::UnexpectedEof)
+    );
+    assert_eq!(
+        crate::lex_interpolation(r#"${"#),
+        Err(LexError::UnexpectedEof)
+    );
+}
+
 fn tokens(src: &str) -> Vec<Token> {
     match lex(src) {
         Ok(tokens) => tokens,
