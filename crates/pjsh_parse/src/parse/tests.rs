@@ -690,6 +690,39 @@ fn parse_subshell() {
 }
 
 #[test]
+fn parse_incomplete_subshell() {
+    let mut parser = Parser::new(vec![
+        Token::new(OpenParen, Span::new(0, 1)),
+        Token::new(Literal("true".into()), Span::new(1, 5)),
+    ]);
+    assert_eq!(parser.parse_program(), Err(ParseError::IncompleteSequence));
+}
+
+#[test]
+fn parse_subshell_over_multiple_lines() {
+    assert_eq!(
+        crate::parse("(\ncmd arg\n)"),
+        Ok(Program {
+            statements: vec![Statement::Subshell(Program {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: vec![],
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment::Command(Command {
+                            arguments: vec![
+                                Word::Literal("cmd".into()),
+                                Word::Literal("arg".into())
+                            ],
+                            redirects: Vec::new(),
+                        }),]
+                    }]
+                }),]
+            })]
+        })
+    );
+}
+
+#[test]
 fn parse_subshell_interpolation() {
     assert_eq!(
         crate::parse("echo `today: $(date)`"),

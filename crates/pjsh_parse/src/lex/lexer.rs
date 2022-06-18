@@ -228,7 +228,7 @@ impl<'a> Lexer<'a> {
             let peeked_char = peeked[i];
 
             if peeked_char != wanted_char {
-                return Err(LexError::UnexpectedChar(peeked_char.to_owned()));
+                return Err(unexpected_char(peeked_char.to_owned()));
             }
         }
 
@@ -320,7 +320,7 @@ impl<'a> Lexer<'a> {
                 self.input.next();
                 Ok(Token::new(Eol, Span::new(start, self.input.peek().0)))
             }
-            c => Err(LexError::UnexpectedChar(c)),
+            c => Err(unexpected_char(c)),
         }
     }
 
@@ -348,7 +348,7 @@ impl<'a> Lexer<'a> {
 
                 let next = self.input.peek();
                 if next.1 != '}' {
-                    return Err(LexError::UnexpectedChar(next.1));
+                    return Err(unexpected_char(next.1));
                 }
                 span.start = start;
                 span.end = self.input.next().0 + 1;
@@ -365,7 +365,7 @@ impl<'a> Lexer<'a> {
                 let (span, content) = self.input.eat_while(char::is_numeric);
                 Ok(Token::new(Variable(content), span))
             }
-            ch => Err(LexError::UnexpectedChar(ch)),
+            ch => Err(unexpected_char(ch)),
         }
     }
     /// Eats an expandable value that starts with a `$` character.
@@ -413,14 +413,14 @@ impl<'a> Lexer<'a> {
                         continue;
                     } else if self.input.next_if_eq('u').is_some() {
                         if self.input.peek().1 != '{' {
-                            return Err(LexError::UnexpectedChar(self.input.peek().1));
+                            return Err(unexpected_char(self.input.peek().1));
                         }
                         self.input.next();
 
                         let content = self.input.eat_while(|c| c != '}').1;
 
                         if self.input.peek().1 != '}' {
-                            return Err(LexError::UnexpectedChar(self.input.peek().1));
+                            return Err(unexpected_char(self.input.peek().1));
                         }
                         self.input.next();
 
@@ -443,10 +443,10 @@ impl<'a> Lexer<'a> {
                             self.input.next();
                             let mut subshell_tokens = Vec::new();
                             loop {
-                                // TODO: Handle EoF.
                                 let next_token = self.next_unquoted_token()?;
                                 match next_token.contents {
                                     CloseParen => break,
+                                    Eof => return Err(LexError::UnexpectedEof),
                                     _ => subshell_tokens.push(next_token),
                                 }
                             }
@@ -456,7 +456,7 @@ impl<'a> Lexer<'a> {
                             self.input.next();
                             let (_, content) = self.input.eat_while(|c| c != '}');
                             if self.input.next_if_eq('}').is_none() {
-                                return Err(LexError::UnexpectedChar(self.input.peek().1));
+                                return Err(unexpected_char(self.input.peek().1));
                             }
                             units.push(InterpolationUnit::Variable(content));
                         }
@@ -497,5 +497,13 @@ impl<'a> Lexer<'a> {
     fn eat_whitespace(&mut self) -> LexResult<'a> {
         let (span, _) = self.input.eat_while(is_whitespace);
         Ok(Token::new(Whitespace, span))
+    }
+}
+
+/// Returns a [`LexError`] indicating that an unexpected character was encountered.
+fn unexpected_char(ch: char) -> LexError {
+    match ch {
+        EOF => LexError::UnexpectedEof,
+        _ => LexError::UnexpectedChar(ch),
     }
 }

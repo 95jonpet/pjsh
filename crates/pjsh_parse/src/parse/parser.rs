@@ -103,6 +103,9 @@ impl Parser {
                 })) => {
                     break;
                 }
+                Err(ParseError::UnexpectedEof) => {
+                    return Err(ParseError::IncompleteSequence);
+                }
                 Err(error) => {
                     return Err(error);
                 }
@@ -111,7 +114,7 @@ impl Parser {
 
         // A subshell must be terminated by a closing parenthesis.
         if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
-            return Err(self.unexpected_token());
+            return Err(ParseError::IncompleteSequence);
         }
 
         // A subshell must not be empty.
@@ -306,8 +309,10 @@ impl Parser {
         self.skip_newlines();
 
         // Try to parse a subshell.
-        if let Ok(subshell_statement) = self.parse_subshell() {
-            return Ok(subshell_statement);
+        match self.parse_subshell() {
+            Ok(subshell_statement) => return Ok(subshell_statement),
+            Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+            _ => (),
         }
 
         // Try to parse an if-statement.
