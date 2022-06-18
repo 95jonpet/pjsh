@@ -462,9 +462,10 @@ impl Parser {
         let mut string = String::new();
         let mut indent: usize = 0;
 
-        match lines.next() {
-            Some(first_line) if first_line.is_empty() => (),
-            _ => todo!("must contain at least one line."),
+        if !matches!(lines.next(), Some(first_line) if first_line.is_empty()) {
+            return Err(ParseError::InvalidSyntax(format!(
+                "multiline strings must contain at least one line"
+            )));
         }
 
         if let Some(line) = lines.next() {
@@ -475,8 +476,10 @@ impl Parser {
 
         for line in lines {
             let prefix = &line[..indent];
-            if prefix.contains(|ch: char| !ch.is_whitespace()) {
-                todo!("unexpected indentation level");
+            if let Some((i, ch)) = prefix.char_indices().find(|(_, ch)| !ch.is_whitespace()) {
+                return Err(ParseError::InvalidSyntax(format!(
+                    "expected an indentation of {indent}, found {ch} at character {i}"
+                )));
             }
 
             string.push('\n');
