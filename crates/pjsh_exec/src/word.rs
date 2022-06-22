@@ -26,8 +26,9 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
                         output.push_str(&interpolate_variable(&name, &context.lock()));
                     }
                     pjsh_ast::InterpolationUnit::Subshell(program) => {
+                        let scope_name = format!("{} subshell", context.lock().name());
                         context.lock().push_scope(Scope::new(
-                            format!("{} subshell", context.lock().name()),
+                            scope_name,
                             Vec::default(),
                             HashMap::default(),
                             HashMap::default(),
@@ -44,8 +45,9 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
             output
         }
         Word::Subshell(program) => {
+            let scope_name = format!("{} subshell", context.lock().name());
             context.lock().push_scope(Scope::new(
-                format!("{} subshell", context.lock().name()),
+                scope_name,
                 Vec::default(),
                 HashMap::default(),
                 HashMap::default(),
