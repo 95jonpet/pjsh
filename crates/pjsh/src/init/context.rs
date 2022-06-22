@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
-
 use pjsh_core::{utils::path_to_string, Context, Host, Scope, StdHost};
 
 /// Constructs a new initialized execution context containing some common environment variables such
@@ -41,35 +39,11 @@ fn environment_scope<H: Host>(host: H) -> Scope {
 
 /// Returns a scope containing shell-specific default variables.
 fn pjsh_scope(interactive: bool) -> Scope {
-    let mut vars = HashMap::from([
+    let vars = HashMap::from([
         ("PS1".to_owned(), "\\$ ".to_owned()),
         ("PS2".to_owned(), "> ".to_owned()),
         ("PS4".to_owned(), "+ ".to_owned()),
     ]);
-
-    if let Ok(exe) = std::env::current_exe().map(|path| path_to_string(&path)) {
-        vars.insert("SHELL".to_owned(), exe);
-    }
-
-    if let Ok(pwd) = std::env::current_dir().map(|path| path_to_string(&path)) {
-        vars.insert("PWD".to_owned(), pwd);
-    }
-
-    if let Some(home_dir) = dirs::home_dir().map(|path| path_to_string(&path)) {
-        vars.insert("HOME".to_owned(), home_dir);
-    }
-
-    // Parent process id.
-    if let Ok(pid) = get_current_pid() {
-        let system = System::new_with_specifics(
-            RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-        );
-        if let Some(process) = system.process(pid) {
-            if let Some(parent_id) = process.parent() {
-                vars.insert("PPID".to_owned(), parent_id.to_string());
-            }
-        }
-    }
 
     Scope::new(
         "pjsh".to_owned(),

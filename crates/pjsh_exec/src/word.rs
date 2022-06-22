@@ -5,7 +5,8 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_ast::Word;
-use pjsh_core::{Context, Scope};
+use pjsh_core::{utils::path_to_string, Context, Scope};
+use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 
 use crate::{executor::execute_program, Executor};
 
@@ -13,22 +14,7 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
     match word {
         Word::Literal(literal) => literal,
         Word::Quoted(quoted) => quoted,
-        Word::Variable(key) => match key.as_str() {
-            "$" => context.lock().host.lock().process_id().to_string(),
-            "?" => context.lock().last_exit.to_string(),
-            _ => {
-                if let Ok(positional) = key.parse::<usize>() {
-                    return context
-                        .lock()
-                        .args()
-                        .get(positional)
-                        .map(String::to_owned)
-                        .unwrap_or_else(String::new);
-                }
-
-                context.lock().get_var(&key).unwrap_or_default().to_owned()
-            }
-        },
+        Word::Variable(name) => interpolate_variable(&name, &context.lock()),
         Word::Interpolation(units) => {
             let mut output = String::new();
 
@@ -36,8 +22,8 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
                 match unit {
                     pjsh_ast::InterpolationUnit::Literal(literal) => output.push_str(&literal),
                     pjsh_ast::InterpolationUnit::Unicode(ch) => output.push(ch),
-                    pjsh_ast::InterpolationUnit::Variable(variable) => {
-                        output.push_str(context.lock().get_var(&variable).unwrap_or_default())
+                    pjsh_ast::InterpolationUnit::Variable(name) => {
+                        output.push_str(&interpolate_variable(&name, &context.lock()));
                     }
                     pjsh_ast::InterpolationUnit::Subshell(program) => {
                         context.lock().push_scope(Scope::new(
@@ -71,5 +57,49 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
             context.lock().pop_scope();
             interpolation
         }
+    }
+}
+
+fn interpolate_variable(name: &str, context: &Context) -> String {
+    // Interpolate positional arguments.
+    if let Ok(i) = name.parse::<usize>() {
+        return context
+            .args()
+            .get(i)
+            .map(String::to_owned)
+            .unwrap_or_default();
+    }
+
+    // Interpolate shell-reserved variables.
+    if let Some(value) = eval_special_variable(name, context) {
+        return value;
+    }
+
+    // Resolve variables.
+    context.get_var(name).unwrap_or_default().to_owned()
+}
+
+fn eval_special_variable(key: &str, context: &Context) -> Option<String> {
+    match key {
+        "$" => Some(context.host.lock().process_id().to_string()),
+        "?" => Some(context.last_exit.to_string()),
+        "HOME" => dirs::home_dir().map(|p| path_to_string(&p)),
+        "PPID" => {
+            if let Ok(pid) = get_current_pid() {
+                let system = System::new_with_specifics(
+                    RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+                );
+                if let Some(process) = system.process(pid) {
+                    if let Some(parent_id) = process.parent() {
+                        return Some(parent_id.to_string());
+                    }
+                }
+            }
+
+            None
+        }
+        "PWD" => std::env::current_dir().map(|p| path_to_string(&p)).ok(),
+        "SHELL" => std::env::current_exe().map(|p| path_to_string(&p)).ok(),
+        _ => None,
     }
 }
