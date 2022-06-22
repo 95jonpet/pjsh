@@ -615,7 +615,6 @@ dependencies = [
  "regex",
  "rustyline",
  "rustyline-derive",
- "sysinfo",
 ]
 
 [[package]]
@@ -651,6 +650,7 @@ dependencies = [
  "pjsh_ast",
  "pjsh_core",
  "pjsh_parse",
+ "sysinfo",
  "tempfile",
 ]
 

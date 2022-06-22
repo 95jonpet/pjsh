@@ -468,9 +468,9 @@ impl Parser {
         let mut indent: usize = 0;
 
         if !matches!(lines.next(), Some(first_line) if first_line.is_empty()) {
-            return Err(ParseError::InvalidSyntax(format!(
-                "multiline strings must contain at least one line"
-            )));
+            return Err(ParseError::InvalidSyntax(
+                "multiline strings must contain at least one line".to_owned(),
+            ));
         }
 
         if let Some(line) = lines.next() {
