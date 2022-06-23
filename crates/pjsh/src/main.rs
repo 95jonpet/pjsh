@@ -89,19 +89,14 @@ fn get_prompts(
     executor: &Executor,
 ) -> (String, String) {
     if !interactive {
-        return (String::new(), String::new());
+        return (String::default(), String::default());
     }
 
-    let ps1 = interpolate(
-        context.lock().get_var("PS1").unwrap_or("\\$ "),
-        Arc::clone(&context),
-        executor,
-    );
-    let ps2 = interpolate(
-        context.lock().get_var("PS2").unwrap_or("> "),
-        Arc::clone(&context),
-        executor,
-    );
+    let raw_ps1 = context.lock().get_var("PS1").unwrap_or("\\$ ").to_owned();
+    let raw_ps2 = context.lock().get_var("PS2").unwrap_or("\\> ").to_owned();
+
+    let ps1 = interpolate(&raw_ps1, Arc::clone(&context), executor);
+    let ps2 = interpolate(&raw_ps2, Arc::clone(&context), executor);
 
     (ps1, ps2)
 }
