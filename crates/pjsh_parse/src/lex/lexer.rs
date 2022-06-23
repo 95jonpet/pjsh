@@ -132,7 +132,7 @@ impl<'a> Lexer<'a> {
             '|' => self.eat_pipe_or_orif(),
             '&' => self.eat_amp_or_andif(),
             ';' => self.eat_char(Semi),
-            '<' => self.eat_char(FdReadTo(0)),
+            '<' => self.eat_fd_read_to_or_process_substitution(),
             '>' => self.eat_file_write_or_append(),
             '(' => self.eat_char(OpenParen),
             ')' => self.eat_char(CloseParen),
@@ -497,6 +497,19 @@ impl<'a> Lexer<'a> {
     fn eat_whitespace(&mut self) -> LexResult<'a> {
         let (span, _) = self.input.eat_while(is_whitespace);
         Ok(Token::new(Whitespace, span))
+    }
+
+    fn eat_fd_read_to_or_process_substitution(&mut self) -> Result<Token, LexError> {
+        let start = self.input.next().0;
+
+        let contents = if self.input.next_if_eq('(').is_some() {
+            ProcessSubstitutionStart
+        } else {
+            FdReadTo(0)
+        };
+
+        let span = Span::new(start, self.input.peek().0);
+        Ok(Token::new(contents, span))
     }
 }
 

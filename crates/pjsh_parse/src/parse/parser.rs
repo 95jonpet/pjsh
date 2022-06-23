@@ -91,6 +91,22 @@ impl Parser {
             return Err(self.unexpected_token());
         }
 
+        let subshell_program = self.parse_subshell_program()?;
+
+        // A subshell must be terminated by a closing parenthesis.
+        if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
+            return Err(ParseError::IncompleteSequence);
+        }
+
+        // A subshell must not be empty.
+        if subshell_program.statements.is_empty() {
+            return Err(ParseError::EmptySubshell);
+        }
+
+        Ok(Statement::Subshell(subshell_program))
+    }
+
+    fn parse_subshell_program(&mut self) -> Result<Program, ParseError> {
         let mut subshell_program = Program::new();
         loop {
             match self.parse_statement() {
@@ -112,17 +128,7 @@ impl Parser {
             }
         }
 
-        // A subshell must be terminated by a closing parenthesis.
-        if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
-            return Err(ParseError::IncompleteSequence);
-        }
-
-        // A subshell must not be empty.
-        if subshell_program.statements.is_empty() {
-            return Err(ParseError::EmptySubshell);
-        }
-
-        Ok(Statement::Subshell(subshell_program))
+        Ok(subshell_program)
     }
 
     /// Parses an [`AndOr`] consisting of one or more [`Pipeline`] definitions.
@@ -365,6 +371,7 @@ impl Parser {
             TokenContents::TripleQuote => self.parse_triple_quoted(),
             TokenContents::Quote => self.parse_quoted(),
             TokenContents::Interpolation(_) => self.parse_interpolation(),
+            TokenContents::ProcessSubstitutionStart => self.parse_process_substitution(),
             TokenContents::Variable(_) => {
                 let next = self.tokens.next();
                 if let TokenContents::Variable(variable) = next.contents {
@@ -418,6 +425,19 @@ impl Parser {
             }
             _ => Err(self.unexpected_token()),
         }
+    }
+
+    /// Parses a process substitution.
+    fn parse_process_substitution(&mut self) -> Result<Word, ParseError> {
+        self.tokens.next();
+
+        let program = self.parse_subshell_program()?;
+
+        if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
+            return Err(ParseError::IncompleteSequence);
+        }
+
+        Ok(Word::ProcessSubstutution(program))
     }
 
     /// Parses an interpolation consisting of multiple interpolation units.
