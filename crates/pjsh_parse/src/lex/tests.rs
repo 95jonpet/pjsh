@@ -107,6 +107,18 @@ fn lex_variable() {
 }
 
 #[test]
+fn lex_process_substitution() {
+    assert_eq!(
+        tokens("<(ls)"),
+        vec![
+            Token::new(ProcessSubstitutionStart, Span::new(0, 2)),
+            Token::new(Literal("ls".into()), Span::new(2, 4)),
+            Token::new(CloseParen, Span::new(4, 5)),
+        ]
+    );
+}
+
+#[test]
 fn lex_interpolation_token() {
     assert_eq!(
         tokens("`literal $variable literal`"),

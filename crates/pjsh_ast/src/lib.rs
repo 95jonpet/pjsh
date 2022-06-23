@@ -51,6 +51,7 @@ pub enum Word {
     Quoted(String),
     Variable(String),
     Subshell(Program),
+    ProcessSubstutution(Program),
     Interpolation(Vec<InterpolationUnit>),
 }
 

@@ -1,14 +1,20 @@
 use std::{
     collections::{HashMap, HashSet},
+    env::temp_dir,
     sync::Arc,
 };
 
 use parking_lot::Mutex;
 use pjsh_ast::Word;
 use pjsh_core::{utils::path_to_string, Context, Scope};
+use rand::Rng;
 use sysinfo::{get_current_pid, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 
-use crate::{executor::execute_program, Executor};
+use crate::{
+    executor::execute_program,
+    io::{FileDescriptor, FD_STDOUT},
+    Executor, FileDescriptors,
+};
 
 pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Context>>) -> String {
     match word {
@@ -43,6 +49,20 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
             }
 
             output
+        }
+        Word::ProcessSubstutution(program) => {
+            let name: u32 = rand::thread_rng().gen_range(100000..=999999);
+            let mut stdout = temp_dir();
+            stdout.push(format!("pjsh_{name}_stdout"));
+            context.lock().register_temporary_file(stdout.clone());
+
+            let stdout_path_string = path_to_string(&stdout);
+            let mut fds = FileDescriptors::new();
+            fds.set(FD_STDOUT, FileDescriptor::File(stdout.clone()));
+
+            executor.execute_statements(program.statements, Arc::clone(&context), &fds);
+
+            stdout_path_string
         }
         Word::Subshell(program) => {
             let scope_name = format!("{} subshell", context.lock().name());

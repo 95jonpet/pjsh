@@ -776,3 +776,39 @@ fn parse_dollar_dollar() {
         })
     );
 }
+
+#[test]
+fn parse_process_substitution() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("cat".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(ProcessSubstitutionStart, span),
+        Token::new(Literal("ls".into()), span),
+        Token::new(CloseParen, span),
+    ]);
+    assert_eq!(
+        parser.parse_pipeline(),
+        Ok(Pipeline {
+            is_async: false,
+            segments: vec![PipelineSegment::Command(Command {
+                arguments: vec![
+                    Word::Literal("cat".into()),
+                    Word::ProcessSubstutution(Program {
+                        statements: vec![Statement::AndOr(AndOr {
+                            operators: vec![],
+                            pipelines: vec![Pipeline {
+                                is_async: false,
+                                segments: vec![PipelineSegment::Command(Command {
+                                    arguments: vec![Word::Literal("ls".into())],
+                                    redirects: Vec::new(),
+                                })]
+                            }]
+                        })]
+                    }),
+                ],
+                redirects: Vec::new(),
+            })]
+        })
+    );
+}

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     mem::replace,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -114,6 +115,13 @@ impl Context {
         }
     }
 
+    /// Registers a temporary file within the current scope.
+    pub fn register_temporary_file(&mut self, path: PathBuf) {
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.temporary_files.push(path);
+        }
+    }
+
     /// Replaces the positional arguments for the current scope and returns its old value.
     pub fn replace_args(&mut self, args: Vec<String>) -> Vec<String> {
         if let Some(scope) = self.scopes.last_mut() {
@@ -176,6 +184,9 @@ pub struct Scope {
 
     /// Determines whether or not user interaction is available within this scope.
     is_interactive: bool,
+
+    /// Temporary files owned by the scope.
+    temporary_files: Vec<PathBuf>,
 }
 
 impl Scope {
@@ -195,6 +206,17 @@ impl Scope {
             functions,
             exported_keys,
             is_interactive,
+            temporary_files: Vec::new(),
+        }
+    }
+}
+
+impl Drop for Scope {
+    fn drop(&mut self) {
+        for path in &self.temporary_files {
+            if let Err(error) = std::fs::remove_file(path) {
+                eprintln!("{error}");
+            }
         }
     }
 }
@@ -212,6 +234,7 @@ mod tests {
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: true,
+            temporary_files: vec![],
         };
         let non_interacive = || Scope {
             name: "non-interactive".to_owned(),
@@ -220,6 +243,7 @@ mod tests {
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: false,
+            temporary_files: vec![],
         };
         assert!(
             !Context::with_scopes(vec![]).is_interactive(),
@@ -248,6 +272,7 @@ mod tests {
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
+                temporary_files: vec![],
             },
             Scope {
                 name: "inner".to_owned(),
@@ -259,6 +284,7 @@ mod tests {
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
+                temporary_files: vec![],
             },
         ]);
 

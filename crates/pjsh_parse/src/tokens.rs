@@ -56,6 +56,9 @@ pub enum TokenContents {
     /// "="
     Equal,
 
+    /// "<("
+    ProcessSubstitutionStart,
+
     /// End of line.
     /// "\n", "\r\n"
     Eol,
