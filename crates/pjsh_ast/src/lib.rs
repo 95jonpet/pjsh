@@ -1,13 +1,15 @@
 mod command;
 mod control;
 mod io;
+mod iterable;
 mod program;
 
 use std::collections::VecDeque;
 
 pub use command::Command;
-pub use control::{ConditionalChain, ConditionalLoop};
+pub use control::{ConditionalChain, ConditionalLoop, ForIterableLoop};
 pub use io::{FileDescriptor, Redirect, RedirectOperator};
+pub use iterable::{Iterable, NumericRange};
 pub use program::Program;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +19,7 @@ pub enum Statement {
     Function(Function),
     If(ConditionalChain),
     While(ConditionalLoop),
+    ForIn(ForIterableLoop),
     Subshell(Program),
 }
 

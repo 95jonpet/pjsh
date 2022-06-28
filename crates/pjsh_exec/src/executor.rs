@@ -10,8 +10,8 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, Pipeline,
-    PipelineSegment, Statement,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
+    Pipeline, PipelineSegment, Statement,
 };
 use pjsh_core::{
     command::{self, Action, CommandType},
@@ -142,6 +142,31 @@ impl Executor {
 
             self.execute_statements(conditional.body.statements.clone(), Arc::clone(&ctx), fds);
         }
+    }
+
+    /// Executes a [`ForIterableLoop`].
+    pub fn execute_for_iterable_loop(
+        &self,
+        mut for_iterable: ForIterableLoop,
+        ctx: Arc<Mutex<Context>>,
+        fds: &FileDescriptors,
+    ) {
+        let is_interactive = ctx.lock().is_interactive();
+        let scope_name = format!("{} for-in", ctx.lock().name());
+        ctx.lock().push_scope(Scope::new(
+            scope_name,
+            vec![],
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+            is_interactive,
+        ));
+        for value in for_iterable.iterable.by_ref() {
+            let value = interpolate_word(self, value, Arc::clone(&ctx));
+            ctx.lock().set_var(for_iterable.variable.clone(), value);
+            self.execute_statements(for_iterable.body.statements.clone(), Arc::clone(&ctx), fds);
+        }
+        ctx.lock().pop_scope();
     }
 
     /// Executes a [`Pipeline`].
@@ -285,6 +310,9 @@ impl Executor {
             }
             Statement::If(conditionals) => self.execute_conditional_chain(conditionals, ctx, fds),
             Statement::While(conditional) => self.execute_conditional_loop(conditional, ctx, fds),
+            Statement::ForIn(for_iterable) => {
+                self.execute_for_iterable_loop(for_iterable, ctx, fds)
+            }
         }
     }
 

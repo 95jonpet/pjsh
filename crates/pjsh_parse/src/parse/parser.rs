@@ -5,11 +5,12 @@ use crate::tokens::{self, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator,
-    Statement, Word,
+    ForIterableLoop, Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect,
+    RedirectOperator, Statement, Word,
 };
 
 use super::cursor::TokenCursor;
+use super::iterable::parse_iterable;
 
 /// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
 /// A [`ParseError`] is returned if a program can't be parsed.
@@ -328,6 +329,13 @@ impl Parser {
             _ => (),
         }
 
+        // Try to parse a for-in-loop.
+        match self.parse_for_in_loop() {
+            Ok(statement) => return Ok(statement),
+            Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+            _ => (),
+        }
+
         // Try to parse a while-loop.
         match self.parse_while_loop() {
             Ok(statement) => return Ok(statement),
@@ -609,6 +617,42 @@ impl Parser {
         Ok(Statement::If(ConditionalChain {
             conditions,
             branches,
+        }))
+    }
+
+    fn parse_for_in_loop(&mut self) -> Result<Statement, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::Literal("for".into()))
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        let variable = match self.parse_word() {
+            Ok(Word::Literal(literal)) => literal,
+            Ok(_) => return Err(ParseError::InvalidSyntax("expected literal".to_owned())),
+            Err(error) => return Err(error),
+        };
+
+        if self
+            .tokens
+            .next_if_eq(TokenContents::Literal("in".into()))
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        let iterable = match self.parse_word() {
+            Ok(Word::Literal(literal)) => parse_iterable(&literal)?,
+            Ok(_) => return Err(ParseError::InvalidSyntax("expected iterable".to_owned())),
+            Err(error) => return Err(error),
+        };
+
+        Ok(Statement::ForIn(ForIterableLoop {
+            variable,
+            iterable,
+            body: self.parse_body()?,
         }))
     }
 
