@@ -16,6 +16,7 @@ use crate::{
     Executor, FileDescriptors,
 };
 
+/// Interpolates a word, returning a string.
 pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Context>>) -> String {
     match word {
         Word::Literal(literal) => literal,
@@ -50,7 +51,7 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
 
             output
         }
-        Word::ProcessSubstutution(program) => {
+        Word::ProcessSubstitution(program) => {
             let name: u32 = rand::thread_rng().gen_range(100000..=999999);
             let mut stdout = temp_dir();
             stdout.push(format!("pjsh_{name}_stdout"));
@@ -104,7 +105,7 @@ fn interpolate_variable(name: &str, context: &Context) -> String {
 fn eval_special_variable(key: &str, context: &Context) -> Option<String> {
     match key {
         "$" => Some(context.host.lock().process_id().to_string()),
-        "?" => Some(context.last_exit.to_string()),
+        "?" => Some(context.last_exit().to_string()),
         "HOME" => dirs::home_dir().map(|p| path_to_string(&p)),
         "PPID" => {
             if let Ok(pid) = get_current_pid() {

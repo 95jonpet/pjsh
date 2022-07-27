@@ -18,9 +18,6 @@ pub struct Context {
     /// The context's host.
     pub host: Arc<parking_lot::Mutex<dyn Host>>,
 
-    /// The exit code reported by the shell.
-    pub last_exit: i32,
-
     /// Scopes in order of increasing specificity.
     scopes: Vec<Scope>,
 }
@@ -49,7 +46,6 @@ impl Context {
         Self {
             aliases: HashMap::default(),
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
-            last_exit: 0,
             scopes,
         }
     }
@@ -81,7 +77,7 @@ impl Context {
 
     /// Sets the value of a variable within the current scope.
     ///
-    /// Parent scopes are not modfified.
+    /// Parent scopes are not modified.
     pub fn set_var(&mut self, name: String, value: String) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.vars.insert(name, value);
@@ -138,6 +134,17 @@ impl Context {
             .map(|scope| scope.args.as_slice())
             .unwrap_or_default()
     }
+
+    /// Returns the last exit code reported by the shell.
+    pub fn last_exit(&self) -> i32 {
+        self.scopes.last().map(|scope| scope.last_exit).unwrap_or(0)
+    }
+
+    pub fn register_exit(&mut self, exit: i32) {
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.last_exit = exit
+        }
+    }
 }
 
 impl Default for Context {
@@ -145,7 +152,6 @@ impl Default for Context {
         Self {
             aliases: Default::default(),
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
-            last_exit: Default::default(),
             scopes: vec![Scope::new(
                 "global".to_owned(),
                 Vec::default(),
@@ -185,6 +191,9 @@ pub struct Scope {
     /// Determines whether or not user interaction is available within this scope.
     is_interactive: bool,
 
+    /// The exit code reported by the shell.
+    last_exit: i32,
+
     /// Temporary files owned by the scope.
     temporary_files: Vec<PathBuf>,
 }
@@ -206,6 +215,7 @@ impl Scope {
             functions,
             exported_keys,
             is_interactive,
+            last_exit: 0,
             temporary_files: Vec::new(),
         }
     }
@@ -213,7 +223,8 @@ impl Scope {
 
 impl Drop for Scope {
     fn drop(&mut self) {
-        for path in &self.temporary_files {
+        // Remove all temporary files registered within the scope.
+        for path in std::mem::take(&mut self.temporary_files) {
             if let Err(error) = std::fs::remove_file(path) {
                 eprintln!("{error}");
             }
@@ -234,15 +245,17 @@ mod tests {
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: true,
+            last_exit: 0,
             temporary_files: vec![],
         };
-        let non_interacive = || Scope {
+        let non_interactive = || Scope {
             name: "non-interactive".to_owned(),
             args: vec![],
             vars: HashMap::default(),
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: false,
+            last_exit: 0,
             temporary_files: vec![],
         };
         assert!(
@@ -250,11 +263,11 @@ mod tests {
             "non-interactive by default"
         );
         assert!(
-            !Context::with_scopes(vec![interactive(), non_interacive()]).is_interactive(),
+            !Context::with_scopes(vec![interactive(), non_interactive()]).is_interactive(),
             "non-interactive if last scope is non-interactive"
         );
         assert!(
-            Context::with_scopes(vec![non_interacive(), interactive()]).is_interactive(),
+            Context::with_scopes(vec![non_interactive(), interactive()]).is_interactive(),
             "interactive if last scope is interactive"
         );
     }
@@ -272,6 +285,7 @@ mod tests {
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
+                last_exit: 0,
                 temporary_files: vec![],
             },
             Scope {
@@ -284,6 +298,7 @@ mod tests {
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
+                last_exit: 0,
                 temporary_files: vec![],
             },
         ]);

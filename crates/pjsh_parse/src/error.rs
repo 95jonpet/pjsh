@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::lex::lexer::Token;
+use crate::token::Token;
 
 /// Parse errors are returned by a parser when input cannot be parsed.
 ///

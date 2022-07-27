@@ -37,7 +37,7 @@ pub trait Host: Send {
     /// Joins all registered threads.
     fn join_all_threads(&mut self);
 
-    /// Return a list of all exited processes that have been spawend by the host, removing them from
+    /// Return a list of all exited processes that have been spawned by the host, removing them from
     /// the list of tracked child processes.
     fn take_exited_child_processes(&mut self) -> HashSet<u32>;
 

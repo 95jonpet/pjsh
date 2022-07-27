@@ -28,7 +28,7 @@ impl Command for Exit {
         match ExitOpts::try_parse_from(ctx.args()) {
             Ok(opts) => match opts.status {
                 Some(status) => CommandResult::code(status),
-                None => CommandResult::code(ctx.last_exit),
+                None => CommandResult::code(ctx.last_exit()),
             },
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
@@ -55,7 +55,7 @@ mod tests {
             HashSet::default(),
             false,
         )]);
-        ctx.last_exit = 17;
+        ctx.register_exit(17);
         let exit = Exit {};
 
         let args = Args::from_context(ctx, empty_io());

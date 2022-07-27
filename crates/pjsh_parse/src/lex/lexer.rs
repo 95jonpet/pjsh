@@ -1,44 +1,13 @@
 use std::fmt::Display;
 
-use crate::lex::input::{is_newline, is_whitespace};
-use crate::tokens::TokenContents::*;
-use crate::tokens::{InterpolationUnit, TokenContents};
+use crate::lex::input::{is_newline, is_whitespace, Span};
+use crate::token::{InterpolationUnit, Token, TokenContents, TokenContents::*};
 
 use super::input::{is_literal, Input};
 
 /// Character representing the end of input (also known as end of file = EOF).
 const EOF: char = '\0';
 type LexResult<'a> = Result<Token, LexError>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Span {
-    pub fn new(start: usize, end: usize) -> Self {
-        assert!(
-            start <= end,
-            "Span start {} cannot come after end {}",
-            start,
-            end
-        );
-        Self { start, end }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    pub contents: TokenContents,
-    pub span: Span,
-}
-
-impl Token {
-    pub fn new(contents: TokenContents, span: Span) -> Self {
-        Self { contents, span }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub enum LexError {

@@ -95,7 +95,7 @@ fn execute_if_statement_false() {
     ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
-    assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
+    assert_eq!(ctx.lock().last_exit(), 0, "should always exit with 0");
     assert_eq!(
         ctx.lock().get_var("key"),
         Some("old".into()),
@@ -144,7 +144,7 @@ fn execute_if_statement_second_branch() {
     ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
-    assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
+    assert_eq!(ctx.lock().last_exit(), 0, "should always exit with 0");
     assert_eq!(
         ctx.lock().get_var("key"),
         Some("second".into()),
@@ -181,7 +181,7 @@ fn execute_if_statement_else() {
     ctx.lock().set_var("key".into(), "old".into());
     executor.execute_statement(Statement::If(conditional), Arc::clone(&ctx), &fds);
 
-    assert_eq!(ctx.lock().last_exit, 0, "should always exit with 0");
+    assert_eq!(ctx.lock().last_exit(), 0, "should always exit with 0");
     assert_eq!(
         ctx.lock().get_var("key"),
         Some("else".into()),

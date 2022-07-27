@@ -1,15 +1,11 @@
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator,
+    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
     Statement, Word,
 };
 
 use super::parser::*;
-use crate::{
-    lex::lexer::{Span, Token},
-    tokens::TokenContents::*,
-    ParseError,
-};
+use crate::{token::Token, token::TokenContents::*, ParseError, Span};
 
 #[test]
 fn parse_word() {
@@ -574,7 +570,7 @@ fn parse_redirect_read() {
         Ok(Redirect {
             source: FileDescriptor::File(Word::Literal("file".into())),
             target: FileDescriptor::Number(0),
-            operator: RedirectOperator::Write
+            mode: RedirectMode::Write
         })
     )
 }
@@ -591,7 +587,7 @@ fn parse_redirect_write() {
         Ok(Redirect {
             source: FileDescriptor::Number(1),
             target: FileDescriptor::File(Word::Literal("file".into())),
-            operator: RedirectOperator::Write
+            mode: RedirectMode::Write
         })
     )
 }
@@ -608,7 +604,7 @@ fn parse_redirect_append() {
         Ok(Redirect {
             source: FileDescriptor::Number(1),
             target: FileDescriptor::File(Word::Literal("file".into())),
-            operator: RedirectOperator::Append
+            mode: RedirectMode::Append
         })
     )
 }
@@ -794,7 +790,7 @@ fn parse_process_substitution() {
             segments: vec![PipelineSegment::Command(Command {
                 arguments: vec![
                     Word::Literal("cat".into()),
-                    Word::ProcessSubstutution(Program {
+                    Word::ProcessSubstitution(Program {
                         statements: vec![Statement::AndOr(AndOr {
                             operators: vec![],
                             pipelines: vec![Pipeline {
