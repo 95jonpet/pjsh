@@ -1,4 +1,4 @@
-use crate::{AndOr, Program};
+use crate::{AndOr, Block};
 
 /// Represents a chain of conditional, "if", statements.
 ///
@@ -8,8 +8,13 @@ use crate::{AndOr, Program};
 /// there can be either `n` or `n+1` branches.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionalChain {
+    /// Branch conditions.
     pub conditions: Vec<AndOr>,
-    pub branches: Vec<Program>,
+
+    /// Conditional branches.
+    ///
+    /// The `n`-th branch is only executed if the `n`-th branch condition is met.
+    pub branches: Vec<Block>,
 }
 
 /// Represents a piece of code that is repeatedly executed for as long as a
@@ -19,6 +24,12 @@ pub struct ConditionalChain {
 /// condition is never met, the body is never entered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionalLoop {
+    /// Loop condition.
+    ///
+    /// The body is executed for as long as this condition holds. The condition is
+    /// always evaluated before the body is executed.
     pub condition: AndOr,
-    pub body: Program,
+
+    /// Loop body.
+    pub body: Block,
 }

@@ -4,7 +4,7 @@ use crate::lex::lexer::LexError;
 use crate::token::{self, Token, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
+    AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
     Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
     Statement, Word,
 };
@@ -470,6 +470,7 @@ impl Parser {
         }
     }
 
+    /// Parses a triple quoted word.
     fn parse_triple_quoted(&mut self) -> Result<Word, ParseError> {
         self.tokens.next();
         let mut quoted = String::new();
@@ -514,6 +515,7 @@ impl Parser {
         Ok(Word::Quoted(string))
     }
 
+    /// Parses a quoted word.
     fn parse_quoted(&mut self) -> Result<Word, ParseError> {
         self.tokens.next();
         let mut quoted = String::new();
@@ -529,6 +531,7 @@ impl Parser {
         Ok(Word::Quoted(quoted))
     }
 
+    /// Parses a function declaration,
     fn parse_function(&mut self) -> Result<Statement, ParseError> {
         if self
             .tokens
@@ -563,13 +566,14 @@ impl Parser {
                 Ok(Statement::Function(Function::new(
                     name,
                     args,
-                    self.parse_body()?,
+                    self.parse_block()?,
                 )))
             }
             _ => Err(self.unexpected_token()),
         }
     }
 
+    /// Parses an if-statement.
     fn parse_if_statement(&mut self) -> Result<Statement, ParseError> {
         if self
             .tokens
@@ -581,7 +585,7 @@ impl Parser {
 
         // Parse the initial condition and branch.
         let mut conditions = vec![self.parse_and_or()?];
-        let mut branches = vec![self.parse_body()?];
+        let mut branches = vec![self.parse_block()?];
 
         loop {
             if self
@@ -598,11 +602,11 @@ impl Parser {
                 .is_some()
             {
                 conditions.push(self.parse_and_or()?);
-                branches.push(self.parse_body()?);
+                branches.push(self.parse_block()?);
                 continue;
             }
 
-            branches.push(self.parse_body()?);
+            branches.push(self.parse_block()?);
             break;
         }
 
@@ -612,6 +616,7 @@ impl Parser {
         }))
     }
 
+    /// Parses a while-loop.
     fn parse_while_loop(&mut self) -> Result<Statement, ParseError> {
         if self
             .tokens
@@ -623,29 +628,30 @@ impl Parser {
 
         Ok(Statement::While(ConditionalLoop {
             condition: self.parse_and_or()?,
-            body: self.parse_body()?,
+            body: self.parse_block()?,
         }))
     }
 
-    fn parse_body(&mut self) -> Result<Program, ParseError> {
+    /// Parses a code block surrounded by curly braces.
+    fn parse_block(&mut self) -> Result<Block, ParseError> {
         if self.tokens.next_if_eq(TokenContents::OpenBrace).is_none() {
             return Err(self.unexpected_token());
         }
-        let mut branch = Program::new();
+        let mut block = Block::default();
         loop {
             match &self.tokens.peek().contents {
                 TokenContents::Eol => self.skip_newlines(),
                 TokenContents::Eof => return Err(ParseError::IncompleteSequence),
                 TokenContents::CloseBrace => break,
                 _ => {
-                    branch.statement(self.parse_statement()?);
+                    block.statement(self.parse_statement()?);
                 }
             }
         }
         if self.tokens.next_if_eq(TokenContents::CloseBrace).is_none() {
             return Err(self.unexpected_token());
         }
-        Ok(branch)
+        Ok(block)
     }
 
     /// Advances the token cursor until the next token is not an end-of-line token.
