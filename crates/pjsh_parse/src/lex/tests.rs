@@ -1,5 +1,7 @@
+use crate::lex::input::Span;
+use crate::token::{InterpolationUnit, Token, TokenContents::*};
+
 use super::lexer::*;
-use crate::tokens::{InterpolationUnit, TokenContents::*};
 
 #[test]
 fn lex_operators() {

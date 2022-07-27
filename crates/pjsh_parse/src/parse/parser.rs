@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::lex::lexer::{LexError, Token};
-use crate::tokens::{self, TokenContents};
+use crate::lex::lexer::LexError;
+use crate::token::{self, Token, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectOperator,
+    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
     Statement, Word,
 };
 
@@ -403,7 +403,7 @@ impl Parser {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::File(self.parse_word()?),
-                    RedirectOperator::Write,
+                    RedirectMode::Write,
                     FileDescriptor::Number(fd),
                 ))
             }
@@ -411,7 +411,7 @@ impl Parser {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
-                    RedirectOperator::Write,
+                    RedirectMode::Write,
                     FileDescriptor::File(self.parse_word()?),
                 ))
             }
@@ -419,7 +419,7 @@ impl Parser {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
-                    RedirectOperator::Append,
+                    RedirectMode::Append,
                     FileDescriptor::File(self.parse_word()?),
                 ))
             }
@@ -437,7 +437,7 @@ impl Parser {
             return Err(ParseError::IncompleteSequence);
         }
 
-        Ok(Word::ProcessSubstutution(program))
+        Ok(Word::ProcessSubstitution(program))
     }
 
     /// Parses an interpolation consisting of multiple interpolation units.
@@ -456,13 +456,13 @@ impl Parser {
     /// Parses a single interpolation unit.
     fn parse_interpolation_unit(
         &self,
-        unit: tokens::InterpolationUnit,
+        unit: token::InterpolationUnit,
     ) -> Result<InterpolationUnit, ParseError> {
         match unit {
-            tokens::InterpolationUnit::Literal(literal) => Ok(InterpolationUnit::Literal(literal)),
-            tokens::InterpolationUnit::Unicode(ch) => Ok(InterpolationUnit::Unicode(ch)),
-            tokens::InterpolationUnit::Variable(var) => Ok(InterpolationUnit::Variable(var)),
-            tokens::InterpolationUnit::Subshell(subshell_tokens) => {
+            token::InterpolationUnit::Literal(literal) => Ok(InterpolationUnit::Literal(literal)),
+            token::InterpolationUnit::Unicode(ch) => Ok(InterpolationUnit::Unicode(ch)),
+            token::InterpolationUnit::Variable(var) => Ok(InterpolationUnit::Variable(var)),
+            token::InterpolationUnit::Subshell(subshell_tokens) => {
                 let mut subshell_parser = Parser::new(subshell_tokens);
                 let subshell_program = subshell_parser.parse_program()?;
                 Ok(InterpolationUnit::Subshell(subshell_program))

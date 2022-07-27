@@ -52,7 +52,7 @@ fn execute_program_stderr() {
                     redirects: vec![Redirect {
                         source: FileDescriptor::Number(1), // Stdout
                         target: FileDescriptor::Number(2), // Stderr
-                        operator: pjsh_ast::RedirectOperator::Write,
+                        mode: pjsh_ast::RedirectMode::Write,
                     }],
                 })],
             }],

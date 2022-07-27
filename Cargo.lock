@@ -660,7 +660,6 @@ name = "pjsh_parse"
 version = "0.1.0"
 dependencies = [
  "pjsh_ast",
- "unicode-segmentation",
 ]
 
 [[package]]

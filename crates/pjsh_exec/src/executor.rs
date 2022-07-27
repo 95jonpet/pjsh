@@ -83,7 +83,7 @@ impl Executor {
             operator = operators.next().unwrap_or(&AndOrOp::And); // There are n-1 operators.
         }
 
-        ctx.lock().last_exit = exit_status;
+        ctx.lock().register_exit(exit_status);
     }
 
     /// Executes a [`ConditionalChain`].
@@ -104,16 +104,16 @@ impl Executor {
             self.execute_and_or(condition, Arc::clone(&ctx), fds);
 
             // Skip to the next condition in the chain if the current condition is not met
-            // (the condition exits with a non 0 code). Furthermore, set the last exit to 0
-            // in order to not pollute the shell's last exit code from evaluating
-            // if-statement conditions. An intentional side effect of this is that
-            // unevaluated branches always exit with code 0.
-            if std::mem::replace(&mut ctx.lock().last_exit, EXIT_SUCCESS) != EXIT_SUCCESS {
+            // (the condition exits with a non 0 code).
+            if ctx.lock().last_exit() != EXIT_SUCCESS {
                 continue;
             }
 
+            ctx.lock().register_exit(0);
             return self.execute_statements(branch.statements, Arc::clone(&ctx), fds);
         }
+
+        ctx.lock().register_exit(0); // Ensure that conditionals don't taint the scope.
 
         // The "else" branch does not have a condition. It is always executed if no
         // other condition has been met.
@@ -131,12 +131,9 @@ impl Executor {
     ) {
         loop {
             // Evaluate the condition and break the loop if it is not met (the condition
-            // exits with a non 0 code). Furthermore, set the last exit to 0 in order to not
-            // pollute the shell's last exit code from evaluating while-loop conditions.
-            // An intentional side effect of this is a while-loop exits with a code of 0
-            // when the loop exits normally.
+            // exits with a non 0 code).
             self.execute_and_or(conditional.condition.clone(), Arc::clone(&ctx), fds);
-            if std::mem::replace(&mut ctx.lock().last_exit, EXIT_SUCCESS) != EXIT_SUCCESS {
+            if ctx.lock().last_exit() != EXIT_SUCCESS {
                 break;
             }
 
@@ -351,7 +348,7 @@ impl Executor {
             let thread_handle = thread::spawn(move || {
                 executor.execute_statements(function.body.statements, Arc::clone(&context), &fds);
                 context.lock().pop_scope();
-                context.lock().last_exit
+                context.lock().last_exit()
             });
 
             return Ok(Value::Thread(thread_handle));
@@ -501,7 +498,7 @@ impl Executor {
             }
         }
         ctx.lock().replace_args(old_args);
-        Some(ctx.lock().last_exit)
+        Some(ctx.lock().last_exit())
     }
 
     /// Starts a program as a [`std::process::Command`] by spawning a child process.
@@ -633,11 +630,11 @@ fn redirect_file_descriptors(
             ) => {
                 if let Some(file_path) = expand_single(file_path, Arc::clone(&ctx), executor) {
                     let path = resolve_path(&ctx.lock(), &file_path);
-                    match redirect.operator {
-                        pjsh_ast::RedirectOperator::Write => {
+                    match redirect.mode {
+                        pjsh_ast::RedirectMode::Write => {
                             fds.set(source, FileDescriptor::File(path));
                         }
-                        pjsh_ast::RedirectOperator::Append => {
+                        pjsh_ast::RedirectMode::Append => {
                             fds.set(source, FileDescriptor::AppendFile(path));
                         }
                     }

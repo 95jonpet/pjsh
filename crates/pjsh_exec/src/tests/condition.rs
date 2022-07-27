@@ -27,7 +27,7 @@ fn true_condition() {
         pipelines: vec![pipeline(&["true", "==", "true"])],
     };
     executor.execute_and_or(and_or, Arc::clone(&ctx), &fds);
-    assert_eq!(ctx.lock().last_exit, 0);
+    assert_eq!(ctx.lock().last_exit(), 0);
 }
 
 #[test]
@@ -40,7 +40,7 @@ fn false_condition() {
         pipelines: vec![pipeline(&["true", "==", "false"])],
     };
     executor.execute_and_or(and_or, Arc::clone(&ctx), &fds);
-    assert_eq!(ctx.lock().last_exit, 1);
+    assert_eq!(ctx.lock().last_exit(), 1);
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn inverted_condition() {
         pipelines: vec![pipeline(&["!", "true", "==", "false"])],
     };
     executor.execute_and_or(and_or, Arc::clone(&ctx), &fds);
-    assert_eq!(ctx.lock().last_exit, 0); // !false == true
+    assert_eq!(ctx.lock().last_exit(), 0); // !false == true
 }
 
 #[test]
@@ -66,5 +66,5 @@ fn invalid_condition() {
         pipelines: vec![pipeline(&["invalid", "condition"])],
     };
     executor.execute_and_or(and_or, Arc::clone(&ctx), &fds);
-    assert_ne!(ctx.lock().last_exit, 0);
+    assert_ne!(ctx.lock().last_exit(), 0);
 }

@@ -1,7 +1,5 @@
 use std::{iter::Peekable, str::CharIndices};
 
-use super::lexer::Span;
-
 /// Character representing the end of input.
 const EOF: char = '\0';
 
@@ -93,6 +91,29 @@ impl<'a> Input<'a> {
     }
 }
 
+/// A code span of positions in some input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    /// Span start position.
+    pub start: usize,
+
+    /// Span end position.
+    pub end: usize,
+}
+
+impl Span {
+    /// Constructs a new span.
+    pub fn new(start: usize, end: usize) -> Self {
+        assert!(
+            start <= end,
+            "Span start {} cannot come after end {}",
+            start,
+            end
+        );
+        Self { start, end }
+    }
+}
+
 /// Returns `true` if a unicode grapheme cluster should be considered a newline.
 pub fn is_newline(ch: char) -> bool {
     matches!(
@@ -122,7 +143,7 @@ pub fn is_whitespace(ch: char) -> bool {
         // NEXT LINE from latin1
         | '\u{0085}'
 
-        // Bidi markers
+        // Bidirectional markers
         | '\u{200E}' // LEFT-TO-RIGHT MARK
         | '\u{200F}' // RIGHT-TO-LEFT MARK
 
