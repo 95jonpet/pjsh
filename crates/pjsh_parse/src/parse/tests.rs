@@ -1,5 +1,5 @@
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
+    AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
     Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
     Statement, Word,
 };
@@ -320,7 +320,7 @@ fn parse_function_statement() {
         Ok(Statement::Function(Function {
             name: "function_name".into(),
             args: vec!["arg".into()].into(),
-            body: Program {
+            body: Block {
                 statements: vec![Statement::AndOr(AndOr {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
@@ -363,7 +363,7 @@ fn parse_if_statement() {
                     })]
                 }]
             }],
-            branches: vec![Program {
+            branches: vec![Block {
                 statements: vec![Statement::AndOr(AndOr {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {
@@ -431,7 +431,7 @@ fn parse_if_statement_with_multiple_branches() {
                 }
             ],
             branches: vec![
-                Program {
+                Block {
                     statements: vec![Statement::AndOr(AndOr {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
@@ -446,7 +446,7 @@ fn parse_if_statement_with_multiple_branches() {
                         }]
                     })]
                 },
-                Program {
+                Block {
                     statements: vec![Statement::AndOr(AndOr {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
@@ -461,7 +461,7 @@ fn parse_if_statement_with_multiple_branches() {
                         }]
                     })]
                 },
-                Program {
+                Block {
                     statements: vec![Statement::AndOr(AndOr {
                         operators: Vec::new(),
                         pipelines: vec![Pipeline {
@@ -505,7 +505,7 @@ fn parse_while_loop() {
                     })]
                 }]
             },
-            body: Program {
+            body: Block {
                 statements: vec![Statement::AndOr(AndOr {
                     operators: Vec::new(),
                     pipelines: vec![Pipeline {

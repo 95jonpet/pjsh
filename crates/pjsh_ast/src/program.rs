@@ -51,12 +51,12 @@ pub struct Function {
     pub args: VecDeque<String>,
 
     /// Function body.
-    pub body: Program,
+    pub body: Block,
 }
 
 impl Function {
     /// Constructs a new function definition.
-    pub fn new(name: String, args: VecDeque<String>, body: Program) -> Self {
+    pub fn new(name: String, args: VecDeque<String>, body: Block) -> Self {
         Self { name, args, body }
     }
 }
@@ -90,6 +90,25 @@ pub enum AndOrOp {
     /// Execute the pipeline only if the previous pipeline within an [`AndOr`]
     /// construct exited with a non-success status.
     Or,
+}
+
+/// A code block is a sequence of statements that are executed within the same
+/// scope.
+///
+/// Nested code blocks are supported and result in nested execution contexts.
+///
+/// Code blocks are typically surrounded by curly braces `{...}`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Block {
+    /// Statements to execute within the program.
+    pub statements: Vec<Statement>,
+}
+
+impl Block {
+    /// Appends a statement to the end of a block.
+    pub fn statement(&mut self, statement: Statement) {
+        self.statements.push(statement);
+    }
 }
 
 /// A program consists of multiple executable statements.

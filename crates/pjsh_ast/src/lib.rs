@@ -9,5 +9,5 @@ pub use command::Command;
 pub use control::{ConditionalChain, ConditionalLoop};
 pub use io::{FileDescriptor, Redirect, RedirectMode};
 pub use pipeline::{Pipeline, PipelineSegment};
-pub use program::{AndOr, AndOrOp, Assignment, Function, Program, Statement};
+pub use program::{AndOr, AndOrOp, Assignment, Block, Function, Program, Statement};
 pub use word::{InterpolationUnit, Word};

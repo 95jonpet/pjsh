@@ -65,12 +65,18 @@ enum LexerMode {
 ///
 /// Supports multiple modes through [`LexerMode`].
 pub struct Lexer<'a> {
+    /// Input to tokenize.
     input: Input<'a>,
+
+    /// Original input length.
     input_length: usize,
+
+    /// Current lexer mode.
     mode: LexerMode,
 }
 
 impl<'a> Lexer<'a> {
+    /// Constructs a new lexer.
     pub fn new(src: &'a str) -> Self {
         Self {
             input: Input::new(src),
@@ -337,6 +343,7 @@ impl<'a> Lexer<'a> {
             ch => Err(unexpected_char(ch)),
         }
     }
+
     /// Eats an expandable value that starts with a `$` character.
     fn eat_expandable(&mut self) -> LexResult<'a> {
         debug_assert!(self.input.peek().1 == '$');

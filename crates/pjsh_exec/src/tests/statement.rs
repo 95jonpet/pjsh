@@ -56,7 +56,7 @@ fn execute_if_statement_true() {
             operators: Vec::new(),
             pipelines: vec![pipeline(0)], // 0 = success -> true
         }],
-        branches: vec![pjsh_ast::Program {
+        branches: vec![pjsh_ast::Block {
             statements: vec![Statement::Assignment(Assignment::new(
                 Word::Literal("key".into()),
                 Word::Literal("new".into()),
@@ -84,7 +84,7 @@ fn execute_if_statement_false() {
             operators: Vec::new(),
             pipelines: vec![pipeline(1)], // 1 != success -> false
         }],
-        branches: vec![pjsh_ast::Program {
+        branches: vec![pjsh_ast::Block {
             statements: vec![Statement::Assignment(Assignment::new(
                 Word::Literal("key".into()),
                 Word::Literal("new".into()),
@@ -120,19 +120,19 @@ fn execute_if_statement_second_branch() {
             },
         ],
         branches: vec![
-            pjsh_ast::Program {
+            pjsh_ast::Block {
                 statements: vec![Statement::Assignment(Assignment::new(
                     Word::Literal("key".into()),
                     Word::Literal("first".into()),
                 ))],
             },
-            pjsh_ast::Program {
+            pjsh_ast::Block {
                 statements: vec![Statement::Assignment(Assignment::new(
                     Word::Literal("key".into()),
                     Word::Literal("second".into()),
                 ))],
             },
-            pjsh_ast::Program {
+            pjsh_ast::Block {
                 statements: vec![Statement::Assignment(Assignment::new(
                     Word::Literal("key".into()),
                     Word::Literal("else".into()),
@@ -163,13 +163,13 @@ fn execute_if_statement_else() {
             pipelines: vec![pipeline(1)], // 1 != success -> false
         }],
         branches: vec![
-            pjsh_ast::Program {
+            pjsh_ast::Block {
                 statements: vec![Statement::Assignment(Assignment::new(
                     Word::Literal("key".into()),
                     Word::Literal("if".into()),
                 ))],
             },
-            pjsh_ast::Program {
+            pjsh_ast::Block {
                 statements: vec![Statement::Assignment(Assignment::new(
                     Word::Literal("key".into()),
                     Word::Literal("else".into()),
@@ -207,7 +207,7 @@ fn execute_while_loop() {
                 ])],
             }],
         },
-        body: pjsh_ast::Program {
+        body: pjsh_ast::Block {
             statements: vec![Statement::Assignment(Assignment::new(
                 Word::Literal("key".into()),
                 Word::Literal("new".into()),
