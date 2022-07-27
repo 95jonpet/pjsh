@@ -1,8 +1,9 @@
 [package]
 name = "pjsh_core"
 version = "0.1.0"
-license = "MIT"
 edition = "2021"
+license = "MIT"
+description = "Core library for PJSH."
 
 [dependencies]
 parking_lot = {version = "0.12.1", features = ["deadlock_detection"] }
