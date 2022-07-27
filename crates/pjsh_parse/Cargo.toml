@@ -1,8 +1,9 @@
 [package]
 name = "pjsh_parse"
 version = "0.1.0"
-license = "MIT"
 edition = "2021"
+license = "MIT"
+description = "Parser for PJSH."
 
 [dependencies]
 pjsh_ast = { path = "../pjsh_ast" }

@@ -1,8 +1,9 @@
 [package]
 name = "pjsh"
 version = "0.1.0"
-license = "MIT"
 edition = "2021"
+license = "MIT"
+description = "Main executable for PJSH."
 
 [dependencies]
 atty = "0.2.14"

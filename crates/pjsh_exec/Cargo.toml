@@ -1,8 +1,9 @@
 [package]
 name = "pjsh_exec"
 version = "0.1.0"
-license = "MIT"
 edition = "2021"
+license = "MIT"
+description = "Executor/interpreter for PJSH."
 
 [dependencies]
 dirs = "4.0"
