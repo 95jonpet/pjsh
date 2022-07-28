@@ -2,7 +2,7 @@ use crate::{Command, Word};
 
 /// A pipeline allows multiple programs to be connected using "pipes", sending
 /// one program's output as input for another program.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Pipeline {
     /// Whether or not to execute the pipeline asynchronously.
     ///
