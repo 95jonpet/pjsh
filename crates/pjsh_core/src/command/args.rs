@@ -8,15 +8,14 @@ use crate::{command::Io, Context};
 pub struct Args {
     /// Execution context for the command.
     pub context: Arc<Mutex<Context>>,
+
     /// File descriptors that the command can use for input and output.
     pub io: Io,
 }
 
 impl Args {
-    pub fn from_context(context: Context, io: Io) -> Self {
-        Self {
-            context: Arc::new(Mutex::new(context)),
-            io,
-        }
+    /// Constructs a new command argument wrapper.
+    pub fn new(context: Arc<Mutex<Context>>, io: Io) -> Self {
+        Self { context, io }
     }
 }

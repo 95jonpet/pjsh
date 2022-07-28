@@ -52,6 +52,9 @@ fn print_working_directory(_opts: PwdOpts, ctx: &Context, io: &mut Io) -> Comman
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use parking_lot::Mutex;
     use pjsh_core::Context;
 
     use crate::utils::{file_contents, mock_io};
@@ -66,7 +69,7 @@ mod tests {
         ctx.set_var("PWD".into(), "/current/path".into());
         let alias = Pwd {};
 
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);
