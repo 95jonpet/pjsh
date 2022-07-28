@@ -133,8 +133,8 @@ impl Parser {
 
     /// Parses an [`AndOr`] consisting of one or more [`Pipeline`] definitions.
     pub fn parse_and_or(&mut self) -> Result<AndOr, ParseError> {
-        let mut pipelines = vec![self.parse_pipeline()?];
-        let mut operators = Vec::new();
+        let mut and_or = AndOr::default();
+        and_or.pipelines.push(self.parse_pipeline()?);
 
         loop {
             if self.tokens.next_if_eq(TokenContents::Eof).is_some() {
@@ -153,14 +153,11 @@ impl Parser {
             };
             self.tokens.next();
 
-            operators.push(operator);
-            pipelines.push(self.parse_pipeline()?);
+            and_or.operators.push(operator);
+            and_or.pipelines.push(self.parse_pipeline()?);
         }
 
-        Ok(AndOr {
-            pipelines,
-            operators,
-        })
+        Ok(and_or)
     }
 
     /// Parses a pipeline. Handles both smart pipelines and legacy pipelines.
@@ -174,7 +171,7 @@ impl Parser {
 
     /// Parses a legacy [`Pipeline`] without an explicit start and end.
     pub fn parse_legacy_pipeline(&mut self) -> Result<Pipeline, ParseError> {
-        let mut segments = Vec::new();
+        let mut pipeline = Pipeline::default();
 
         // No input to parse - a valid legacy pipeline cannot be constructed.
         if self.tokens.peek().contents == TokenContents::Eof {
@@ -183,9 +180,9 @@ impl Parser {
 
         loop {
             match self.parse_pipeline_segment() {
-                // Continually add segments until there is no more input or th
+                // Continually add segments until there is no more input.
                 Ok(segment) => {
-                    segments.push(segment);
+                    pipeline.segments.push(segment);
 
                     if self.tokens.next_if_eq(TokenContents::Pipe).is_none() {
                         // Legacy pipelines end when there are no more pipes.
@@ -203,29 +200,28 @@ impl Parser {
             }
         }
 
-        let is_async = self.tokens.next_if_eq(TokenContents::Amp).is_some();
+        pipeline.is_async = self.tokens.next_if_eq(TokenContents::Amp).is_some();
 
-        Ok(Pipeline { is_async, segments })
+        Ok(pipeline)
     }
 
     /// Parses a "smart" [`Pipeline`] with an explicit start and end.
     pub fn parse_smart_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         self.tokens.newline_is_whitespace(true); // Newline is trivialized in a smart pipeline.
-        let mut segments = Vec::new();
-        let mut is_async = false;
+        let mut pipeline = Pipeline::default();
 
         loop {
             match self.tokens.peek().contents {
                 TokenContents::Amp => {
                     self.tokens.next();
-                    is_async = true;
+                    pipeline.is_async = true;
                     break;
                 }
                 TokenContents::Semi => {
                     self.tokens.next();
                     break;
                 }
-                _ => segments.push(self.parse_pipeline_segment()?),
+                _ => pipeline.segments.push(self.parse_pipeline_segment()?),
             }
 
             match self.tokens.peek().contents {
@@ -235,7 +231,7 @@ impl Parser {
                 TokenContents::Eof => return Err(ParseError::IncompleteSequence),
                 TokenContents::Amp => {
                     self.tokens.next();
-                    is_async = true;
+                    pipeline.is_async = true;
                     break;
                 }
                 TokenContents::Semi => {
@@ -249,11 +245,11 @@ impl Parser {
         self.tokens.newline_is_whitespace(false); // Ensure a clean exit.
 
         // A pipeline is only valid if it contains one or more segments.
-        if segments.is_empty() {
+        if pipeline.segments.is_empty() {
             return Err(self.unexpected_token());
         }
 
-        Ok(Pipeline { is_async, segments })
+        Ok(pipeline)
     }
 
     /// Parses a pipeline segment.
@@ -403,24 +399,24 @@ impl Parser {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::File(self.parse_word()?),
-                    RedirectMode::Write,
                     FileDescriptor::Number(fd),
+                    RedirectMode::Write,
                 ))
             }
             TokenContents::FdWriteFrom(fd) => {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
-                    RedirectMode::Write,
                     FileDescriptor::File(self.parse_word()?),
+                    RedirectMode::Write,
                 ))
             }
             TokenContents::FdAppendFrom(fd) => {
                 self.tokens.next();
                 Ok(Redirect::new(
                     FileDescriptor::Number(fd),
-                    RedirectMode::Append,
                     FileDescriptor::File(self.parse_word()?),
+                    RedirectMode::Append,
                 ))
             }
             _ => Err(self.unexpected_token()),

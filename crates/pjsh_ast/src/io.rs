@@ -15,11 +15,11 @@ pub struct Redirect {
 
 impl Redirect {
     /// Constructs a new redirect from one file descriptor to another.
-    pub fn new(source: FileDescriptor, mode: RedirectMode, target: FileDescriptor) -> Self {
+    pub fn new(source: FileDescriptor, target: FileDescriptor, mode: RedirectMode) -> Self {
         Self {
             source,
-            mode,
             target,
+            mode,
         }
     }
 }

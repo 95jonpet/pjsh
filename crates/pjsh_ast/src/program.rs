@@ -65,7 +65,7 @@ impl Function {
 ///
 /// Pipelines are only executed up until the first failing condition. The first
 /// pipeline is always executed.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AndOr {
     /// Conditional operators.
     ///
@@ -138,5 +138,32 @@ impl Program {
 impl Default for Program {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_statements_can_be_appended() {
+        let statement = Statement::Assignment(Assignment {
+            key: Word::Literal("key".into()),
+            value: Word::Literal("value".into()),
+        });
+        let mut block = Block::default();
+        block.statement(statement.clone());
+        assert_eq!(block.statements, vec![statement]);
+    }
+
+    #[test]
+    fn program_statements_can_be_appended() {
+        let statement = Statement::Assignment(Assignment {
+            key: Word::Literal("key".into()),
+            value: Word::Literal("value".into()),
+        });
+        let mut program = Program::default();
+        program.statement(statement.clone());
+        assert_eq!(program.statements, vec![statement]);
     }
 }
