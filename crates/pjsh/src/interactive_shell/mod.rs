@@ -21,11 +21,20 @@ use crate::{
 use self::{complete::CombinationCompleter, utils::strip_ansi_escapes};
 
 pub struct RustylineShell {
+    /// Rustyline editor.
     editor: Editor<ShellHelper>,
+
+    /// Whether or not the shell is interactive.
+    ///
+    /// TODO: When is this ever false?
+    /// TODO: Consider using a separate streamlined shell when non-interactive.
     interactive: bool,
 }
 
 impl RustylineShell {
+    /// Constructs a new shell backed by rustyline.
+    ///
+    /// Shell command history is read from a file.
     pub fn new(history_file: &std::path::Path) -> Self {
         let helper = ShellHelper {
             completer: CombinationCompleter::new(vec![Box::new(FileCompleter {})]),
@@ -35,7 +44,7 @@ impl RustylineShell {
         };
 
         let config = Config::builder().build();
-        let mut editor = Editor::with_config(config);
+        let mut editor = Editor::with_config(config).expect("configure editor");
         editor.set_helper(Some(helper));
 
         let interactive = atty::is(atty::Stream::Stdin);
@@ -51,6 +60,7 @@ impl RustylineShell {
         shell
     }
 
+    /// Loads shell command history from a file.
     fn load_history_file(&mut self, history_file: &std::path::Path) {
         if !history_file.exists() {
             return;
@@ -109,11 +119,19 @@ impl Shell for RustylineShell {
     }
 }
 
+/// Rustyline shell helper for enhancing the user experience.
 #[derive(Helper)]
 struct ShellHelper {
+    /// Command completer.
     completer: CombinationCompleter,
+
+    /// Text color highlighter.
     highlighter: MatchingBracketHighlighter,
+
+    /// Suggestion hinter.
     hinter: HistoryHinter,
+
+    /// Colored shell prompt optionally containing ANSI control sequences.
     colored_prompt: String,
 }
 
