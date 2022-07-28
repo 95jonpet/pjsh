@@ -37,8 +37,12 @@ impl Command for Exit {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::Arc,
+    };
 
+    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::empty_io;
@@ -58,7 +62,7 @@ mod tests {
         ctx.register_exit(17);
         let exit = Exit {};
 
-        let args = Args::from_context(ctx, empty_io());
+        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 17);
@@ -77,7 +81,7 @@ mod tests {
         )]);
         let exit = Exit {};
 
-        let args = Args::from_context(ctx, empty_io());
+        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 1);
@@ -96,7 +100,7 @@ mod tests {
         )]);
         let exit = Exit {};
 
-        let args = Args::from_context(ctx, empty_io());
+        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
         let result = exit.run(args);
 
         assert_eq!(result.code, 2); // Exit 2 = misuse of shell built-in.

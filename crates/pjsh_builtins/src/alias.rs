@@ -99,8 +99,12 @@ fn set_alias(name: String, value: String, ctx: &mut Context) -> CommandResult {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::Arc,
+    };
 
+    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
@@ -122,7 +126,7 @@ mod tests {
 
         let alias = Alias {};
 
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);
@@ -147,7 +151,7 @@ mod tests {
 
         let alias = Alias {};
 
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = alias.run(args);
 
         assert_eq!(result.code, 0);
@@ -173,7 +177,7 @@ mod tests {
 
         let alias = Alias {};
 
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let ctx = args.context.clone();
         let result = alias.run(args);
 

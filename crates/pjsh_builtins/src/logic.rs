@@ -64,6 +64,9 @@ fn print_error(io: &mut Io, error: clap::Error) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use parking_lot::Mutex;
     use pjsh_core::Context;
 
     use crate::utils::empty_io;
@@ -75,7 +78,7 @@ mod tests {
         let ctx = Context::default();
         let command = True {};
 
-        let args = Args::from_context(ctx, empty_io());
+        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
         let result = command.run(args);
 
         assert_eq!(result.code, 0);
@@ -87,7 +90,7 @@ mod tests {
         let ctx = Context::default();
         let command = False {};
 
-        let args = Args::from_context(ctx, empty_io());
+        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
         let result = command.run(args);
 
         assert_ne!(result.code, 0);

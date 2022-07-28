@@ -79,8 +79,12 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::Arc,
+    };
 
+    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
@@ -100,7 +104,7 @@ mod tests {
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);
@@ -122,7 +126,7 @@ mod tests {
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);
@@ -144,7 +148,7 @@ mod tests {
         let (io, mut stdout, mut stderr) = mock_io();
 
         let cmd = Echo {};
-        let args = Args::from_context(ctx, io);
+        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
         let result = cmd.run(args);
 
         assert_eq!(result.code, 0);
