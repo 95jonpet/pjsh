@@ -4,12 +4,12 @@ use pjsh_core::{utils::path_to_string, Context, Host, Scope, StdHost};
 
 /// Constructs a new initialized execution context containing some common environment variables such
 /// as `$PS1` and `$PS2`.
-pub fn initialized_context(interactive: bool) -> Context {
+pub fn initialized_context(args: Vec<String>, interactive: bool) -> Context {
     let host = StdHost::default();
     Context::with_scopes(vec![
         environment_scope(host),
         pjsh_scope(interactive),
-        global_scope(interactive),
+        global_scope(args, interactive),
     ])
 }
 
@@ -28,7 +28,7 @@ fn environment_scope<H: Host>(host: H) -> Scope {
         .collect();
 
     Scope::new(
-        "evironment".to_owned(),
+        "environment".to_owned(),
         None,
         Some(vars),
         None,
@@ -56,14 +56,14 @@ fn pjsh_scope(interactive: bool) -> Scope {
 }
 
 /// Returns an empty scope for use as the shell's global scope.
-fn global_scope(interactive: bool) -> Scope {
+fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
     let name = std::env::current_exe()
         .map(|path| path_to_string(&path))
         .unwrap_or_else(|_| String::from("pjsh"));
 
     Scope::new(
         name,
-        Some(vec![]), // TODO: Initialize arguments from argument list.
+        Some(args),
         Some(HashMap::default()),
         Some(HashMap::default()),
         HashSet::default(),

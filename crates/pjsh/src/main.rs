@@ -9,7 +9,7 @@ mod shell;
 #[cfg(test)]
 mod tests;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{env::current_exe, path::PathBuf, sync::Arc};
 
 use clap::{crate_version, Parser};
 use command_shell::SingleCommandShell;
@@ -18,7 +18,7 @@ use file_shell::FileBufferShell;
 use init::initialized_context;
 use interactive_shell::RustylineShell;
 use parking_lot::Mutex;
-use pjsh_core::Context;
+use pjsh_core::{utils::path_to_string, Context};
 use pjsh_exec::{interpolate_word, Executor, FileDescriptors};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
 use shell::Shell;
@@ -39,28 +39,42 @@ const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
     version(crate_version!())
 )]
 struct Opts {
-    /// Command
-    #[clap(short, long, conflicts_with("input"))]
-    command: Option<String>,
+    /// Treat the first argument as a command rather than a script file.
+    #[clap(short('c'), long("command"), requires("script-file"))]
+    is_command: bool,
 
-    /// Input file
-    #[clap(parse(from_os_str))]
-    input: Option<PathBuf>,
+    /// Script file.
+    script_file: Option<String>,
 
-    /// Script arguments
+    /// Script arguments.
     args: Vec<String>,
 }
 
 /// Entrypoint for the application.
 pub fn main() {
-    let opts = Opts::parse();
-
-    let shell: Box<dyn Shell> = match opts.input {
-        Some(script_file) => Box::new(FileBufferShell::new(script_file)),
-        None if opts.command.is_some() => Box::new(SingleCommandShell::new(opts.command.unwrap())),
-        _ => Box::new(RustylineShell::new(history_file().as_path())),
+    let mut opts = Opts::parse();
+    let first_arg = match &opts.is_command {
+        true => current_exe()
+            .map(path_to_string)
+            .unwrap_or_else(|_| String::from("pjsh")),
+        false => opts
+            .script_file
+            .to_owned()
+            .unwrap_or_else(|| String::from("pjsh")),
     };
-    let context = Arc::new(Mutex::new(initialized_context(shell.is_interactive())));
+
+    let mut args = Vec::with_capacity(opts.args.len() + 1);
+    args.push(first_arg);
+    for arg in std::mem::take(&mut opts.args) {
+        args.push(arg);
+    }
+
+    let shell = new_shell(&opts);
+
+    let context = Arc::new(Mutex::new(initialized_context(
+        args,
+        shell.is_interactive(),
+    )));
 
     source_init_scripts(shell.is_interactive(), Arc::clone(&context));
 
@@ -163,6 +177,22 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
     }
 
     shell.save_history(history_file().as_path());
+}
+
+/// Constructs a new shell.
+fn new_shell(opts: &Opts) -> Box<dyn Shell> {
+    if opts.is_command {
+        // The script_file argument is a command rather than a file path.
+        let command = opts.script_file.to_owned().expect("script file is defined");
+        return Box::new(SingleCommandShell::new(command));
+    }
+
+    if let Some(script_file) = opts.script_file.to_owned() {
+        return Box::new(FileBufferShell::new(script_file));
+    }
+
+    // Construct a new interactive shell if no other arguments are given.
+    Box::new(RustylineShell::new(history_file().as_path()))
 }
 
 /// Interrupts the currently running threads and processes in a context.
