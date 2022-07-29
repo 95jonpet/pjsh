@@ -99,10 +99,7 @@ fn set_alias(name: String, value: String, ctx: &mut Context) -> CommandResult {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Arc,
-    };
+    use std::{collections::HashSet, sync::Arc};
 
     use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
@@ -115,9 +112,9 @@ mod tests {
     fn it_can_print_a_matching_alias() {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["alias".into(), "ls".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["alias".into(), "ls".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -139,9 +136,9 @@ mod tests {
     fn it_can_print_aliases() {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["alias".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["alias".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -167,9 +164,9 @@ mod tests {
     fn it_can_define_an_alias() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["alias".into(), "name".into(), "value".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["alias".into(), "name".into(), "value".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);

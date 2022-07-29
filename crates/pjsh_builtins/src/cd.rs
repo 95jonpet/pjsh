@@ -72,6 +72,9 @@ fn change_directory(opts: CdOpts, ctx: &mut Context, io: &mut Io) -> CommandResu
             // Set the current working directory within the current context.
             let new_path = path_to_string(&path);
             ctx.set_var("PWD".to_string(), new_path.clone());
+            if let Err(err) = std::env::set_current_dir(&path) {
+                return exit_with_error(status::GENERAL_ERROR, io, &err.to_string());
+            }
 
             // Using "-" as a directory should be equivalent to "cd - && pwd".
             if opts.directory.filter(|p| p == "-").is_some() {
@@ -115,9 +118,9 @@ mod tests {
     fn cd_context<P: AsRef<Path>>(path: P) -> Arc<Mutex<Context>> {
         let context = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["cd".into(), path_to_string(&path)],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["cd".into(), path_to_string(&path)]),
+            Some(HashMap::default()),
+            None,
             HashSet::default(),
             false,
         )]);
@@ -141,6 +144,7 @@ mod tests {
             Some(path_to_string(dir.path()).as_str())
         );
         assert_eq!(ctx.lock().get_var("OLDPWD"), Some("old-pwd".into()));
+        assert_eq!(std::env::current_dir().unwrap(), dir.path());
     }
 
     #[test]
@@ -148,9 +152,9 @@ mod tests {
         let home = TempDir::new().unwrap();
         let ctx = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["cd".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["cd".into()]),
+            Some(HashMap::default()),
+            None,
             HashSet::default(),
             false,
         )])));
@@ -173,9 +177,9 @@ mod tests {
         let oldpwd = TempDir::new().unwrap();
         let ctx = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["cd".into(), "-".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["cd".into(), "-".into()]),
+            Some(HashMap::default()),
+            None,
             HashSet::default(),
             false,
         )])));

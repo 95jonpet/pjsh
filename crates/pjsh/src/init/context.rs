@@ -29,9 +29,9 @@ fn environment_scope<H: Host>(host: H) -> Scope {
 
     Scope::new(
         "evironment".to_owned(),
-        vec![],
-        vars,
-        HashMap::default(),
+        None,
+        Some(vars),
+        None,
         HashSet::default(),
         false,
     )
@@ -47,9 +47,9 @@ fn pjsh_scope(interactive: bool) -> Scope {
 
     Scope::new(
         "pjsh".to_owned(),
-        vec![],
-        vars,
-        HashMap::default(),
+        None,
+        Some(vars),
+        None,
         HashSet::default(),
         interactive,
     )
@@ -63,9 +63,9 @@ fn global_scope(interactive: bool) -> Scope {
 
     Scope::new(
         name,
-        vec![],
-        HashMap::default(),
-        HashMap::default(),
+        Some(vec![]), // TODO: Initialize arguments from argument list.
+        Some(HashMap::default()),
+        Some(HashMap::default()),
         HashSet::default(),
         interactive,
     )

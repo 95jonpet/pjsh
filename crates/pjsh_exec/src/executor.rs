@@ -267,9 +267,9 @@ impl Executor {
             Statement::Subshell(subshell) => {
                 ctx.lock().push_scope(Scope::new(
                     "subshell".to_owned(),
-                    Vec::new(),
-                    HashMap::default(),
-                    HashMap::default(),
+                    None,
+                    Some(HashMap::default()),
+                    Some(HashMap::default()),
                     HashSet::default(),
                     false,
                 ));
@@ -334,9 +334,9 @@ impl Executor {
 
             let function_scope = Scope::new(
                 function.name,
-                Vec::from(args),
-                function_vars,
-                HashMap::new(),
+                Some(Vec::from(args)),
+                Some(function_vars),
+                Some(HashMap::new()),
                 HashSet::new(),
                 false,
             );
@@ -410,9 +410,9 @@ impl Executor {
         // Create a new modified context for the command.
         ctx.lock().push_scope(Scope::new(
             cmd_name,
-            Vec::from(args),
-            HashMap::default(),
-            HashMap::default(),
+            Some(Vec::from(args)),
+            None,
+            None,
             HashSet::default(),
             false,
         ));

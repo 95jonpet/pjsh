@@ -36,9 +36,9 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
                         let scope_name = format!("{} subshell", context.lock().name());
                         context.lock().push_scope(Scope::new(
                             scope_name,
-                            Vec::default(),
-                            HashMap::default(),
-                            HashMap::default(),
+                            None,
+                            Some(HashMap::default()),
+                            Some(HashMap::default()),
                             HashSet::default(),
                             false,
                         ));
@@ -69,9 +69,9 @@ pub fn interpolate_word(executor: &Executor, word: Word, context: Arc<Mutex<Cont
             let scope_name = format!("{} subshell", context.lock().name());
             context.lock().push_scope(Scope::new(
                 scope_name,
-                Vec::default(),
-                HashMap::default(),
-                HashMap::default(),
+                None,
+                Some(HashMap::default()),
+                Some(HashMap::default()),
                 HashSet::default(),
                 false,
             ));

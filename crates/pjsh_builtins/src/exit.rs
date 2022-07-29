@@ -37,10 +37,7 @@ impl Command for Exit {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Arc,
-    };
+    use std::{collections::HashSet, sync::Arc};
 
     use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
@@ -53,9 +50,9 @@ mod tests {
     fn it_uses_the_last_exit_code_by_default() {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["exit".to_owned()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["exit".to_owned()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -73,9 +70,9 @@ mod tests {
     fn it_can_use_code_from_argument() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["exit".to_owned(), "1".to_owned()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["exit".to_owned(), "1".to_owned()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -92,9 +89,9 @@ mod tests {
     fn it_exits_with_code_2_if_code_argument_is_invalid() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["exit".to_owned(), "non-integer".to_owned()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["exit".to_owned(), "non-integer".to_owned()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
