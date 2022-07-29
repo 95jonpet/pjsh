@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs,
     io::{BufRead, BufReader, Read, Seek},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process,
     sync::Arc,
     thread,
@@ -358,10 +358,27 @@ impl Executor {
         // $PWD if the program looks like a path.
         let ctx = &context.lock();
         if program.starts_with('.') || program.contains('/') {
-            let program_in_pwd = resolve_path(ctx, &program);
-            if program_in_pwd.is_file() {
-                return self.start_program(program_in_pwd, args, fds, ctx);
+            let program_path = resolve_path(ctx, &program);
+            if !program_path.is_file() {
+                return Err(ExecError::InvalidProgramPath(program_path));
             }
+
+            // Handle any shebang if present.
+            if let Some(shebang) = read_shebang(&program_path) {
+                let mut shebang_args = shebang.split_whitespace();
+                let shebang_program = shebang_args.next().expect("shebang program").to_owned();
+
+                // Arrange arguments such that the following order holds:
+                // shebang_program [shebang_args..] program [args..]
+                args.push_front(path_to_string(program_path));
+                for arg in shebang_args.rev() {
+                    args.push_front(arg.to_owned());
+                }
+
+                return self.start_program(PathBuf::from(shebang_program), args, fds, ctx);
+            }
+
+            return self.start_program(program_path, args, fds, ctx);
         }
 
         // Search for the program in $PATH and spawn a child process for it if possible.
@@ -668,4 +685,24 @@ fn redirect_file_descriptors(
     }
 
     Ok(())
+}
+
+/// Reads the shebang from the first line of a file.
+fn read_shebang<P: AsRef<Path>>(path: P) -> Option<String> {
+    let file = match fs::File::open(&path) {
+        Ok(file) => file,
+        Err(_) => return None,
+    };
+
+    let mut buffer = BufReader::new(file);
+    let mut first_line = String::new();
+    if buffer.read_line(&mut first_line).is_err() {
+        return None;
+    }
+
+    if first_line.starts_with("#!") {
+        return Some(first_line.trim_start_matches("#!").to_owned());
+    }
+
+    None
 }
