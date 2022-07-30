@@ -1,10 +1,7 @@
 use clap::Parser;
-use pjsh_core::{
-    command::Io,
-    command::{Args, Command, CommandResult},
-};
+use pjsh_core::command::{Args, Command, CommandResult};
 
-use crate::status;
+use crate::{status, utils::exit_with_parse_error};
 
 /// Exit with a code status indicating success.
 ///
@@ -22,11 +19,10 @@ impl Command for True {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        if let Err(error) = TrueOpts::try_parse_from(args.context.lock().args()) {
-            print_error(&mut args.io, error);
-        };
-
-        CommandResult::code(status::SUCCESS)
+        match TrueOpts::try_parse_from(args.context.lock().args()) {
+            Ok(_) => CommandResult::code(status::SUCCESS),
+            Err(error) => exit_with_parse_error(&mut args.io, error),
+        }
     }
 }
 
@@ -46,20 +42,11 @@ impl Command for False {
     }
 
     fn run(&self, mut args: Args) -> CommandResult {
-        if let Err(error) = TrueOpts::try_parse_from(args.context.lock().args()) {
-            print_error(&mut args.io, error);
-        };
-
-        CommandResult::code(1) // Any non-zero code is false.
+        match TrueOpts::try_parse_from(args.context.lock().args()) {
+            Ok(_) => CommandResult::code(1), // Any non-zero code is false.
+            Err(error) => exit_with_parse_error(&mut args.io, error),
+        }
     }
-}
-
-/// Prints a [`clap::Error`] to a relevant file descriptor.
-fn print_error(io: &mut Io, error: clap::Error) {
-    let _ = match error.use_stderr() {
-        true => writeln!(io.stderr, "{}", error),
-        false => writeln!(io.stdout, "{}", error),
-    };
 }
 
 #[cfg(test)]

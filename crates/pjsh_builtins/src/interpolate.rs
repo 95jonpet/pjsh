@@ -65,3 +65,42 @@ fn interpolate_text_args(args: InterpolateOpts) -> CommandResult {
 
     CommandResult::with_actions(status::SUCCESS, actions)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::Arc,
+    };
+
+    use parking_lot::Mutex;
+    use pjsh_core::{Context, Scope};
+
+    use crate::utils::empty_io;
+
+    use super::*;
+
+    #[test]
+    fn it_interpolate_input() {
+        let interpolate = Interpolate {};
+        let ctx = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
+            "scope".into(),
+            Some(vec!["interpolate".into(), "word".into()]),
+            Some(HashMap::default()),
+            None,
+            HashSet::default(),
+            false,
+        )])));
+        let args = Args::new(ctx, empty_io());
+
+        let result = interpolate.run(args);
+
+        assert_eq!(result.code, status::SUCCESS);
+        assert_eq!(result.actions.len(), 1);
+        if let Action::Interpolate(arg, _) = &result.actions[0] {
+            assert_eq!(arg, "word");
+        } else {
+            unreachable!()
+        }
+    }
+}
