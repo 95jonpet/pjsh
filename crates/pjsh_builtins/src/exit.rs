@@ -1,5 +1,5 @@
 use clap::Parser;
-use pjsh_core::command::{Args, Command, CommandResult};
+use pjsh_core::command::{Action, Args, Command, CommandResult};
 
 use crate::utils;
 
@@ -26,10 +26,10 @@ impl Command for Exit {
     fn run(&self, mut args: Args) -> CommandResult {
         let ctx = args.context.lock();
         match ExitOpts::try_parse_from(ctx.args()) {
-            Ok(opts) => match opts.status {
-                Some(status) => CommandResult::code(status),
-                None => CommandResult::code(ctx.last_exit()),
-            },
+            Ok(opts) => {
+                let code = opts.status.unwrap_or_else(|| ctx.last_exit());
+                CommandResult::with_actions(code, vec![Action::ExitScope(code)])
+            }
             Err(error) => utils::exit_with_parse_error(&mut args.io, error),
         }
     }
