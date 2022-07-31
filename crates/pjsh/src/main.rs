@@ -13,13 +13,13 @@ use std::{env::current_exe, path::PathBuf, sync::Arc};
 
 use clap::{crate_version, Parser};
 use command_shell::SingleCommandShell;
-use exec::create_executor;
+use exec::{create_executor, AstPrinter, Execute, ProgramExecutor};
 use file_shell::FileBufferShell;
 use init::initialized_context;
 use interactive_shell::RustylineShell;
 use parking_lot::Mutex;
 use pjsh_core::{utils::path_to_string, Context};
-use pjsh_exec::{interpolate_word, Executor, FileDescriptors};
+use pjsh_exec::{interpolate_word, Executor};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
 use shell::Shell;
 
@@ -43,6 +43,9 @@ struct Opts {
     #[clap(short('c'), long("command"), requires("script-file"))]
     is_command: bool,
 
+    #[clap(long("parse"), requires("script-file"))]
+    is_parse_only: bool,
+
     /// Script file.
     script_file: Option<String>,
 
@@ -53,6 +56,11 @@ struct Opts {
 /// Entrypoint for the application.
 pub fn main() {
     let mut opts = Opts::parse();
+    let executor: Box<dyn Execute> = match opts.is_parse_only {
+        true => Box::new(AstPrinter),
+        false => Box::new(ProgramExecutor::new()),
+    };
+
     let first_arg = match &opts.is_command {
         true => current_exe()
             .map(path_to_string)
@@ -76,9 +84,9 @@ pub fn main() {
         shell.is_interactive(),
     )));
 
-    source_init_scripts(shell.is_interactive(), Arc::clone(&context));
+    source_init_scripts(shell.is_interactive(), &executor, Arc::clone(&context));
 
-    run_shell(shell, Arc::clone(&context)); // Not guaranteed to exit.
+    run_shell(shell, &executor, Arc::clone(&context)); // Not guaranteed to exit.
 
     // If the shell exits cleanly, attempt to stop all threads and processes that it has spawned.
     context.lock().host.lock().join_all_threads();
@@ -118,10 +126,14 @@ fn get_prompts(
 /// Main loop for running a [`Shell`].
 ///
 /// This method is not guaranteed to exit.
-pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>) {
-    let executor = create_executor();
+pub(crate) fn run_shell(
+    mut shell: Box<dyn Shell>,
+    executor: &Box<dyn Execute>,
+    context: Arc<Mutex<Context>>,
+) {
+    let interpolator = create_executor();
     'main: loop {
-        let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context), &executor);
+        let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context), &interpolator);
         print_exited_child_processes(&mut context.lock());
 
         let mut line = match shell.prompt_line(&ps1) {
@@ -143,10 +155,7 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
                 // If a valid program can be parsed from the buffer, execute it.
                 Ok(program) => {
                     shell.add_history_entry(line.trim());
-                    for statement in program.statements {
-                        let fds = FileDescriptors::new();
-                        executor.execute_statement(statement, Arc::clone(&context), &fds);
-                    }
+                    executor.execute(program, Arc::clone(&context));
                     break;
                 }
 
@@ -183,7 +192,7 @@ pub(crate) fn run_shell(mut shell: Box<dyn Shell>, context: Arc<Mutex<Context>>)
 fn new_shell(opts: &Opts) -> Box<dyn Shell> {
     if opts.is_command {
         // The script_file argument is a command rather than a file path.
-        let command = opts.script_file.to_owned().expect("script file is defined");
+        let command = opts.script_file.to_owned().expect("command is defined");
         return Box::new(SingleCommandShell::new(command));
     }
 
@@ -213,7 +222,11 @@ fn print_exited_child_processes(context: &mut Context) {
 }
 
 /// Sources all init scripts for the shell.
-fn source_init_scripts(interactive: bool, context: Arc<Mutex<Context>>) {
+fn source_init_scripts(
+    interactive: bool,
+    executor: &Box<dyn Execute>,
+    context: Arc<Mutex<Context>>,
+) {
     let mut script_names = vec![INIT_ALWAYS_SCRIPT_NAME];
 
     if interactive {
@@ -227,7 +240,7 @@ fn source_init_scripts(interactive: bool, context: Arc<Mutex<Context>>) {
         }) {
             if init_script.exists() {
                 let init_shell = Box::new(FileBufferShell::new(init_script));
-                run_shell(init_shell, Arc::clone(&context));
+                run_shell(init_shell, executor, Arc::clone(&context));
             }
         }
     }
