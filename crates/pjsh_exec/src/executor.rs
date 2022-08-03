@@ -424,16 +424,7 @@ impl Executor {
         let cmd_name = cmd.name().to_owned();
         debug_assert_eq!(args.front(), Some(&cmd_name));
 
-        // Create a new modified context for the command.
-        ctx.lock().push_scope(Scope::new(
-            cmd_name,
-            Some(Vec::from(args)),
-            None,
-            None,
-            HashSet::default(),
-            false,
-        ));
-
+        let old_args = ctx.lock().replace_args(Vec::from(args));
         let args = pjsh_core::command::Args {
             context: Arc::clone(&ctx),
             io: fds.io(),
@@ -451,7 +442,7 @@ impl Executor {
             }
         }
 
-        ctx.lock().pop_scope();
+        ctx.lock().replace_args(old_args);
 
         code
     }
@@ -497,7 +488,18 @@ impl Executor {
         script_file: PathBuf,
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
+        let script_file = script_file.canonicalize().unwrap_or(script_file);
+
+        // Record the state that must be temporarily modified when sourcing the file and
+        // make the required changes such that arguments and variables matches
+        // expectations in the sourced file.
         let old_args = ctx.lock().replace_args(args);
+        let (old_path, old_dir) = set_script_file(
+            &mut ctx.lock(),
+            Some(script_file.clone()),
+            script_file.parent().map(Path::to_path_buf),
+        );
+
         let mut reader = BufReader::new(fs::File::open(script_file).unwrap());
         let mut line = String::new();
         loop {
@@ -515,7 +517,12 @@ impl Executor {
                 _ => break,
             }
         }
+
+        // Restore the temporarily modified context as to no fill it as to not taint the
+        // original execution context.
         ctx.lock().replace_args(old_args);
+        set_script_file(&mut ctx.lock(), old_path, old_dir);
+
         Some(ctx.lock().last_exit())
     }
 
@@ -583,6 +590,34 @@ impl Executor {
     fn expand(&self, command: Command, context: Arc<Mutex<Context>>) -> VecDeque<String> {
         expand(command.arguments, context, self)
     }
+}
+
+/// Sets the current scripts file and returns the previous script file and its
+/// parent directory.
+fn set_script_file(
+    ctx: &mut Context,
+    script_file: Option<PathBuf>,
+    script_dir: Option<PathBuf>,
+) -> (Option<PathBuf>, Option<PathBuf>) {
+    let old_file = if let Some(script_file) = script_file {
+        ctx.set_var(
+            "PJSH_CURRENT_SCRIPT_PATH".to_owned(),
+            path_to_string(script_file),
+        )
+    } else {
+        ctx.unset_var("PJSH_CURRENT_SCRIPT_PATH")
+    };
+
+    let old_dir = if let Some(script_dir) = script_dir {
+        ctx.set_var(
+            "PJSH_CURRENT_SCRIPT_DIR".to_owned(),
+            path_to_string(script_dir),
+        )
+    } else {
+        ctx.unset_var("PJSH_CURRENT_SCRIPT_DIR")
+    };
+
+    (old_file.map(PathBuf::from), old_dir.map(PathBuf::from))
 }
 
 /// Executes a program and returns a tuple of stdout and stderr.

@@ -82,17 +82,33 @@ impl Context {
     /// Sets the value of a variable within the current scope.
     ///
     /// Parent scopes are not modified.
-    pub fn set_var(&mut self, name: String, value: String) {
+    pub fn set_var(&mut self, name: String, value: String) -> Option<String> {
         let scope_vars = self
             .scopes
             .iter_mut()
             .filter_map(|scope| scope.vars.as_mut())
             .last();
         if let Some(vars) = scope_vars {
-            vars.insert(name, value);
+            vars.insert(name, value)
         } else {
             unreachable!("A variable scope should always exist");
         }
+    }
+
+    /// Removes the value of a variable within the current scope. Returns the
+    /// removed value.
+    ///
+    /// Parent scopes are not modified.
+    ///
+    /// TODO: Allow parent variables to be hidden when unset in a child scope.
+    pub fn unset_var(&mut self, name: &str) -> Option<String> {
+        if let Some(scope) = self.scopes.last_mut() {
+            if let Some(vars) = &mut scope.vars {
+                return vars.remove(name);
+            }
+        }
+
+        None
     }
 
     /// Returns a collection with references to all exported variables within the current scope.

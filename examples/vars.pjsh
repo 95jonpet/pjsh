@@ -7,3 +7,11 @@ echo $message
 # Print "Hello, <user>" to stdout.
 name := "<user>"
 echo `Hello, $name`
+
+echo
+
+# Print file-specific paths.
+echo `Initial script file: ${PJSH_INITIAL_SCRIPT_PATH}`
+echo `Current script file: ${PJSH_CURRENT_SCRIPT_PATH}`
+echo `Initial script dir:  ${PJSH_INITIAL_SCRIPT_DIR}`
+echo `Current script dir:  ${PJSH_CURRENT_SCRIPT_DIR}`

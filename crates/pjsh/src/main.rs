@@ -78,9 +78,14 @@ pub fn main() {
     }
 
     let shell = new_shell(&opts);
+    let script_file = match opts.is_command {
+        true => None,
+        false => opts.script_file.map(PathBuf::from),
+    };
 
     let context = Arc::new(Mutex::new(initialized_context(
         args,
+        script_file,
         shell.is_interactive(),
     )));
 
