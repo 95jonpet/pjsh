@@ -63,7 +63,6 @@ mod tests {
         let result = exit.run(args);
 
         assert_eq!(result.code, 17);
-        assert!(result.actions.is_empty());
     }
 
     #[test]
@@ -82,7 +81,6 @@ mod tests {
         let result = exit.run(args);
 
         assert_eq!(result.code, 1);
-        assert!(result.actions.is_empty());
     }
 
     #[test]
@@ -101,6 +99,5 @@ mod tests {
         let result = exit.run(args);
 
         assert_eq!(result.code, 2); // Exit 2 = misuse of shell built-in.
-        assert!(result.actions.is_empty());
     }
 }

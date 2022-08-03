@@ -264,6 +264,8 @@ impl Drop for Scope {
 
 #[cfg(test)]
 mod tests {
+    use std::env::temp_dir;
+
     use super::*;
 
     #[test]
@@ -337,5 +339,45 @@ mod tests {
         assert_eq!(context.get_var("outer"), Some("outer"));
         assert_eq!(context.get_var("inner"), Some("inner"));
         assert_eq!(context.get_var("replace"), Some("inner"));
+    }
+
+    #[test]
+    fn it_replaces_its_args() {
+        let new_args = vec!["replaced".to_owned(), "args".to_owned()];
+        let mut context = Context::with_scopes(vec![Scope::new(
+            "scope".into(),
+            Some(vec!["original".to_owned(), "args".to_owned()]),
+            None,
+            None,
+            HashSet::default(),
+            false,
+        )]);
+
+        context.replace_args(new_args.clone());
+
+        assert_eq!(context.args(), &new_args[..]);
+    }
+
+    #[test]
+    fn it_deletes_temporary_files_when_their_scope_is_dropped() {
+        let mut file = temp_dir();
+        file.push("scope-file");
+        std::fs::write(&file, "file contents").expect("file is writable");
+        let mut context = Context::with_scopes(vec![Scope::new(
+            "scope".into(),
+            None,
+            None,
+            None,
+            HashSet::default(),
+            false,
+        )]);
+        context.register_temporary_file(file.clone());
+
+        context.pop_scope(); // The scope is dropped here.
+
+        assert!(
+            !file.exists(),
+            "the file should be deleted when its owner scope is dropped"
+        );
     }
 }

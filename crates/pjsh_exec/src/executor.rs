@@ -464,7 +464,7 @@ impl Executor {
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
         match action {
-            Action::ExitScope(_code) => todo!("implement this action"),
+            Action::ExitScope(code) => Some(code), // TODO: Implement this action.
             Action::Interpolate(text, callback) => match pjsh_parse::parse_interpolation(&text) {
                 Ok(word) => {
                     let value = interpolate_word(self, word, context);

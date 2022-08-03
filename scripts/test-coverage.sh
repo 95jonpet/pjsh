@@ -10,4 +10,9 @@ cd -- "${APP_DIR}"
 
 cargo tarpaulin \
   --output-dir target \
-  --out html
+  --out html \
+  --workspace \
+  --frozen \
+  --locked \
+  --skip-clean \
+  "$@"
