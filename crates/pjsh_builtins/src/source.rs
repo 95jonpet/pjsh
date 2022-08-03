@@ -13,6 +13,7 @@ use crate::{status, utils};
 
 /// Command name.
 const NAME: &str = "source";
+const NAME_SHORTHAND: &str = ".";
 
 /// Execute commands from a file in the current shell.
 ///
@@ -33,6 +34,23 @@ pub struct Source;
 impl Command for Source {
     fn name(&self) -> &str {
         NAME
+    }
+
+    fn run(&self, mut args: Args) -> CommandResult {
+        match SourceOpts::try_parse_from(args.context.lock().args()) {
+            Ok(opts) => source_file(opts, args.context.clone(), &mut args.io),
+            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+        }
+    }
+}
+
+/// Implementation for the "." built-in command.
+#[derive(Clone)]
+pub struct SourceShorthand;
+
+impl Command for SourceShorthand {
+    fn name(&self) -> &str {
+        NAME_SHORTHAND
     }
 
     fn run(&self, mut args: Args) -> CommandResult {

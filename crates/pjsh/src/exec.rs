@@ -59,6 +59,7 @@ pub(crate) fn create_executor() -> Executor {
         Box::new(pjsh_builtins::Pwd),
         Box::new(pjsh_builtins::Sleep),
         Box::new(pjsh_builtins::Source),
+        Box::new(pjsh_builtins::SourceShorthand),
         Box::new(pjsh_builtins::True),
         Box::new(pjsh_builtins::Type),
         Box::new(pjsh_builtins::Unalias),
