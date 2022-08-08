@@ -66,9 +66,9 @@ mod tests {
     fn context(args: Vec<String>) -> Arc<Mutex<Context>> {
         let context = Context::with_scopes(vec![Scope::new(
             String::new(),
-            args,
-            HashMap::default(),
-            HashMap::default(),
+            Some(args),
+            Some(HashMap::default()),
+            Some(HashMap::default()),
             HashSet::default(),
             false,
         )]);

@@ -79,10 +79,7 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Arc,
-    };
+    use std::{collections::HashSet, sync::Arc};
 
     use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
@@ -95,9 +92,9 @@ mod tests {
     fn it_prints_to_stdout() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["echo".into(), "message".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["echo".into(), "message".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -117,9 +114,9 @@ mod tests {
     fn it_separates_arguments_with_a_single_space() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["echo".into(), "first".into(), "second".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["echo".into(), "first".into(), "second".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);
@@ -139,9 +136,9 @@ mod tests {
     fn it_can_print_without_final_newline() {
         let ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
-            vec!["echo".into(), "-n".into(), "message".into()],
-            HashMap::default(),
-            HashMap::default(),
+            Some(vec!["echo".into(), "-n".into(), "message".into()]),
+            None,
+            None,
             HashSet::default(),
             false,
         )]);

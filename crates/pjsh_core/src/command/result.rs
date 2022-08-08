@@ -28,15 +28,3 @@ impl CommandResult {
         Self { code, actions }
     }
 }
-
-impl From<i32> for CommandResult {
-    fn from(code: i32) -> Self {
-        Self::code(code)
-    }
-}
-
-impl From<Vec<Action>> for CommandResult {
-    fn from(actions: Vec<Action>) -> Self {
-        Self::with_actions(0, actions)
-    }
-}

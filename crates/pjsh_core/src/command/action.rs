@@ -14,6 +14,9 @@ type ExitCode = i32;
 /// The shell performs actions asynchronously. Thus, a command cannot directly
 /// rely on an action's output, but rather on callbacks.
 pub enum Action {
+    /// Exit the current scope.
+    ExitScope(ExitCode),
+
     /// Interpolate a string and call a function with the interpolated value as
     /// an argument, or an error message if it cannot be interpolated.
     Interpolate(String, Box<dyn FnOnce(Io, Result<&str, &str>) -> ExitCode>),

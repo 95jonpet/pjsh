@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::vec;
 
@@ -121,9 +121,9 @@ fn expand_tilde() {
 fn expand_positional_arguments() {
     let context = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
         String::default(),
-        vec!["arg0".into(), "arg1".into()],
-        HashMap::default(),
-        HashMap::default(),
+        Some(vec!["arg0".into(), "arg1".into()]),
+        None,
+        None,
         HashSet::default(),
         false,
     )])));

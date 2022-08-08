@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     fs,
     io::{BufRead, BufReader, Read, Seek},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process,
     sync::Arc,
     thread,
@@ -267,9 +267,9 @@ impl Executor {
             Statement::Subshell(subshell) => {
                 ctx.lock().push_scope(Scope::new(
                     "subshell".to_owned(),
-                    Vec::new(),
-                    HashMap::default(),
-                    HashMap::default(),
+                    None,
+                    Some(HashMap::default()),
+                    Some(HashMap::default()),
                     HashSet::default(),
                     false,
                 ));
@@ -334,9 +334,9 @@ impl Executor {
 
             let function_scope = Scope::new(
                 function.name,
-                Vec::from(args),
-                function_vars,
-                HashMap::new(),
+                Some(Vec::from(args)),
+                Some(function_vars),
+                Some(HashMap::new()),
                 HashSet::new(),
                 false,
             );
@@ -358,10 +358,27 @@ impl Executor {
         // $PWD if the program looks like a path.
         let ctx = &context.lock();
         if program.starts_with('.') || program.contains('/') {
-            let program_in_pwd = resolve_path(ctx, &program);
-            if program_in_pwd.is_file() {
-                return self.start_program(program_in_pwd, args, fds, ctx);
+            let program_path = resolve_path(ctx, &program);
+            if !program_path.is_file() {
+                return Err(ExecError::InvalidProgramPath(program_path));
             }
+
+            // Handle any shebang if present.
+            if let Some(shebang) = read_shebang(&program_path) {
+                let mut shebang_args = shebang.split_whitespace();
+                let shebang_program = shebang_args.next().expect("shebang program").to_owned();
+
+                // Arrange arguments such that the following order holds:
+                // shebang_program [shebang_args..] program [args..]
+                args.push_front(path_to_string(program_path));
+                for arg in shebang_args.rev() {
+                    args.push_front(arg.to_owned());
+                }
+
+                return self.start_program(PathBuf::from(shebang_program), args, fds, ctx);
+            }
+
+            return self.start_program(program_path, args, fds, ctx);
         }
 
         // Search for the program in $PATH and spawn a child process for it if possible.
@@ -407,16 +424,7 @@ impl Executor {
         let cmd_name = cmd.name().to_owned();
         debug_assert_eq!(args.front(), Some(&cmd_name));
 
-        // Create a new modified context for the command.
-        ctx.lock().push_scope(Scope::new(
-            cmd_name,
-            Vec::from(args),
-            HashMap::default(),
-            HashMap::default(),
-            HashSet::default(),
-            false,
-        ));
-
+        let old_args = ctx.lock().replace_args(Vec::from(args));
         let args = pjsh_core::command::Args {
             context: Arc::clone(&ctx),
             io: fds.io(),
@@ -434,7 +442,7 @@ impl Executor {
             }
         }
 
-        ctx.lock().pop_scope();
+        ctx.lock().replace_args(old_args);
 
         code
     }
@@ -447,6 +455,7 @@ impl Executor {
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
         match action {
+            Action::ExitScope(code) => Some(code), // TODO: Implement this action.
             Action::Interpolate(text, callback) => match pjsh_parse::parse_interpolation(&text) {
                 Ok(word) => {
                     let value = interpolate_word(self, word, context);
@@ -479,7 +488,18 @@ impl Executor {
         script_file: PathBuf,
         fds: &mut FileDescriptors,
     ) -> Option<i32> {
+        let script_file = script_file.canonicalize().unwrap_or(script_file);
+
+        // Record the state that must be temporarily modified when sourcing the file and
+        // make the required changes such that arguments and variables matches
+        // expectations in the sourced file.
         let old_args = ctx.lock().replace_args(args);
+        let (old_path, old_dir) = set_script_file(
+            &mut ctx.lock(),
+            Some(script_file.clone()),
+            script_file.parent().map(Path::to_path_buf),
+        );
+
         let mut reader = BufReader::new(fs::File::open(script_file).unwrap());
         let mut line = String::new();
         loop {
@@ -497,7 +517,12 @@ impl Executor {
                 _ => break,
             }
         }
+
+        // Restore the temporarily modified context as to no fill it as to not taint the
+        // original execution context.
         ctx.lock().replace_args(old_args);
+        set_script_file(&mut ctx.lock(), old_path, old_dir);
+
         Some(ctx.lock().last_exit())
     }
 
@@ -565,6 +590,34 @@ impl Executor {
     fn expand(&self, command: Command, context: Arc<Mutex<Context>>) -> VecDeque<String> {
         expand(command.arguments, context, self)
     }
+}
+
+/// Sets the current scripts file and returns the previous script file and its
+/// parent directory.
+fn set_script_file(
+    ctx: &mut Context,
+    script_file: Option<PathBuf>,
+    script_dir: Option<PathBuf>,
+) -> (Option<PathBuf>, Option<PathBuf>) {
+    let old_file = if let Some(script_file) = script_file {
+        ctx.set_var(
+            "PJSH_CURRENT_SCRIPT_PATH".to_owned(),
+            path_to_string(script_file),
+        )
+    } else {
+        ctx.unset_var("PJSH_CURRENT_SCRIPT_PATH")
+    };
+
+    let old_dir = if let Some(script_dir) = script_dir {
+        ctx.set_var(
+            "PJSH_CURRENT_SCRIPT_DIR".to_owned(),
+            path_to_string(script_dir),
+        )
+    } else {
+        ctx.unset_var("PJSH_CURRENT_SCRIPT_DIR")
+    };
+
+    (old_file.map(PathBuf::from), old_dir.map(PathBuf::from))
 }
 
 /// Executes a program and returns a tuple of stdout and stderr.
@@ -668,4 +721,24 @@ fn redirect_file_descriptors(
     }
 
     Ok(())
+}
+
+/// Reads the shebang from the first line of a file.
+fn read_shebang<P: AsRef<Path>>(path: P) -> Option<String> {
+    let file = match fs::File::open(&path) {
+        Ok(file) => file,
+        Err(_) => return None,
+    };
+
+    let mut buffer = BufReader::new(file);
+    let mut first_line = String::new();
+    if buffer.read_line(&mut first_line).is_err() {
+        return None;
+    }
+
+    if first_line.starts_with("#!") {
+        return Some(first_line.trim_start_matches("#!").to_owned());
+    }
+
+    None
 }
