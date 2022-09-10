@@ -9,7 +9,7 @@ use super::input::{is_literal, Input};
 const EOF: char = '\0';
 type LexResult<'a> = Result<Token, LexError>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum LexError {
     UnexpectedChar(char),
     UnexpectedEof,

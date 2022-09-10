@@ -89,9 +89,9 @@ pub fn main() {
         shell.is_interactive(),
     )));
 
-    source_init_scripts(shell.is_interactive(), &executor, Arc::clone(&context));
+    source_init_scripts(shell.is_interactive(), executor.as_ref(), Arc::clone(&context));
 
-    run_shell(shell, &executor, Arc::clone(&context)); // Not guaranteed to exit.
+    run_shell(shell, executor.as_ref(), Arc::clone(&context)); // Not guaranteed to exit.
 
     // If the shell exits cleanly, attempt to stop all threads and processes that it has spawned.
     context.lock().host.lock().join_all_threads();
@@ -133,7 +133,7 @@ fn get_prompts(
 /// This method is not guaranteed to exit.
 pub(crate) fn run_shell(
     mut shell: Box<dyn Shell>,
-    executor: &Box<dyn Execute>,
+    executor: &dyn Execute,
     context: Arc<Mutex<Context>>,
 ) {
     let interpolator = create_executor();
@@ -227,11 +227,7 @@ fn print_exited_child_processes(context: &mut Context) {
 }
 
 /// Sources all init scripts for the shell.
-fn source_init_scripts(
-    interactive: bool,
-    executor: &Box<dyn Execute>,
-    context: Arc<Mutex<Context>>,
-) {
+fn source_init_scripts(interactive: bool, executor: &dyn Execute, context: Arc<Mutex<Context>>) {
     let mut script_names = vec![INIT_ALWAYS_SCRIPT_NAME];
 
     if interactive {

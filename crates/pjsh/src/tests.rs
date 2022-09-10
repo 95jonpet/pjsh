@@ -68,5 +68,5 @@ fn shell_interrupt() {
             }
         });
 
-    run_shell(Box::new(mock_shell), &executor, ctx);
+    run_shell(Box::new(mock_shell), executor.as_ref(), ctx);
 }

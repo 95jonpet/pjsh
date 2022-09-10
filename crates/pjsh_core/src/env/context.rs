@@ -165,8 +165,8 @@ impl Context {
             .rev()
             .filter_map(|scope| scope.args.as_mut())
             .last();
-        if let Some(mut arg_vec) = scope_args {
-            std::mem::replace(&mut arg_vec, args)
+        if let Some(arg_vec) = scope_args {
+            std::mem::replace(arg_vec, args)
         } else {
             Vec::new()
         }
@@ -177,7 +177,7 @@ impl Context {
         self.scopes
             .iter()
             .rev()
-            .find_map(|scope| scope.args.as_ref().map(|args| args.as_slice()))
+            .find_map(|scope| scope.args.as_deref())
             .unwrap_or_default()
     }
 

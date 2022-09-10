@@ -6,6 +6,10 @@ use crate::{command::Io, Context};
 
 type ExitCode = i32;
 
+type InterpolateCallback = dyn FnOnce(Io, Result<&str, &str>) -> ExitCode;
+
+type ResolveCommandPathCallback = dyn FnOnce(String, Io, Option<&PathBuf>) -> ExitCode;
+
 /// Represents an action that should be performed by the shell.
 ///
 /// Actions allow commands to perform tasks that the shell is normally
@@ -19,7 +23,7 @@ pub enum Action {
 
     /// Interpolate a string and call a function with the interpolated value as
     /// an argument, or an error message if it cannot be interpolated.
-    Interpolate(String, Box<dyn FnOnce(Io, Result<&str, &str>) -> ExitCode>),
+    Interpolate(String, Box<InterpolateCallback>),
 
     /// Resolve the type of a command and call a function with it as an
     /// argument.
@@ -27,10 +31,7 @@ pub enum Action {
 
     /// Resolve the path to a command and call a function with it as an
     /// argument.
-    ResolveCommandPath(
-        String,
-        Box<dyn FnOnce(String, Io, Option<&PathBuf>) -> ExitCode>,
-    ),
+    ResolveCommandPath(String, Box<ResolveCommandPathCallback>),
 
     /// Source a file within a context with some additional arguments. The first
     /// argument should correspond with the name of the sourced file.
