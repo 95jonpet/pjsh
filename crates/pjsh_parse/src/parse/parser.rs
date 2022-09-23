@@ -652,7 +652,10 @@ impl Parser {
 
     /// Advances the token cursor until the next token is not an end-of-line token.
     fn skip_newlines(&mut self) {
-        while self.tokens.peek().contents == TokenContents::Eol {
+        while matches!(
+            self.tokens.peek().contents,
+            TokenContents::Eol | TokenContents::Semi
+        ) {
             self.tokens.next();
         }
     }

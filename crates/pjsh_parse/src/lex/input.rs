@@ -75,6 +75,16 @@ impl<'a> Input<'a> {
         peeked
     }
 
+    /// Skips the `n` [`next()`] values and returns a span.
+    pub fn skip_n(&mut self, n: usize) -> Span {
+        let start = self.peek().0;
+        let mut end = start;
+        for _ in 0..n {
+            end = self.next().0 + 1;
+        }
+        Span::new(start, end)
+    }
+
     /// Returns a accumulated span and string for the [`next()`] values while a `predicate` returns
     /// `true`.
     pub fn eat_while(&mut self, predicate: impl Fn(char) -> bool + Copy) -> (Span, String) {
@@ -160,7 +170,7 @@ pub fn is_literal(ch: char) -> bool {
     }
 
     // Reserved non-literal characters.
-    if matches!(ch, '(' | ')' | '{' | '}' | '[' | ']' | '<' | '>') {
+    if matches!(ch, ';' | '(' | ')' | '{' | '}' | '[' | ']' | '<' | '>') {
         return false;
     }
 

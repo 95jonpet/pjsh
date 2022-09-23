@@ -6,9 +6,14 @@ use super::lexer::*;
 #[test]
 fn lex_operators() {
     assert_eq!(tokens(":="), vec![Token::new(Assign, Span::new(0, 2))]);
+    assert_eq!(
+        tokens("::="),
+        vec![Token::new(AssignResult, Span::new(0, 3))]
+    );
     assert_eq!(tokens("&"), vec![Token::new(Amp, Span::new(0, 1))]);
     assert_eq!(tokens("|"), vec![Token::new(Pipe, Span::new(0, 1))]);
     assert_eq!(tokens(";"), vec![Token::new(Semi, Span::new(0, 1))]);
+    assert_eq!(tokens("..."), vec![Token::new(Spread, Span::new(0, 3))]);
 
     assert_eq!(tokens("<"), vec![Token::new(FdReadTo(0), Span::new(0, 1))]);
     assert_eq!(

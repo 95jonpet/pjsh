@@ -11,6 +11,7 @@ mod tests;
 
 use std::{env::current_exe, path::PathBuf, sync::Arc};
 
+use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
 use command_shell::SingleCommandShell;
 use exec::{create_executor, AstPrinter, Execute, ProgramExecutor};
@@ -89,7 +90,11 @@ pub fn main() {
         shell.is_interactive(),
     )));
 
-    source_init_scripts(shell.is_interactive(), executor.as_ref(), Arc::clone(&context));
+    source_init_scripts(
+        shell.is_interactive(),
+        executor.as_ref(),
+        Arc::clone(&context),
+    );
 
     run_shell(shell, executor.as_ref(), Arc::clone(&context)); // Not guaranteed to exit.
 
@@ -184,6 +189,7 @@ pub(crate) fn run_shell(
                 // Unrecoverable error.
                 Err(error) => {
                     eprintln!("pjsh: parse error: {}", error);
+                    print_parse_error_details(&line, &error);
                     break;
                 }
             }
@@ -191,6 +197,27 @@ pub(crate) fn run_shell(
     }
 
     shell.save_history(history_file().as_path());
+}
+
+/// Prints details related to a parse error.
+fn print_parse_error_details(line: &str, error: &ParseError) {
+    if let Some(span) = error.span() {
+        let marked_line_start = line[..span.start].rfind('\n').unwrap_or(0);
+        let marked_line_end = line[span.end..].find('\n').unwrap_or(line.len());
+        let marked_start = span.start - marked_line_start;
+
+        let marker_indent = " ".repeat(marked_start);
+        let mut marker = marker_indent + &("^".repeat(span.end - span.start));
+        marker.push_str(" help: ");
+        marker.push_str(error.help());
+
+        eprintln!(
+            "{}\n{}{}",
+            &line[..marked_line_end],
+            Style::new().fg(Color::Red).paint(&marker),
+            &line[marked_line_end..]
+        );
+    }
 }
 
 /// Constructs a new shell.

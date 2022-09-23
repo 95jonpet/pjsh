@@ -1,0 +1,63 @@
+statement ::=
+    | "if" truthy "{" statement* "}"
+    | "while" truthy "{" statement* "}"
+    | assignment
+    | command ";"?
+    | ";"
+    ;
+
+truthy ::=
+    | "!" command
+    | command
+    ;
+
+assignment ::=
+    | identifier ":=" array
+    | identifier ":=" word
+    | identifier "::=" command
+    ;
+
+command ::= word+ ;
+
+array ::= "[" word* "]" ;
+
+word ::=
+    | interpolation
+    | spread
+    | property
+    | LITERAL
+    | QUOTATION
+    ;
+
+interpolation ::=
+    | "${" [^\}]+ "}"
+    | "$" identifier
+    ;
+
+property ::= identifier "->" identifier ;
+
+spread ::= "..." identifier ;
+
+identifier ::=
+    | [-A-Za-z_0-9]+
+    ;
+
+QUOTATION ::=
+    | "'''" ( [^'] | "'" "'"? [^'] )+ "'''"
+    | '"""' ( [^"] | '"' '"'? [^"] )+ '"""'
+    | "'" [^']* "'"
+    | '"' [^"]* '"'
+    ;
+
+LITERAL ::= [^\s]+ ;
+
+NEWLINE ::=
+    | "\r\n"
+    | "\n"
+    ;
+
+WHITESPACE ::=
+    | " "
+    | "\t"
+    | "#" [^$]*
+    ;

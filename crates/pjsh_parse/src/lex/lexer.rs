@@ -120,6 +120,7 @@ impl<'a> Lexer<'a> {
             '`' => self.eat_interpolation(Some('`')),
             '$' => self.eat_expandable(),
             ':' => self.eat_assign_or_literal(),
+            '.' => self.eat_spread_or_literal(),
             '-' => self.eat_pipeline_start_or_literal(),
             c if is_newline(c) => self.eat_newline(),
             c if is_whitespace(c) => self.eat_whitespace(),
@@ -309,9 +310,18 @@ impl<'a> Lexer<'a> {
     fn eat_assign_or_literal(&mut self) -> LexResult<'a> {
         let token = self.eat_literal()?;
         match token.contents {
+            Literal(literal) if literal == "::=" => Ok(Token::new(AssignResult, token.span)),
             Literal(literal) if literal == ":=" => Ok(Token::new(Assign, token.span)),
             _ => Ok(token),
         }
+    }
+
+    /// Eats a spread operator or a literal word.
+    fn eat_spread_or_literal(&mut self) -> LexResult<'a> {
+        if self.input.peek_n(3) == ['.', '.', '.'] {
+            return Ok(Token::new(Spread, self.input.skip_n(3)));
+        }
+        self.eat_literal()
     }
 
     /// Eats variable words.

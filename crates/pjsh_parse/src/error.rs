@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::token::Token;
+use crate::{token::Token, Span};
 
 /// Parse errors are returned by a parser when input cannot be parsed.
 ///
@@ -36,6 +36,27 @@ pub enum ParseError {
     UnexpectedToken(Token),
 }
 
+impl ParseError {
+    /// Returns a help text associated with the error.
+    pub fn help(&self) -> &str {
+        match self {
+            ParseError::EmptySubshell => "this subshell is empty",
+            ParseError::IncompleteSequence => "this sequence is incomplete",
+            ParseError::InvalidSyntax(_) => "this syntax is invalid",
+            ParseError::UnexpectedEof => "EOF was encountered here",
+            ParseError::UnexpectedToken(_) => "this token is unexpected here",
+        }
+    }
+
+    /// Returns the positional span in which the error resides.
+    pub fn span(&self) -> Option<Span> {
+        match self {
+            ParseError::UnexpectedToken(token) => Some(token.span),
+            _ => None,
+        }
+    }
+}
+
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -44,7 +65,7 @@ impl Display for ParseError {
             ParseError::InvalidSyntax(message) => write!(f, "invalid syntax: {message}"),
             ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
             ParseError::UnexpectedToken(token) => {
-                write!(f, "unexpected token {:? }", token.contents)
+                write!(f, "unexpected token: {:?}", token.contents)
             }
         }
     }

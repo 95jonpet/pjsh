@@ -55,12 +55,16 @@ pub enum TokenContents {
     Amp,
     /// ":="
     Assign,
+    /// "::="
+    AssignResult,
     /// "|"
     Pipe,
     /// "->|"
     PipeStart,
     /// ";"
     Semi,
+    /// "..."
+    Spread,
 
     /// "<"
     FdReadTo(usize),
