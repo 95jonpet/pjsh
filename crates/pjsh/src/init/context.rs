@@ -3,7 +3,9 @@ use std::{
     path::PathBuf,
 };
 
-use pjsh_core::{utils::path_to_string, Context, Host, Scope, StdHost};
+use pjsh_core::{
+    utils::path_to_string, Context, Host, Scope, StdHost, FD_STDERR, FD_STDIN, FD_STDOUT,
+};
 
 /// Constructs a new initialized execution context containing some common environment variables such
 /// as `$PS1` and `$PS2`.
@@ -13,11 +15,18 @@ pub fn initialized_context(
     interactive: bool,
 ) -> Context {
     let host = StdHost::default();
-    Context::with_scopes(vec![
+    let mut context = Context::with_scopes(vec![
         environment_scope(host, script_file.clone()),
         pjsh_scope(script_file, interactive),
         global_scope(args, interactive),
-    ])
+    ]);
+    register_builtins(&mut context);
+
+    context.set_file_descriptor(FD_STDIN, pjsh_core::FileDescriptor::Stdin);
+    context.set_file_descriptor(FD_STDOUT, pjsh_core::FileDescriptor::Stdout);
+    context.set_file_descriptor(FD_STDERR, pjsh_core::FileDescriptor::Stderr);
+
+    context
 }
 
 /// Returns a scope containing all environment variables belonging to the
@@ -40,7 +49,7 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
             let file = file.canonicalize().unwrap_or(file);
             vars.insert("PJSH_INITIAL_SCRIPT_PATH".to_owned(), path_to_string(&file));
             if let Some(dir) = file.parent() {
-                vars.insert("PJSH_INITIAL_SCRIPT_DIR".to_owned(), path_to_string(&dir));
+                vars.insert("PJSH_INITIAL_SCRIPT_DIR".to_owned(), path_to_string(dir));
             }
         }
     }
@@ -68,7 +77,7 @@ fn pjsh_scope(script_file: Option<PathBuf>, interactive: bool) -> Scope {
         let file = file.canonicalize().unwrap_or(file);
         vars.insert("PJSH_CURRENT_SCRIPT_PATH".to_owned(), path_to_string(&file));
         if let Some(dir) = file.parent() {
-            vars.insert("PJSH_CURRENT_SCRIPT_DIR".to_owned(), path_to_string(&dir));
+            vars.insert("PJSH_CURRENT_SCRIPT_DIR".to_owned(), path_to_string(dir));
         }
     }
 
@@ -96,4 +105,23 @@ fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
         HashSet::default(),
         interactive,
     )
+}
+
+/// Registers built-in commands in a context.
+fn register_builtins(context: &mut Context) {
+    context.register_builtin(Box::new(pjsh_builtins::Alias));
+    context.register_builtin(Box::new(pjsh_builtins::Cd));
+    context.register_builtin(Box::new(pjsh_builtins::Echo));
+    context.register_builtin(Box::new(pjsh_builtins::Exit));
+    context.register_builtin(Box::new(pjsh_builtins::False));
+    context.register_builtin(Box::new(pjsh_builtins::Interpolate));
+    context.register_builtin(Box::new(pjsh_builtins::Pwd));
+    context.register_builtin(Box::new(pjsh_builtins::Sleep));
+    context.register_builtin(Box::new(pjsh_builtins::Source));
+    context.register_builtin(Box::new(pjsh_builtins::SourceShorthand));
+    context.register_builtin(Box::new(pjsh_builtins::True));
+    context.register_builtin(Box::new(pjsh_builtins::Type));
+    context.register_builtin(Box::new(pjsh_builtins::Unalias));
+    context.register_builtin(Box::new(pjsh_builtins::Unset));
+    context.register_builtin(Box::new(pjsh_builtins::Which));
 }

@@ -43,11 +43,10 @@ impl Command for Unset {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        let mut ctx = args.context.lock();
-        match UnsetOpts::try_parse_from(ctx.args()) {
-            Ok(opts) => unset_names(opts, &mut ctx),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match UnsetOpts::try_parse_from(args.context.args()) {
+            Ok(opts) => unset_names(opts, args.context),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }

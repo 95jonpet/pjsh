@@ -1,4 +1,4 @@
-use super::{args::Args, CommandResult};
+use super::{Args, CommandResult};
 
 /// A command is something that can be executed by the shell.
 pub trait Command: CommandClone + Send + Sync {
@@ -6,7 +6,7 @@ pub trait Command: CommandClone + Send + Sync {
     fn name(&self) -> &str;
 
     /// Runs the command.
-    fn run(&self, args: Args) -> CommandResult;
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult;
 }
 
 /// Helper trait for making it easier to clone `Box<Command>`.

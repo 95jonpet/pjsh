@@ -1,7 +1,7 @@
 use clap::Parser;
 use pjsh_core::{
-    command::Io,
-    command::{Args, Command, CommandResult},
+    command::{Args, Io},
+    command::{Command, CommandResult},
 };
 
 use crate::{status, utils};
@@ -12,7 +12,7 @@ const NAME: &str = "echo";
 /// Print a line of text.
 ///
 /// This is a built-in shell command.
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[clap(name = NAME, version)]
 struct EchoOpts {
     /// Do not print trailing newline.
@@ -31,10 +31,10 @@ impl Command for Echo {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match EchoOpts::try_parse_from(args.context.lock().args()) {
-            Ok(opts) => print_text(opts, &mut args.io),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match EchoOpts::try_parse_from(args.context.args()) {
+            Ok(opts) => print_text(opts, args.io),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }
@@ -79,9 +79,8 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, sync::Arc};
+    use std::collections::HashSet;
 
-    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
@@ -90,7 +89,7 @@ mod tests {
 
     #[test]
     fn it_prints_to_stdout() {
-        let ctx = Context::with_scopes(vec![Scope::new(
+        let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "message".into()]),
             None,
@@ -98,21 +97,23 @@ mod tests {
             HashSet::default(),
             false,
         )]);
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let cmd = Echo {};
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let result = cmd.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(&file_contents(&mut stdout), "message\n");
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = cmd.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(&file_contents(&mut stdout), "message\n");
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 
     #[test]
     fn it_separates_arguments_with_a_single_space() {
-        let ctx = Context::with_scopes(vec![Scope::new(
+        let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "first".into(), "second".into()]),
             None,
@@ -120,21 +121,23 @@ mod tests {
             HashSet::default(),
             false,
         )]);
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let cmd = Echo {};
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let result = cmd.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(&file_contents(&mut stdout), "first second\n");
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = cmd.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(&file_contents(&mut stdout), "first second\n");
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 
     #[test]
     fn it_can_print_without_final_newline() {
-        let ctx = Context::with_scopes(vec![Scope::new(
+        let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "-n".into(), "message".into()]),
             None,
@@ -142,15 +145,17 @@ mod tests {
             HashSet::default(),
             false,
         )]);
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let cmd = Echo {};
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let result = cmd.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(&file_contents(&mut stdout), "message"); // No newline.
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = cmd.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(&file_contents(&mut stdout), "message"); // No newline.
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 }

@@ -18,10 +18,10 @@ impl Command for True {
         "true"
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match TrueOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match TrueOpts::try_parse_from(args.context.args()) {
             Ok(_) => CommandResult::code(status::SUCCESS),
-            Err(error) => exit_with_parse_error(&mut args.io, error),
+            Err(error) => exit_with_parse_error(args.io, error),
         }
     }
 }
@@ -41,19 +41,16 @@ impl Command for False {
         "false"
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match TrueOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match TrueOpts::try_parse_from(args.context.args()) {
             Ok(_) => CommandResult::code(1), // Any non-zero code is false.
-            Err(error) => exit_with_parse_error(&mut args.io, error),
+            Err(error) => exit_with_parse_error(args.io, error),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use parking_lot::Mutex;
     use pjsh_core::Context;
 
     use crate::utils::empty_io;
@@ -62,25 +59,31 @@ mod tests {
 
     #[test]
     fn true_exits_with_zero_code() {
-        let ctx = Context::default();
+        let mut ctx = Context::default();
+        let mut io = empty_io();
         let command = True {};
 
-        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
-        let result = command.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
+        let mut args = Args::new(&mut ctx, &mut io);
+        if let CommandResult::Builtin(result) = command.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+        } else {
+            unreachable!()
+        }
     }
 
     #[test]
     fn false_exits_with_non_zero_code() {
-        let ctx = Context::default();
+        let mut ctx = Context::default();
+        let mut io = empty_io();
         let command = False {};
 
-        let args = Args::new(Arc::new(Mutex::new(ctx)), empty_io());
-        let result = command.run(args);
-
-        assert_ne!(result.code, 0);
-        assert!(result.actions.is_empty());
+        let mut args = Args::new(&mut ctx, &mut io);
+        if let CommandResult::Builtin(result) = command.run(&mut args) {
+            assert_ne!(result.code, 0);
+            assert!(result.actions.is_empty());
+        } else {
+            unreachable!()
+        }
     }
 }

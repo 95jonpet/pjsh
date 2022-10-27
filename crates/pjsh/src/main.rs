@@ -14,13 +14,13 @@ use std::{env::current_exe, path::PathBuf, sync::Arc};
 use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
 use command_shell::SingleCommandShell;
-use exec::{create_executor, AstPrinter, Execute, ProgramExecutor};
+use exec::{AstPrinter, Execute, ProgramExecutor};
 use file_shell::FileBufferShell;
 use init::initialized_context;
 use interactive_shell::RustylineShell;
 use parking_lot::Mutex;
 use pjsh_core::{utils::path_to_string, Context};
-use pjsh_exec::{interpolate_word, Executor};
+use pjsh_eval::interpolate_word;
 use pjsh_parse::{parse, parse_interpolation, ParseError};
 use shell::Shell;
 
@@ -59,7 +59,7 @@ pub fn main() {
     let mut opts = Opts::parse();
     let executor: Box<dyn Execute> = match opts.is_parse_only {
         true => Box::new(AstPrinter),
-        false => Box::new(ProgramExecutor::new()),
+        false => Box::new(ProgramExecutor),
     };
 
     let first_arg = match &opts.is_command {
@@ -104,22 +104,22 @@ pub fn main() {
 }
 
 /// Interpolates a string using a [`Context`].
-fn interpolate(src: &str, context: Arc<Mutex<Context>>, executor: &Executor) -> String {
-    match parse_interpolation(src).map(|word| interpolate_word(executor, word, context)) {
-        Ok(string) => string,
-        Err(error) => {
-            eprintln!("pjsh: {}", error);
+fn interpolate(src: &str, context: Arc<Mutex<Context>>) -> String {
+    match parse_interpolation(src).map(|word| interpolate_word(&word, &context.lock())) {
+        Ok(Ok(string)) => string,
+        Ok(Err(eval_error)) => {
+            eprintln!("pjsh: {}", eval_error);
+            src.to_string()
+        }
+        Err(parse_error) => {
+            eprintln!("pjsh: {}", parse_error);
             src.to_string()
         }
     }
 }
 
 /// Get interpolated PS1 and PS2 prompts from a context.
-fn get_prompts(
-    interactive: bool,
-    context: Arc<Mutex<Context>>,
-    executor: &Executor,
-) -> (String, String) {
+fn get_prompts(interactive: bool, context: Arc<Mutex<Context>>) -> (String, String) {
     if !interactive {
         return (String::default(), String::default());
     }
@@ -127,8 +127,8 @@ fn get_prompts(
     let raw_ps1 = context.lock().get_var("PS1").unwrap_or("\\$ ").to_owned();
     let raw_ps2 = context.lock().get_var("PS2").unwrap_or("\\> ").to_owned();
 
-    let ps1 = interpolate(&raw_ps1, Arc::clone(&context), executor);
-    let ps2 = interpolate(&raw_ps2, Arc::clone(&context), executor);
+    let ps1 = interpolate(&raw_ps1, Arc::clone(&context));
+    let ps2 = interpolate(&raw_ps2, Arc::clone(&context));
 
     (ps1, ps2)
 }
@@ -141,9 +141,8 @@ pub(crate) fn run_shell(
     executor: &dyn Execute,
     context: Arc<Mutex<Context>>,
 ) {
-    let interpolator = create_executor();
     'main: loop {
-        let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context), &interpolator);
+        let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context));
         print_exited_child_processes(&mut context.lock());
 
         let mut line = match shell.prompt_line(&ps1) {
@@ -161,7 +160,8 @@ pub(crate) fn run_shell(
 
         // Repeatedly ask for lines of input until a valid program can be executed.
         loop {
-            match parse(&line) {
+            let aliases = context.lock().aliases.clone();
+            match parse(&line, &aliases) {
                 // If a valid program can be parsed from the buffer, execute it.
                 Ok(program) => {
                     shell.add_history_entry(line.trim());
@@ -203,7 +203,6 @@ pub(crate) fn run_shell(
 fn print_parse_error_details(line: &str, error: &ParseError) {
     if let Some(span) = error.span() {
         let marked_line_start = line[..span.start].rfind('\n').unwrap_or(0);
-        let marked_line_end = line[span.end..].find('\n').unwrap_or(line.len());
         let marked_start = span.start - marked_line_start;
 
         let marker_indent = " ".repeat(marked_start);
@@ -211,12 +210,7 @@ fn print_parse_error_details(line: &str, error: &ParseError) {
         marker.push_str(" help: ");
         marker.push_str(error.help());
 
-        eprintln!(
-            "{}\n{}{}",
-            &line[..marked_line_end],
-            Style::new().fg(Color::Red).paint(&marker),
-            &line[marked_line_end..]
-        );
+        eprintln!("{line}{}", Style::new().fg(Color::Red).paint(&marker));
     }
 }
 

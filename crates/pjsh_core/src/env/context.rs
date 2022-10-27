@@ -1,15 +1,18 @@
 use std::{
     collections::{HashMap, HashSet},
+    io::{Read, Write},
     path::PathBuf,
+    process::Stdio,
     sync::Arc,
 };
 
 use pjsh_ast::Function;
 
-use crate::{Host, StdHost};
+use crate::{
+    command::Command, file_descriptor::FileDescriptorError, FileDescriptor, Host, StdHost,
+};
 
 /// An execution context consisting of a number of execution scopes.
-#[derive(Clone)]
 pub struct Context {
     /// Registered aliases keyed by their name.
     pub aliases: HashMap<String, String>,
@@ -19,9 +22,27 @@ pub struct Context {
 
     /// Scopes in order of increasing specificity.
     scopes: Vec<Scope>,
+
+    /// Built-in commands in the context.
+    builtins: HashMap<String, Box<dyn Command>>,
 }
 
 impl Context {
+    /// Clones a scope.
+    pub fn try_clone(&self) -> std::io::Result<Self> {
+        let mut scopes = Vec::with_capacity(self.scopes.len());
+        for scope in &self.scopes {
+            scopes.push(scope.try_clone()?);
+        }
+
+        Ok(Self {
+            aliases: self.aliases.clone(),
+            host: Arc::clone(&self.host),
+            scopes,
+            builtins: self.builtins.clone(),
+        })
+    }
+
     /// Returns `true` if the context is interactive.
     pub fn is_interactive(&self) -> bool {
         self.scopes
@@ -46,6 +67,7 @@ impl Context {
             aliases: HashMap::default(),
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
             scopes,
+            builtins: HashMap::new(),
         }
     }
 
@@ -150,6 +172,16 @@ impl Context {
         }
     }
 
+    /// Returns a built-in command matching a name.
+    pub fn get_builtin(&self, name: &str) -> Option<&Box<dyn Command>> {
+        self.builtins.get(name)
+    }
+
+    /// Registers a built-in command within the scope.
+    pub fn register_builtin(&mut self, builtin: Box<dyn Command>) {
+        self.builtins.insert(builtin.name().to_owned(), builtin);
+    }
+
     /// Registers a temporary file within the current scope.
     pub fn register_temporary_file(&mut self, path: PathBuf) {
         if let Some(scope) = self.scopes.last_mut() {
@@ -191,6 +223,63 @@ impl Context {
             scope.last_exit = exit
         }
     }
+
+    pub fn get_file_descriptor(&self, index: usize) -> Option<&FileDescriptor> {
+        for scope in self.scopes.iter().rev() {
+            if let Some(file_descriptor) = scope.file_descriptors.get(&index) {
+                return Some(file_descriptor);
+            }
+        }
+        None
+    }
+
+    pub fn set_file_descriptor(&mut self, index: usize, file_descriptor: FileDescriptor) {
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.file_descriptors.insert(index, file_descriptor);
+        }
+    }
+
+    pub fn input(&mut self, index: usize) -> Option<Result<Stdio, FileDescriptorError>> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(file_descriptor) = scope.file_descriptors.get_mut(&index) {
+                return Some(file_descriptor.input());
+            }
+        }
+        None
+    }
+
+    pub fn output(&mut self, index: usize) -> Option<Result<Stdio, FileDescriptorError>> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(file_descriptor) = scope.file_descriptors.get_mut(&index) {
+                return Some(file_descriptor.output());
+            }
+        }
+        None
+    }
+
+    pub fn reader(
+        &mut self,
+        index: usize,
+    ) -> Option<Result<Box<dyn Read + Send>, FileDescriptorError>> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(file_descriptor) = scope.file_descriptors.get_mut(&index) {
+                return Some(file_descriptor.reader());
+            }
+        }
+        None
+    }
+
+    pub fn writer(
+        &mut self,
+        index: usize,
+    ) -> Option<Result<Box<dyn Write + Send>, FileDescriptorError>> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(file_descriptor) = scope.file_descriptors.get_mut(&index) {
+                return Some(file_descriptor.writer());
+            }
+        }
+        None
+    }
 }
 
 impl Default for Context {
@@ -206,6 +295,7 @@ impl Default for Context {
                 HashSet::default(),
                 false,
             )],
+            builtins: Default::default(),
         }
     }
 }
@@ -214,7 +304,6 @@ impl Default for Context {
 ///
 /// A scope only contains values added within its reference. In reality, scopes are nested within a
 /// wider [`Context`], transitively providing access to values within parent scopes.
-#[derive(Clone)]
 pub struct Scope {
     /// A name used to identify the scope.
     name: String,
@@ -240,6 +329,9 @@ pub struct Scope {
     /// The exit code reported by the shell.
     last_exit: i32,
 
+    /// File descriptors.
+    file_descriptors: HashMap<usize, FileDescriptor>,
+
     /// Temporary files owned by the scope.
     temporary_files: Vec<PathBuf>,
 }
@@ -262,8 +354,29 @@ impl Scope {
             exported_keys,
             is_interactive,
             last_exit: 0,
+            file_descriptors: Default::default(),
             temporary_files: Vec::new(),
         }
+    }
+
+    /// Clones a scope.
+    pub fn try_clone(&self) -> std::io::Result<Self> {
+        let mut file_descriptors = HashMap::with_capacity(self.file_descriptors.len());
+        for (key, value) in &self.file_descriptors {
+            file_descriptors.insert(*key, value.try_clone()?);
+        }
+
+        Ok(Self {
+            name: self.name.clone(),
+            args: self.args.clone(),
+            vars: self.vars.clone(),
+            functions: self.functions.clone(),
+            exported_keys: self.exported_keys.clone(),
+            is_interactive: self.is_interactive,
+            last_exit: self.last_exit,
+            file_descriptors,
+            temporary_files: self.temporary_files.clone(),
+        })
     }
 }
 
@@ -294,6 +407,7 @@ mod tests {
             exported_keys: HashSet::default(),
             is_interactive: true,
             last_exit: 0,
+            file_descriptors: HashMap::default(),
             temporary_files: vec![],
         };
         let non_interactive = || Scope {
@@ -304,6 +418,7 @@ mod tests {
             exported_keys: HashSet::default(),
             is_interactive: false,
             last_exit: 0,
+            file_descriptors: HashMap::default(),
             temporary_files: vec![],
         };
         assert!(
@@ -334,6 +449,7 @@ mod tests {
                 exported_keys: HashSet::default(),
                 is_interactive: false,
                 last_exit: 0,
+                file_descriptors: HashMap::default(),
                 temporary_files: vec![],
             },
             Scope {
@@ -347,6 +463,7 @@ mod tests {
                 exported_keys: HashSet::default(),
                 is_interactive: false,
                 last_exit: 0,
+                file_descriptors: HashMap::default(),
                 temporary_files: vec![],
             },
         ]);
