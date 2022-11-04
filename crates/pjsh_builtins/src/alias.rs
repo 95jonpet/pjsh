@@ -1,7 +1,7 @@
 use clap::Parser;
 use pjsh_core::{
-    command::Io,
-    command::{Args, Command, CommandResult},
+    command::{Args, Io},
+    command::{Command, CommandResult},
     Context,
 };
 
@@ -33,16 +33,16 @@ impl Command for Alias {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        let mut ctx = args.context.lock();
-        match AliasOpts::try_parse_from(ctx.args()) {
+    // fn run(&self, context: &mut Context, io: &mut Io) -> CommandResult {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match AliasOpts::try_parse_from(args.context.args()) {
             Ok(opts) => match (opts.name, opts.value) {
-                (None, None) => display_aliases(&ctx, &mut args.io),
-                (Some(name), None) => display_alias(&name, &ctx, &mut args.io),
-                (Some(name), Some(value)) => set_alias(name, value, &mut ctx),
+                (None, None) => display_aliases(args),
+                (Some(name), None) => display_alias(&name, args),
+                (Some(name), Some(value)) => set_alias(args.context, name, value),
                 (None, Some(_)) => unreachable!(),
             },
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }
@@ -51,14 +51,14 @@ impl Command for Alias {
 /// Otherwise, an error message is printed to stdout.
 ///
 /// Returns an exit code.
-fn display_alias(name: &str, ctx: &Context, io: &mut Io) -> CommandResult {
-    match ctx.aliases.get(name) {
+fn display_alias(name: &str, args: &mut Args) -> CommandResult {
+    match args.context.aliases.get(name) {
         Some(value) => {
-            print_alias(name, value, io);
+            print_alias(name, value, args.io);
             CommandResult::code(status::SUCCESS)
         }
         None => {
-            let _ = writeln!(io.stderr, "{NAME}: {name}: not found");
+            let _ = writeln!(args.io.stderr, "{NAME}: {name}: not found");
             CommandResult::code(status::GENERAL_ERROR)
         }
     }
@@ -67,9 +67,10 @@ fn display_alias(name: &str, ctx: &Context, io: &mut Io) -> CommandResult {
 /// Displays all aliases that are defined within a context.
 ///
 /// Returns an exit code.
-fn display_aliases(ctx: &Context, io: &mut Io) -> CommandResult {
+fn display_aliases(args: &mut Args) -> CommandResult {
     // Aliases should be printed in alphabetical order based on their names.
-    let mut aliases: Vec<(String, String)> = ctx
+    let mut aliases: Vec<(String, String)> = args
+        .context
         .aliases
         .iter()
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
@@ -77,7 +78,7 @@ fn display_aliases(ctx: &Context, io: &mut Io) -> CommandResult {
     aliases.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
 
     for (name, value) in aliases {
-        print_alias(&name, &value, io);
+        print_alias(&name, &value, args.io);
     }
     CommandResult::code(status::SUCCESS)
 }
@@ -92,16 +93,15 @@ fn print_alias(name: &str, value: &str, io: &mut Io) {
 /// Sets an alias within a context.
 ///
 /// Returns an exit code.
-fn set_alias(name: String, value: String, ctx: &mut Context) -> CommandResult {
-    ctx.aliases.insert(name, value);
+fn set_alias(context: &mut Context, name: String, value: String) -> CommandResult {
+    context.aliases.insert(name, value);
     CommandResult::code(status::SUCCESS)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, sync::Arc};
+    use std::collections::HashSet;
 
-    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::{file_contents, mock_io};
@@ -119,17 +119,19 @@ mod tests {
             false,
         )]);
         ctx.aliases.insert("ls".into(), "ls -lah".into());
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let alias = Alias {};
 
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let result = alias.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(&file_contents(&mut stdout), "alias ls \"ls -lah\"\n");
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = alias.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(&file_contents(&mut stdout), "alias ls \"ls -lah\"\n");
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 
     #[test]
@@ -144,25 +146,27 @@ mod tests {
         )]);
         ctx.aliases.insert("x".into(), "xyz".into());
         ctx.aliases.insert("a".into(), "abc".into());
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let alias = Alias {};
 
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let result = alias.run(args);
-
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(
-            &file_contents(&mut stdout),
-            "alias a \"abc\"\nalias x \"xyz\"\n" // Should be sorted by name.
-        );
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = alias.run(&mut args) {
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(
+                &file_contents(&mut stdout),
+                "alias a \"abc\"\nalias x \"xyz\"\n" // Should be sorted by name.
+            );
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 
     #[test]
     fn it_can_define_an_alias() {
-        let ctx = Context::with_scopes(vec![Scope::new(
+        let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into(), "name".into(), "value".into()]),
             None,
@@ -170,18 +174,19 @@ mod tests {
             HashSet::default(),
             false,
         )]);
-        let (io, mut stdout, mut stderr) = mock_io();
+        let (mut io, mut stdout, mut stderr) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
         let alias = Alias {};
 
-        let args = Args::new(Arc::new(Mutex::new(ctx)), io);
-        let ctx = args.context.clone();
-        let result = alias.run(args);
-
-        assert_eq!(ctx.lock().aliases.get("name"), Some(&"value".to_owned()));
-        assert_eq!(result.code, 0);
-        assert!(result.actions.is_empty());
-        assert_eq!(&file_contents(&mut stdout), "");
-        assert_eq!(&file_contents(&mut stderr), "");
+        if let CommandResult::Builtin(result) = alias.run(&mut args) {
+            assert_eq!(ctx.aliases.get("name"), Some(&"value".to_owned()));
+            assert_eq!(result.code, 0);
+            assert!(result.actions.is_empty());
+            assert_eq!(&file_contents(&mut stdout), "");
+            assert_eq!(&file_contents(&mut stderr), "");
+        } else {
+            unreachable!()
+        }
     }
 }

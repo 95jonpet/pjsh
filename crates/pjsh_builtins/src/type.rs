@@ -29,10 +29,10 @@ impl Command for Type {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match TypeOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match TypeOpts::try_parse_from(args.context.args()) {
             Ok(opts) => resolve_command_types(opts),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }

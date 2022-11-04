@@ -25,10 +25,10 @@ impl Command for Interpolate {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match InterpolateOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match InterpolateOpts::try_parse_from(args.context.args()) {
             Ok(opts) => interpolate_text_args(opts),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }
@@ -68,12 +68,8 @@ fn interpolate_text_args(args: InterpolateOpts) -> CommandResult {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Arc,
-    };
+    use std::collections::{HashMap, HashSet};
 
-    use parking_lot::Mutex;
     use pjsh_core::{Context, Scope};
 
     use crate::utils::empty_io;
@@ -83,22 +79,25 @@ mod tests {
     #[test]
     fn it_interpolate_input() {
         let interpolate = Interpolate {};
-        let ctx = Arc::new(Mutex::new(Context::with_scopes(vec![Scope::new(
+        let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["interpolate".into(), "word".into()]),
             Some(HashMap::default()),
             None,
             HashSet::default(),
             false,
-        )])));
-        let args = Args::new(ctx, empty_io());
+        )]);
+        let mut io = empty_io();
+        let mut args = Args::new(&mut ctx, &mut io);
 
-        let result = interpolate.run(args);
-
-        assert_eq!(result.code, status::SUCCESS);
-        assert_eq!(result.actions.len(), 1);
-        if let Action::Interpolate(arg, _) = &result.actions[0] {
-            assert_eq!(arg, "word");
+        if let CommandResult::Builtin(result) = interpolate.run(&mut args) {
+            assert_eq!(result.code, status::SUCCESS);
+            assert_eq!(result.actions.len(), 1);
+            if let Action::Interpolate(arg, _) = &result.actions[0] {
+                assert_eq!(arg, "word");
+            } else {
+                unreachable!()
+            }
         } else {
             unreachable!()
         }

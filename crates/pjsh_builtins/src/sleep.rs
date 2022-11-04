@@ -36,10 +36,10 @@ impl Command for Sleep {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match SleepOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match SleepOpts::try_parse_from(args.context.args()) {
             Ok(opts) => sleep(opts),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }

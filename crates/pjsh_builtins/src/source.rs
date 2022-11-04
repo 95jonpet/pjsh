@@ -1,12 +1,9 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use clap::Parser;
-use parking_lot::Mutex;
 use pjsh_core::{
-    command::Io,
     command::{Action, Args, Command, CommandResult},
     utils::path_to_string,
-    Context,
 };
 
 use crate::{status, utils};
@@ -36,10 +33,10 @@ impl Command for Source {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match SourceOpts::try_parse_from(args.context.lock().args()) {
-            Ok(opts) => source_file(opts, args.context.clone(), &mut args.io),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match SourceOpts::try_parse_from(args.context.args()) {
+            Ok(opts) => source_file(opts, args),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }
@@ -53,19 +50,19 @@ impl Command for SourceShorthand {
         NAME_SHORTHAND
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match SourceOpts::try_parse_from(args.context.lock().args()) {
-            Ok(opts) => source_file(opts, args.context.clone(), &mut args.io),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match SourceOpts::try_parse_from(args.context.args()) {
+            Ok(opts) => source_file(opts, args),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }
 
 /// Sources a file within a [`Context`].
-fn source_file(opts: SourceOpts, ctx: Arc<Mutex<Context>>, io: &mut Io) -> CommandResult {
+fn source_file(opts: SourceOpts, args: &mut Args) -> CommandResult {
     if !opts.file.is_file() {
         let path = path_to_string(&opts.file);
-        let _ = writeln!(io.stderr, "{NAME}: No such file: {}", path);
+        let _ = writeln!(args.io.stderr, "{NAME}: No such file: {}", path);
         return CommandResult::code(status::GENERAL_ERROR);
     }
 
@@ -83,6 +80,6 @@ fn source_file(opts: SourceOpts, ctx: Arc<Mutex<Context>>, io: &mut Io) -> Comma
 
     // A command does not have direct access to the mechanics of parsing and
     // executing a file. Thus, this must be performed using a shell action.
-    let action = Action::SourceFile(opts.file, ctx, args);
+    let action = Action::SourceFile(opts.file, args);
     CommandResult::with_actions(status::SUCCESS, vec![action])
 }

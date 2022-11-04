@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 
 use crate::lex::input::{is_newline, is_whitespace, Span};
@@ -27,14 +28,28 @@ impl Display for LexError {
 }
 
 /// Lexes some input `str` and returns all tokens within the input.
-pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
+pub fn lex(src: &str, aliases: &HashMap<String, String>) -> Result<Vec<Token>, LexError> {
     let mut lexer = Lexer::new(src);
     let mut tokens = Vec::new();
 
     loop {
+        // Only the first token on a line may be aliased.
+        let can_alias = tokens.last().map_or(&Eol, |t: &Token| &t.contents) == &Eol;
         match lexer.next_token() {
             Ok(token) if token.contents == Eof => break,
-            Ok(token) => tokens.push(token),
+            Ok(token) => match &token.contents {
+                // Literals may be aliased.
+                Literal(literal) if can_alias => {
+                    if let Some(alias) = aliases.get(literal) {
+                        let mut aliases = aliases.clone();
+                        aliases.remove(literal);
+                        tokens.extend(lex(alias, &aliases)?);
+                    } else {
+                        tokens.push(token)
+                    }
+                }
+                _ => tokens.push(token),
+            },
             Err(error) => return Err(error),
         }
     }
@@ -120,6 +135,7 @@ impl<'a> Lexer<'a> {
             '`' => self.eat_interpolation(Some('`')),
             '$' => self.eat_expandable(),
             ':' => self.eat_assign_or_literal(),
+            '.' => self.eat_spread_or_literal(),
             '-' => self.eat_pipeline_start_or_literal(),
             c if is_newline(c) => self.eat_newline(),
             c if is_whitespace(c) => self.eat_whitespace(),
@@ -309,9 +325,18 @@ impl<'a> Lexer<'a> {
     fn eat_assign_or_literal(&mut self) -> LexResult<'a> {
         let token = self.eat_literal()?;
         match token.contents {
+            Literal(literal) if literal == "::=" => Ok(Token::new(AssignResult, token.span)),
             Literal(literal) if literal == ":=" => Ok(Token::new(Assign, token.span)),
             _ => Ok(token),
         }
+    }
+
+    /// Eats a spread operator or a literal word.
+    fn eat_spread_or_literal(&mut self) -> LexResult<'a> {
+        if self.input.peek_n(3) == ['.', '.', '.'] {
+            return Ok(Token::new(Spread, self.input.skip_n(3)));
+        }
+        self.eat_literal()
     }
 
     /// Eats variable words.

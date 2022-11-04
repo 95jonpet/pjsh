@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
     Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
@@ -349,7 +351,7 @@ fn parse_function_statement() {
         parser.parse_statement(),
         Ok(Statement::Function(Function {
             name: "function_name".into(),
-            args: vec!["arg".into()].into(),
+            args: vec!["arg".into()],
             body: Block {
                 statements: vec![Statement::AndOr(AndOr {
                     operators: Vec::new(),
@@ -642,7 +644,7 @@ fn parse_redirect_append() {
 #[test]
 fn parse_program() {
     assert_eq!(
-        crate::parse("cmd1 arg1 ; cmd2 arg2"),
+        crate::parse("cmd1 arg1 ; cmd2 arg2", &HashMap::new()),
         Ok(Program {
             statements: vec![
                 Statement::AndOr(AndOr {
@@ -679,7 +681,7 @@ fn parse_program() {
 #[test]
 fn parse_subshell() {
     assert_eq!(
-        crate::parse("(cmd1 arg1 ; cmd2 arg2)"),
+        crate::parse("(cmd1 arg1 ; cmd2 arg2)", &HashMap::new()),
         Ok(Program {
             statements: vec![Statement::Subshell(Program {
                 statements: vec![
@@ -727,7 +729,7 @@ fn parse_incomplete_subshell() {
 #[test]
 fn parse_subshell_over_multiple_lines() {
     assert_eq!(
-        crate::parse("(\ncmd arg\n)"),
+        crate::parse("(\ncmd arg\n)", &HashMap::new()),
         Ok(Program {
             statements: vec![Statement::Subshell(Program {
                 statements: vec![Statement::AndOr(AndOr {
@@ -751,7 +753,7 @@ fn parse_subshell_over_multiple_lines() {
 #[test]
 fn parse_subshell_interpolation() {
     assert_eq!(
-        crate::parse("echo `today: $(date)`"),
+        crate::parse("echo `today: $(date)`", &HashMap::new()),
         Ok(Program {
             statements: vec![Statement::AndOr(AndOr {
                 operators: Vec::new(),
@@ -787,7 +789,7 @@ fn parse_subshell_interpolation() {
 #[test]
 fn parse_dollar_dollar() {
     assert_eq!(
-        crate::parse("echo $$"),
+        crate::parse("echo $$", &HashMap::new()),
         Ok(Program {
             statements: vec![Statement::AndOr(AndOr {
                 operators: Vec::new(),

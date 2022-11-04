@@ -1,0 +1,27 @@
+constant := constant-value
+array := [
+  first
+  second
+]
+
+result ::= ls -lah
+if result->status != 0 {
+  echo `Error: ${result->status}` > &err
+}
+
+tmp_files ::= find /tmp -type f
+cat tmp_files->out > output.txt
+
+result ::=
+  | ls -lah
+  | grep key
+  ;
+
+# Arrays can also be used as commands:
+array->command
+...array
+echo `Command has ${array->size} args.`
+
+->| ...first-command
+  | ...second-command
+  ;

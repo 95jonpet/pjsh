@@ -4,7 +4,7 @@ pipeline {
     BASE_VERSION ="0.1.0"
     VERSION = "${env.BASE_VERSION}${env.BRANCH_NAME == 'main' ? '-SNAPSHOT' : "~${env.BRANCH_NAME}"}"
     CARGO_HOME = "/.cargo"
-    RUST_VERSION = "1.61"
+    RUST_VERSION = "1.65"
     RUST_IMAGE = "rust:${RUST_VERSION}-slim-bullseye"
   }
   options {

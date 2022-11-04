@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::{ConditionalChain, ConditionalLoop, Pipeline, Word};
 
 /// A statement is an evaluable and/or executable piece of code.
@@ -48,7 +46,7 @@ pub struct Function {
     pub name: String,
 
     /// Argument names.
-    pub args: VecDeque<String>,
+    pub args: Vec<String>,
 
     /// Function body.
     pub body: Block,
@@ -56,7 +54,7 @@ pub struct Function {
 
 impl Function {
     /// Constructs a new function definition.
-    pub fn new(name: String, args: VecDeque<String>, body: Block) -> Self {
+    pub fn new(name: String, args: Vec<String>, body: Block) -> Self {
         Self { name, args, body }
     }
 }

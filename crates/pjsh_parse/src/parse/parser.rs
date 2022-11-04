@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::HashMap;
 
 use crate::lex::lexer::LexError;
 use crate::token::{self, Token, TokenContents};
@@ -13,8 +13,8 @@ use super::cursor::TokenCursor;
 
 /// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
 /// A [`ParseError`] is returned if a program can't be parsed.
-pub fn parse(src: &str) -> Result<Program, ParseError> {
-    match crate::lex(src) {
+pub fn parse(src: &str, aliases: &HashMap<String, String>) -> Result<Program, ParseError> {
+    match crate::lex(src, aliases) {
         Ok(tokens) => {
             let mut parser = Parser::new(tokens);
             parser.parse_program()
@@ -544,13 +544,13 @@ impl Parser {
                 }
 
                 // Parse argument list.
-                let mut args = VecDeque::new();
+                let mut args = Vec::new();
                 while let Some(token) = self
                     .tokens
                     .next_if(|t| matches!(&t.contents, &TokenContents::Literal(_)))
                 {
                     match token.contents {
-                        TokenContents::Literal(arg) => args.push_back(arg),
+                        TokenContents::Literal(arg) => args.push(arg),
                         _ => unreachable!(),
                     };
                 }
@@ -652,7 +652,10 @@ impl Parser {
 
     /// Advances the token cursor until the next token is not an end-of-line token.
     fn skip_newlines(&mut self) {
-        while self.tokens.peek().contents == TokenContents::Eol {
+        while matches!(
+            self.tokens.peek().contents,
+            TokenContents::Eol | TokenContents::Semi
+        ) {
             self.tokens.next();
         }
     }

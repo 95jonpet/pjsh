@@ -28,10 +28,10 @@ impl Command for Which {
         NAME
     }
 
-    fn run(&self, mut args: Args) -> CommandResult {
-        match WhichOpts::try_parse_from(args.context.lock().args()) {
+    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+        match WhichOpts::try_parse_from(args.context.args()) {
             Ok(opts) => resolve_command_paths(opts),
-            Err(error) => utils::exit_with_parse_error(&mut args.io, error),
+            Err(error) => utils::exit_with_parse_error(args.io, error),
         }
     }
 }

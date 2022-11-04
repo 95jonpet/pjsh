@@ -1,0 +1,16 @@
+[package]
+name = "pjsh_eval"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Evaluator for PJSH."
+
+[dependencies]
+dirs = "4"
+os_pipe = "1"
+rand = "0.8"
+tempfile = "3"
+
+pjsh_ast = { path = "../pjsh_ast" }
+pjsh_core = { path = "../pjsh_core" }
+pjsh_parse = { path = "../pjsh_parse" }

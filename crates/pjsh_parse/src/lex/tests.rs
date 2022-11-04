@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::lex::input::Span;
 use crate::token::{InterpolationUnit, Token, TokenContents::*};
 
@@ -6,9 +8,14 @@ use super::lexer::*;
 #[test]
 fn lex_operators() {
     assert_eq!(tokens(":="), vec![Token::new(Assign, Span::new(0, 2))]);
+    assert_eq!(
+        tokens("::="),
+        vec![Token::new(AssignResult, Span::new(0, 3))]
+    );
     assert_eq!(tokens("&"), vec![Token::new(Amp, Span::new(0, 1))]);
     assert_eq!(tokens("|"), vec![Token::new(Pipe, Span::new(0, 1))]);
     assert_eq!(tokens(";"), vec![Token::new(Semi, Span::new(0, 1))]);
+    assert_eq!(tokens("..."), vec![Token::new(Spread, Span::new(0, 3))]);
 
     assert_eq!(tokens("<"), vec![Token::new(FdReadTo(0), Span::new(0, 1))]);
     assert_eq!(
@@ -174,7 +181,10 @@ fn lex_quoted_double() {
         ]
     );
 
-    assert_eq!(lex(r#""unterminated"#), Err(LexError::UnexpectedEof));
+    assert_eq!(
+        lex(r#""unterminated"#, &HashMap::new()),
+        Err(LexError::UnexpectedEof)
+    );
 }
 
 #[test]
@@ -196,8 +206,14 @@ fn lex_quoted_single() {
         ]
     );
 
-    assert_eq!(lex("'unterminated"), Err(LexError::UnexpectedEof));
-    assert_eq!(lex(r#"'invalid end""#), Err(LexError::UnexpectedEof));
+    assert_eq!(
+        lex("'unterminated", &HashMap::new()),
+        Err(LexError::UnexpectedEof)
+    );
+    assert_eq!(
+        lex(r#"'invalid end""#, &HashMap::new()),
+        Err(LexError::UnexpectedEof)
+    );
 }
 
 #[test]
@@ -283,7 +299,7 @@ fn lex_incomplete_word_interpolation() {
 }
 
 fn tokens(src: &str) -> Vec<Token> {
-    match lex(src) {
+    match lex(src, &HashMap::new()) {
         Ok(tokens) => tokens,
         Err(error) => panic!("Lexing failed: {}", error),
     }
