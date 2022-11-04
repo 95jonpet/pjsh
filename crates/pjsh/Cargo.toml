@@ -7,14 +7,14 @@ description = "Main executable for PJSH."
 
 [dependencies]
 ansi_term = "0.12"
-atty = "0.2.14"
-clap = { version = "3.0.0", features = ["cargo", "derive"] }
-dirs = "4.0"
-lazy_static = "1.4.0"
-parking_lot = {version = "0.12.0", features = ["deadlock_detection"] }
+atty = "0.2"
+clap = { version = "4", features = ["cargo", "derive"] }
+dirs = "4"
+lazy_static = "1"
+parking_lot = {version = "0.12", features = ["deadlock_detection"] }
 regex = "1"
-rustyline = "10.0.0"
-rustyline-derive = "0.7.0"
+rustyline = "10"
+rustyline-derive = "0.7"
 
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_builtins = { path = "../pjsh_builtins" }
@@ -23,4 +23,4 @@ pjsh_eval = { path = "../pjsh_eval" }
 pjsh_parse = { path = "../pjsh_parse" }
 
 [dev-dependencies]
-mockall = "0.11.0"
+mockall = "0.11"

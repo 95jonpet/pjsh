@@ -6,10 +6,10 @@ license = "MIT"
 description = "Built-in commands for PJSH."
 
 [dependencies]
-clap = { version = "3.1.18", features = ["derive"] }
-parking_lot = {version = "0.12.1", features = ["deadlock_detection"] }
+clap = { version = "4", features = ["derive"] }
+parking_lot = {version = "0.12", features = ["deadlock_detection"] }
 
 pjsh_core = { path = "../pjsh_core" }
 
 [dev-dependencies]
-tempfile = "3.2.0"
+tempfile = "3"

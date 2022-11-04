@@ -16,7 +16,7 @@ const NAME: &str = "which";
 #[clap(name = NAME, version)]
 struct WhichOpts {
     /// Command names to resolve.
-    #[clap(required = true, min_values = 1)]
+    #[clap(required = true, num_args = 1..)]
     name: Vec<String>,
 }
 
