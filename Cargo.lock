@@ -584,7 +584,9 @@ dependencies = [
 name = "pjsh_parse"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "pjsh_ast",
+ "regex",
 ]
 
 [[package]]

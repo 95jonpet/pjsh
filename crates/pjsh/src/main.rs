@@ -41,10 +41,11 @@ const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
 )]
 struct Opts {
     /// Treat the first argument as a command rather than a script file.
-    #[clap(short('c'), long("command"), requires("script-file"))]
+    #[clap(short('c'), long("command"), requires("script_file"))]
     is_command: bool,
 
-    #[clap(long("parse"), requires("script-file"))]
+    /// Print the AST without executing it.
+    #[clap(long("parse"), requires("script_file"))]
     is_parse_only: bool,
 
     /// Script file.

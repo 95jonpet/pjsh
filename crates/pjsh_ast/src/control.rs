@@ -1,4 +1,4 @@
-use crate::{AndOr, Block};
+use crate::{AndOr, Block, Iterable};
 
 /// Represents a chain of conditional, "if", statements.
 ///
@@ -29,6 +29,19 @@ pub struct ConditionalLoop {
     /// The body is executed for as long as this condition holds. The condition is
     /// always evaluated before the body is executed.
     pub condition: AndOr,
+
+    /// Loop body.
+    pub body: Block,
+}
+
+/// Represents a piece of code that is executed once for each item in an iterator.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForIterableLoop {
+    /// Loop variable name.
+    pub variable: String,
+
+    /// Iterable.
+    pub iterable: Iterable,
 
     /// Loop body.
     pub body: Block,

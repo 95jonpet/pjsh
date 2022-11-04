@@ -1,11 +1,13 @@
+use std::collections::{HashMap, HashSet};
+
 use call::{call_builtin_command, call_external_program, call_function};
 use error::{EvalError, EvalResult};
 use pjsh_ast::{
-    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, Pipeline, Program,
-    Redirect, Statement,
+    AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
+    Pipeline, Program, Redirect, Statement,
 };
 use pjsh_core::{
-    command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor,
+    command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
 };
 use words::expand_words;
 pub use words::interpolate_word;
@@ -27,6 +29,7 @@ pub fn execute_statement(statement: &Statement, context: &mut Context) -> EvalRe
     match statement {
         Statement::AndOr(and_or) => execute_and_or(and_or, context).map(|_| Ok(()))?,
         Statement::Assignment(assignment) => execute_assignment(assignment, context),
+        Statement::ForIn(for_iterable) => execute_for_iterable_loop(for_iterable.clone(), context),
         Statement::Function(function) => {
             context.register_function(function.clone());
             Ok(())
@@ -57,7 +60,7 @@ pub(crate) fn execute_subshell(subshell: &Program, mut context: Context) -> Eval
 fn execute_conditional_chain(
     conditionals: &ConditionalChain,
     context: &mut Context,
-) -> Result<(), EvalError> {
+) -> EvalResult<()> {
     assert!(
         conditionals.branches.len() == conditionals.conditions.len()
             || conditionals.branches.len() == conditionals.conditions.len() + 1
@@ -94,7 +97,7 @@ fn execute_conditional_chain(
 fn execute_conditional_loop(
     conditional: &ConditionalLoop,
     context: &mut Context,
-) -> Result<(), EvalError> {
+) -> EvalResult<()> {
     loop {
         // Evaluate the condition and break the loop if it is not met (the condition
         // exits with a non 0 code).
@@ -105,6 +108,39 @@ fn execute_conditional_loop(
         execute_statements(&conditional.body.statements, context)?;
     }
     Ok(())
+}
+
+/// Executes a for-in iterable loop, consuming the iterable in the process.
+fn execute_for_iterable_loop(
+    for_iterable: ForIterableLoop,
+    context: &mut Context,
+) -> EvalResult<()> {
+    context.push_scope(Scope::new(
+        format!("{} for-in", context.name()),
+        None,
+        Some(HashMap::default()),
+        Some(HashMap::default()),
+        HashSet::default(),
+        context.is_interactive(),
+    ));
+
+    let mut result = Ok(());
+    for word in for_iterable.iterable {
+        match interpolate_word(&word, context) {
+            Ok(value) => context.set_var(for_iterable.variable.clone(), value),
+            Err(err) => {
+                result = Err(err);
+                break;
+            }
+        };
+
+        if let Err(err) = execute_statements(&for_iterable.body.statements, context) {
+            result = Err(err);
+            break;
+        }
+    }
+    context.pop_scope();
+    result
 }
 
 /// Executes a sequence of and/or logic.
