@@ -17,7 +17,7 @@ const NAME: &str = "type";
 #[clap(name = NAME, version)]
 struct TypeOpts {
     /// Command names to resolve.
-    #[clap(required = true, min_values = 1)]
+    #[clap(required = true, num_args = 1..)]
     name: Vec<String>,
 }
 

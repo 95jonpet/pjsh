@@ -13,7 +13,7 @@ const NAME: &str = "interpolate";
 #[clap(name = NAME, version)]
 struct InterpolateOpts {
     /// Text to interpolate.
-    #[clap(required = true, min_values = 1)]
+    #[clap(required = true, num_args = 1..)]
     text: Vec<String>,
 }
 

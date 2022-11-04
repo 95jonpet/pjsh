@@ -12,7 +12,7 @@ const NAME: &str = "unset";
 /// Type to unset.
 ///
 /// Determines what type of name should be unset.
-#[derive(Clone, clap::ArgEnum)]
+#[derive(Clone, clap::ValueEnum)]
 enum UnsetType {
     /// Treat each name as a shell function name.
     Function,
@@ -27,11 +27,11 @@ enum UnsetType {
 #[clap(name = NAME, version)]
 struct UnsetOpts {
     /// Determines whether to treat each name as a function or variable name.
-    #[clap(arg_enum, default_value = "variable", short, long)]
+    #[clap(value_enum, default_value = "variable", short, long)]
     r#type: UnsetType,
 
     /// Variable or function names to unset.
-    #[clap(required = true, min_values = 1)]
+    #[clap(required = true, num_args = 1..)]
     name: Vec<String>,
 }
 

@@ -7,7 +7,7 @@ use crate::{status, utils};
 const NAME: &str = "sleep";
 
 /// Time unit for a sleep duration.
-#[derive(Clone, clap::ArgEnum)]
+#[derive(Clone, clap::ValueEnum)]
 enum TimeUnit {
     Seconds,
     Minutes,
@@ -24,7 +24,7 @@ struct SleepOpts {
     duration: u64,
 
     /// Time unit for sleep the duration.
-    #[clap(arg_enum, default_value = "seconds")]
+    #[clap(value_enum, default_value = "seconds")]
     unit: TimeUnit,
 }
 
