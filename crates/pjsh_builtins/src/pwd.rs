@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 use pjsh_core::{
     command::{Args, Command, CommandResult},
@@ -34,7 +36,11 @@ impl Command for Pwd {
 
 /// Prints a contexts working directory to stdout.
 fn print_working_directory(_opts: PwdOpts, args: &mut Args) -> CommandResult {
-    if let Some(dir) = args.context.get_var("PWD") {
+    let cwd = std::env::current_dir()
+        .map(Some)
+        .unwrap_or_else(|_| args.context.get_var("PWD").map(PathBuf::from));
+
+    if let Some(dir) = cwd {
         if let Err(error) = writeln!(args.io.stdout, "{}", path_to_string(dir)) {
             let _ = writeln!(args.io.stderr, "{NAME}: {error}");
             return CommandResult::code(status::GENERAL_ERROR);
