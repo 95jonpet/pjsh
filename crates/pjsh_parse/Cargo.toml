@@ -6,4 +6,7 @@ license = "MIT"
 description = "Parser for PJSH."
 
 [dependencies]
+lazy_static = "1"
+regex = "1"
+
 pjsh_ast = { path = "../pjsh_ast" }
