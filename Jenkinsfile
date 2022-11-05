@@ -60,6 +60,8 @@ pipeline {
             build/package \
             target/release \
             target/package
+
+          build/verify-linux-packages.sh target/package examples
         """
       }
       post {
