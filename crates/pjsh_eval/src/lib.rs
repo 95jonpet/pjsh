@@ -250,8 +250,8 @@ fn execute_command(command: &Command, context: &mut Context) -> EvalResult<Comma
     redirect_file_descriptors(&command.redirects, context)?;
     let args = expand_words(&command.arguments, context)?;
 
-    if let Some(builtin) = context.get_builtin(&args[0]).cloned() {
-        return call_builtin_command(&builtin, &args, context);
+    if let Some(builtin) = context.get_builtin(&args[0]).map(|b| b.clone_box()) {
+        return call_builtin_command(builtin.as_ref(), &args, context);
     }
 
     if let Some(function) = context.get_function(&args[0]).cloned() {

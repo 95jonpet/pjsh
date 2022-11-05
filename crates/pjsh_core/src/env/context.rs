@@ -191,8 +191,8 @@ impl Context {
     }
 
     /// Returns a built-in command matching a name.
-    pub fn get_builtin(&self, name: &str) -> Option<&Box<dyn Command>> {
-        self.builtins.get(name)
+    pub fn get_builtin(&self, name: &str) -> Option<&dyn Command> {
+        self.builtins.get(name).map(|builtin| builtin.as_ref())
     }
 
     /// Registers a built-in command within the scope.
