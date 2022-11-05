@@ -9,3 +9,13 @@ for word in [a b c] {
 for i in 1..=10 {
   echo `i=$i`
 }
+
+# Iterate over characters.
+for char in chars of "characters" {
+  echo $char
+}
+
+# Iterate over words using a specific name.
+for color in words of "red green blue" {
+  echo $color
+}

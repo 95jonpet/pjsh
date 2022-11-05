@@ -8,7 +8,9 @@ mod program;
 mod word;
 
 pub use command::Command;
-pub use control::{ConditionalChain, ConditionalLoop, ForIterableLoop};
+pub use control::{
+    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, IterationRule,
+};
 pub use io::{FileDescriptor, Redirect, RedirectMode};
 pub use iterable::{Iterable, NumericRange};
 pub use list::List;

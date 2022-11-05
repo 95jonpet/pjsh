@@ -4,7 +4,7 @@ use call::{call_builtin_command, call_external_program, call_function};
 use error::{EvalError, EvalResult};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
-    Pipeline, Program, Redirect, Statement,
+    ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Word,
 };
 use pjsh_core::{
     command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
@@ -30,6 +30,10 @@ pub fn execute_statement(statement: &Statement, context: &mut Context) -> EvalRe
         Statement::AndOr(and_or) => execute_and_or(and_or, context).map(|_| Ok(()))?,
         Statement::Assignment(assignment) => execute_assignment(assignment, context),
         Statement::ForIn(for_iterable) => execute_for_iterable_loop(for_iterable.clone(), context),
+        Statement::ForOfIn(for_of_iterable) => {
+            let for_iterable = contextualize_loop(for_of_iterable.clone(), context)?;
+            execute_for_iterable_loop(for_iterable, context)
+        }
         Statement::Function(function) => {
             context.register_function(function.clone());
             Ok(())
@@ -298,4 +302,28 @@ fn redirect_file_descriptor(redirect: &Redirect, context: &mut Context) -> EvalR
     };
 
     Ok(())
+}
+
+/// Contextualizes a abstract loop, coercing it to a concrete loop.
+fn contextualize_loop(
+    for_of_iterable: ForOfIterableLoop,
+    context: &mut Context,
+) -> EvalResult<ForIterableLoop> {
+    let word = interpolate_word(&for_of_iterable.iterable, context)?;
+
+    // Extract iterable items from the interpolated word using the pre-defined
+    // iteration rule.
+    let items: Vec<String> = match for_of_iterable.iteration_rule {
+        IterationRule::Chars => word.chars().map(|c| c.to_string()).collect(),
+        IterationRule::Lines => word.lines().map(|l| l.to_string()).collect(),
+        IterationRule::Words => word.split_whitespace().map(|w| w.to_string()).collect(),
+    };
+
+    let words: Vec<Word> = items.into_iter().map(Word::Literal).collect();
+
+    Ok(ForIterableLoop {
+        variable: for_of_iterable.variable,
+        iterable: Iterable::from(words),
+        body: for_of_iterable.body,
+    })
 }

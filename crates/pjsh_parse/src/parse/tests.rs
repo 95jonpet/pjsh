@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    ForIterableLoop, Function, InterpolationUnit, List, Pipeline, PipelineSegment, Program,
-    Redirect, RedirectMode, Statement, Word,
+    ForIterableLoop, ForOfIterableLoop, Function, InterpolationUnit, IterationRule, List, Pipeline,
+    PipelineSegment, Program, Redirect, RedirectMode, Statement, Word,
 };
 
 use super::parser::*;
@@ -601,7 +601,7 @@ fn parse_for_in_loop() {
         Token::new(CloseBrace, span),
     ]);
     assert_eq!(
-        parser.parse_for_in_loop(),
+        parser.parse_for_loop(),
         Ok(Statement::ForIn(ForIterableLoop {
             variable: "i".into(),
             iterable: pjsh_ast::Iterable::from(List::from(vec![
@@ -618,6 +618,53 @@ fn parse_for_in_loop() {
                             arguments: vec![
                                 Word::Literal("echo".into()),
                                 Word::Variable("i".into())
+                            ],
+                            redirects: Vec::new(),
+                        })]
+                    }]
+                })]
+            }
+        }))
+    );
+}
+
+#[test]
+fn parse_for_of_in_loop() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("for".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("color".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("in".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("words".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("of".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("red green blue".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Variable("color".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_for_loop(),
+        Ok(Statement::ForOfIn(ForOfIterableLoop {
+            variable: "color".into(),
+            iteration_rule: IterationRule::Words,
+            iterable: Word::Literal("red green blue".into()),
+            body: Block {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment::Command(Command {
+                            arguments: vec![
+                                Word::Literal("echo".into()),
+                                Word::Variable("color".into())
                             ],
                             redirects: Vec::new(),
                         })]

@@ -1,8 +1,11 @@
 use lazy_static::lazy_static;
-use pjsh_ast::{Iterable, NumericRange};
+use pjsh_ast::{Iterable, IterationRule, NumericRange};
 use regex::Regex;
 
-use crate::ParseError;
+use crate::{
+    token::{Token, TokenContents},
+    ParseError,
+};
 
 /// Parses an iterable.
 pub(crate) fn parse_iterable(word: &str) -> Result<Iterable, ParseError> {
@@ -38,6 +41,16 @@ fn parse_numeric_range(word: &str) -> Option<NumericRange> {
     }
 
     None
+}
+
+/// Parses an abstract iteration rule.
+pub(crate) fn iteration_rule(token: &Token) -> Result<IterationRule, ParseError> {
+    match &token.contents {
+        TokenContents::Literal(it) if it == "chars" => Ok(IterationRule::Chars),
+        TokenContents::Literal(it) if it == "lines" => Ok(IterationRule::Lines),
+        TokenContents::Literal(it) if it == "words" => Ok(IterationRule::Words),
+        _ => Err(ParseError::UnexpectedToken(token.clone())),
+    }
 }
 
 #[cfg(test)]
