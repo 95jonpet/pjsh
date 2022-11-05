@@ -1,5 +1,11 @@
 #!/bin/pjsh
 
+# Iterate over a pre-defined list of items.
+for word in [a b c] {
+  echo $word
+}
+
+# Iterate over a range of numeric values.
 for i in 1..=10 {
   echo `i=$i`
 }

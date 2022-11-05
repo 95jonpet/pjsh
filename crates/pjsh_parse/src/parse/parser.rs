@@ -5,8 +5,8 @@ use crate::token::{self, Token, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    ForIterableLoop, Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect,
-    RedirectMode, Statement, Word,
+    ForIterableLoop, Function, InterpolationUnit, Iterable, List, Pipeline, PipelineSegment,
+    Program, Redirect, RedirectMode, Statement, Word,
 };
 
 use super::cursor::TokenCursor;
@@ -621,7 +621,7 @@ impl Parser {
     }
 
     /// Parses a for-in-loop.
-    fn parse_for_in_loop(&mut self) -> Result<Statement, ParseError> {
+    pub(crate) fn parse_for_in_loop(&mut self) -> Result<Statement, ParseError> {
         if self
             .tokens
             .next_if_eq(TokenContents::Literal("for".into()))
@@ -644,10 +644,14 @@ impl Parser {
             return Err(self.unexpected_token());
         }
 
-        let iterable = match self.parse_word() {
-            Ok(Word::Literal(literal)) => parse_iterable(&literal)?,
-            Ok(_) => return Err(ParseError::InvalidSyntax("expected iterable".to_owned())),
-            Err(error) => return Err(error),
+        let iterable = if let Ok(list) = self.parse_list() {
+            Iterable::from(list)
+        } else {
+            match self.parse_word() {
+                Ok(Word::Literal(literal)) => parse_iterable(&literal)?,
+                Ok(_) => return Err(ParseError::InvalidSyntax("expected iterable".to_owned())),
+                Err(error) => return Err(error),
+            }
         };
 
         Ok(Statement::ForIn(ForIterableLoop {
@@ -693,6 +697,32 @@ impl Parser {
             return Err(self.unexpected_token());
         }
         Ok(block)
+    }
+
+    /// Parses a list of words surrounded by square brackets.
+    pub(crate) fn parse_list(&mut self) -> Result<List, ParseError> {
+        if self.tokens.next_if_eq(TokenContents::OpenBracket).is_none() {
+            return Err(self.unexpected_token());
+        }
+        let mut list = List::default();
+        loop {
+            match &self.tokens.peek().contents {
+                TokenContents::Eol => self.skip_newlines(),
+                TokenContents::Eof => return Err(ParseError::IncompleteSequence),
+                TokenContents::CloseBracket => break,
+                _ => {
+                    list.push(self.parse_word()?);
+                }
+            }
+        }
+        if self
+            .tokens
+            .next_if_eq(TokenContents::CloseBracket)
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+        Ok(list)
     }
 
     /// Advances the token cursor until the next token is not an end-of-line token.
