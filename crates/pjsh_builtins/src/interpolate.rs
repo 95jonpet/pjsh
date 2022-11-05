@@ -77,7 +77,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_interpolate_input() {
+    fn it_interpolates_input() {
         let interpolate = Interpolate {};
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),

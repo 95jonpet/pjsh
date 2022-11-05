@@ -133,6 +133,24 @@ impl Context {
         None
     }
 
+    /// Exports a variable from the shell's environment, causing the variable to be
+    /// included in future program environments.
+    ///
+    /// The variable name must be known to the shell.
+    pub fn export_var(&mut self, name: String) -> Result<(), String> {
+        if self.get_var(&name).is_none() {
+            return Err(format!("unknown variable: {name}"));
+        }
+
+        self.scopes
+            .last_mut()
+            .expect("scope exists") // A scope should always exist here.
+            .exported_keys
+            .insert(name);
+
+        Ok(())
+    }
+
     /// Returns a collection with references to all exported variables within the current scope.
     pub fn exported_vars(&self) -> HashMap<&str, &str> {
         self.scopes

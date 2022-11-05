@@ -113,6 +113,7 @@ fn register_builtins(context: &mut Context) {
     context.register_builtin(Box::new(pjsh_builtins::Cd));
     context.register_builtin(Box::new(pjsh_builtins::Echo));
     context.register_builtin(Box::new(pjsh_builtins::Exit));
+    context.register_builtin(Box::new(pjsh_builtins::Export));
     context.register_builtin(Box::new(pjsh_builtins::False));
     context.register_builtin(Box::new(pjsh_builtins::Interpolate));
     context.register_builtin(Box::new(pjsh_builtins::Pwd));
