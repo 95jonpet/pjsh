@@ -7,7 +7,7 @@ use crate::ParseError;
 /// Parses an iterable.
 pub(crate) fn parse_iterable(word: &str) -> Result<Iterable, ParseError> {
     if let Some(numeric_range) = parse_numeric_range(word) {
-        return Ok(Iterable::NumericRange(numeric_range));
+        return Ok(Iterable::Range(numeric_range));
     }
 
     Err(ParseError::InvalidSyntax(format!(
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn parse_numeric_range() -> Result<(), ParseError> {
-        let range = |start, end| Iterable::NumericRange(NumericRange::new(start, end));
+        let range = |start, end| Iterable::Range(NumericRange::new(start, end));
 
         // Increasing order.
         assert_eq!(parse_iterable("0..0"), Ok(range(0, 0)));

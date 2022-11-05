@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    Function, InterpolationUnit, Pipeline, PipelineSegment, Program, Redirect, RedirectMode,
-    Statement, Word,
+    ForIterableLoop, Function, InterpolationUnit, List, Pipeline, PipelineSegment, Program,
+    Redirect, RedirectMode, Statement, Word,
 };
 
 use super::parser::*;
@@ -66,6 +66,26 @@ fn parse_condition() {
                 ])]
             },]
         })
+    );
+}
+
+#[test]
+fn parse_list() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(OpenBracket, span),
+        Token::new(Literal("a".into()), span),
+        Token::new(Literal("b".into()), span),
+        Token::new(Literal("c".into()), span),
+        Token::new(CloseBracket, span),
+    ]);
+    assert_eq!(
+        parser.parse_list(),
+        Ok(List::from(vec![
+            Word::Literal("a".into()),
+            Word::Literal("b".into()),
+            Word::Literal("c".into()),
+        ]))
     );
 }
 
@@ -554,6 +574,58 @@ fn parse_while_loop() {
             }
         }))
     )
+}
+
+#[test]
+fn parse_for_in_loop() {
+    let span = Span::new(0, 0); // Does not matter during this test.
+    let mut parser = Parser::new(vec![
+        Token::new(Literal("for".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("i".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("in".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(OpenBracket, span),
+        Token::new(Literal("a".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("b".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Literal("c".into()), span),
+        Token::new(CloseBracket, span),
+        Token::new(Whitespace, span),
+        Token::new(OpenBrace, span),
+        Token::new(Literal("echo".into()), span),
+        Token::new(Whitespace, span),
+        Token::new(Variable("i".into()), span),
+        Token::new(CloseBrace, span),
+    ]);
+    assert_eq!(
+        parser.parse_for_in_loop(),
+        Ok(Statement::ForIn(ForIterableLoop {
+            variable: "i".into(),
+            iterable: pjsh_ast::Iterable::from(List::from(vec![
+                Word::Literal("a".into()),
+                Word::Literal("b".into()),
+                Word::Literal("c".into()),
+            ])),
+            body: Block {
+                statements: vec![Statement::AndOr(AndOr {
+                    operators: Vec::new(),
+                    pipelines: vec![Pipeline {
+                        is_async: false,
+                        segments: vec![PipelineSegment::Command(Command {
+                            arguments: vec![
+                                Word::Literal("echo".into()),
+                                Word::Variable("i".into())
+                            ],
+                            redirects: Vec::new(),
+                        })]
+                    }]
+                })]
+            }
+        }))
+    );
 }
 
 #[test]

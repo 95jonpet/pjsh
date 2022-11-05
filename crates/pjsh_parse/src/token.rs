@@ -41,9 +41,13 @@ pub enum TokenContents {
     OpenBrace,
     /// "}"
     CloseBrace,
+    /// "["
+    OpenBracket,
+    /// "]"
+    CloseBracket,
     /// "[["
     DoubleOpenBracket,
-    /// "]}"
+    /// "]]"
     DoubleCloseBracket,
 
     /// "&&"

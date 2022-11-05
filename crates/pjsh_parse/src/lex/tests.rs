@@ -61,6 +61,8 @@ fn lex_surrounding_chars() {
     assert_eq!(tokens(")"), vec![Token::new(CloseParen, Span::new(0, 1))]);
     assert_eq!(tokens("{"), vec![Token::new(OpenBrace, Span::new(0, 1))]);
     assert_eq!(tokens("}"), vec![Token::new(CloseBrace, Span::new(0, 1))]);
+    assert_eq!(tokens("["), vec![Token::new(OpenBracket, Span::new(0, 1))]);
+    assert_eq!(tokens("]"), vec![Token::new(CloseBracket, Span::new(0, 1))]);
     assert_eq!(
         tokens("[["),
         vec![Token::new(DoubleOpenBracket, Span::new(0, 2))]

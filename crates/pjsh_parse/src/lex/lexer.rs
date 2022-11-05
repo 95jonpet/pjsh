@@ -128,8 +128,12 @@ impl<'a> Lexer<'a> {
             ')' => self.eat_char(CloseParen),
             '{' => self.eat_char(OpenBrace),
             '}' => self.eat_char(CloseBrace),
-            '[' => self.eat_chars(&['[', '['], DoubleOpenBracket),
-            ']' => self.eat_chars(&[']', ']'], DoubleCloseBracket),
+            '[' => self
+                .eat_chars(&['[', '['], DoubleOpenBracket)
+                .or_else(|_| self.eat_char(OpenBracket)),
+            ']' => self
+                .eat_chars(&[']', ']'], DoubleCloseBracket)
+                .or_else(|_| self.eat_char(CloseBracket)),
             '"' => self.eat_quoted_string('"'),
             '\'' => self.eat_quoted_string('\''),
             '`' => self.eat_interpolation(Some('`')),
