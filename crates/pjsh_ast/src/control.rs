@@ -1,4 +1,4 @@
-use crate::{AndOr, Block, Iterable};
+use crate::{AndOr, Block, Iterable, Word};
 
 /// Represents a chain of conditional, "if", statements.
 ///
@@ -45,4 +45,37 @@ pub struct ForIterableLoop {
 
     /// Loop body.
     pub body: Block,
+}
+
+/// Represents a piece of code that is executed once for each item in an
+/// abstract iterator.
+///
+/// This type of loop is typically coerced into a [`ForIterableLoop`] when a
+/// context is supplied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForOfIterableLoop {
+    /// Loop variable name.
+    pub variable: String,
+
+    /// Abstract iteration rule.
+    pub iteration_rule: IterationRule,
+
+    /// Iterable.
+    pub iterable: Word,
+
+    /// Loop body.
+    pub body: Block,
+}
+
+/// An abstract iteration rule.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IterationRule {
+    /// Iterate over characters.
+    Chars,
+
+    /// Iterate over lines.
+    Lines,
+
+    /// Iterate over whitespace-separated words.
+    Words,
 }

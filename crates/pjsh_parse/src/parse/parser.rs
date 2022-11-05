@@ -5,12 +5,12 @@ use crate::token::{self, Token, TokenContents};
 use crate::ParseError;
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Block, Command, ConditionalChain, ConditionalLoop, FileDescriptor,
-    ForIterableLoop, Function, InterpolationUnit, Iterable, List, Pipeline, PipelineSegment,
-    Program, Redirect, RedirectMode, Statement, Word,
+    ForIterableLoop, ForOfIterableLoop, Function, InterpolationUnit, Iterable, List, Pipeline,
+    PipelineSegment, Program, Redirect, RedirectMode, Statement, Word,
 };
 
 use super::cursor::TokenCursor;
-use super::iterable::parse_iterable;
+use super::iterable::{iteration_rule, parse_iterable};
 
 /// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
 /// A [`ParseError`] is returned if a program can't be parsed.
@@ -325,8 +325,8 @@ impl Parser {
             _ => (),
         }
 
-        // Try to parse a for-in-loops.
-        match self.parse_for_in_loop() {
+        // Try to parse a for-loops.
+        match self.parse_for_loop() {
             Ok(statement) => return Ok(statement),
             Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
             _ => (),
@@ -537,13 +537,7 @@ impl Parser {
 
     /// Parses a function declaration,
     fn parse_function(&mut self) -> Result<Statement, ParseError> {
-        if self
-            .tokens
-            .next_if_eq(TokenContents::Literal("fn".into()))
-            .is_none()
-        {
-            return Err(self.unexpected_token());
-        }
+        self.take_literal("fn")?;
 
         match self.tokens.next().contents {
             TokenContents::Literal(name) => {
@@ -579,32 +573,18 @@ impl Parser {
 
     /// Parses an if-statement.
     fn parse_if_statement(&mut self) -> Result<Statement, ParseError> {
-        if self
-            .tokens
-            .next_if_eq(TokenContents::Literal("if".into()))
-            .is_none()
-        {
-            return Err(self.unexpected_token());
-        }
+        self.take_literal("if")?;
 
         // Parse the initial condition and branch.
         let mut conditions = vec![self.parse_and_or()?];
         let mut branches = vec![self.parse_block()?];
 
         loop {
-            if self
-                .tokens
-                .next_if_eq(TokenContents::Literal("else".into()))
-                .is_none()
-            {
+            if self.take_literal("else").is_err() {
                 break;
             }
 
-            if self
-                .tokens
-                .next_if_eq(TokenContents::Literal("if".into()))
-                .is_some()
-            {
+            if self.take_literal("if").is_ok() {
                 conditions.push(self.parse_and_or()?);
                 branches.push(self.parse_block()?);
                 continue;
@@ -620,15 +600,9 @@ impl Parser {
         }))
     }
 
-    /// Parses a for-in-loop.
-    pub(crate) fn parse_for_in_loop(&mut self) -> Result<Statement, ParseError> {
-        if self
-            .tokens
-            .next_if_eq(TokenContents::Literal("for".into()))
-            .is_none()
-        {
-            return Err(self.unexpected_token());
-        }
+    /// Parses a for-loop.
+    pub(crate) fn parse_for_loop(&mut self) -> Result<Statement, ParseError> {
+        self.take_literal("for")?;
 
         let variable = match self.parse_word() {
             Ok(Word::Literal(literal)) => literal,
@@ -636,15 +610,27 @@ impl Parser {
             Err(error) => return Err(error),
         };
 
-        if self
+        self.take_literal("in")?;
+        let in_word = self
             .tokens
-            .next_if_eq(TokenContents::Literal("in".into()))
-            .is_none()
-        {
-            return Err(self.unexpected_token());
+            .next_if(|t| matches!(t.contents, TokenContents::Literal(_)));
+
+        // Determine an abstract iteration rule if the loop is a for-in-of-loop.
+        if in_word.is_some() && self.take_literal("of").is_ok() {
+            let iterable = self.parse_word()?;
+            let body = self.parse_block()?;
+            return Ok(Statement::ForOfIn(ForOfIterableLoop {
+                variable,
+                iteration_rule: iteration_rule(&in_word.expect("has iteration rule"))?,
+                iterable,
+                body,
+            }));
         }
 
-        let iterable = if let Ok(list) = self.parse_list() {
+        // Extract the concrete iterable if the loop is a normal for-in-loop.
+        let iterable = if let Some(TokenContents::Literal(literal)) = in_word.map(|t| t.contents) {
+            parse_iterable(&literal)?
+        } else if let Ok(list) = self.parse_list() {
             Iterable::from(list)
         } else {
             match self.parse_word() {
@@ -654,22 +640,18 @@ impl Parser {
             }
         };
 
+        let body = self.parse_block()?;
+
         Ok(Statement::ForIn(ForIterableLoop {
             variable,
             iterable,
-            body: self.parse_block()?,
+            body,
         }))
     }
 
     /// Parses a while-loop.
     fn parse_while_loop(&mut self) -> Result<Statement, ParseError> {
-        if self
-            .tokens
-            .next_if_eq(TokenContents::Literal("while".into()))
-            .is_none()
-        {
-            return Err(self.unexpected_token());
-        }
+        self.take_literal("while")?;
 
         Ok(Statement::While(ConditionalLoop {
             condition: self.parse_and_or()?,
@@ -733,6 +715,16 @@ impl Parser {
         ) {
             self.tokens.next();
         }
+    }
+
+    /// Advances past a literal if the next matches the given literal.
+    /// Returns an error if the next token is unexpected.
+    fn take_literal(&mut self, literal: &str) -> Result<Token, ParseError> {
+        let token = self.tokens.next_if(
+            |token| matches!(&token.contents, TokenContents::Literal(it) if it == literal),
+        );
+
+        token.ok_or_else(|| self.unexpected_token())
     }
 
     /// Returns a [`ParseError::UnexpectedToken`] around a copy of the next token.

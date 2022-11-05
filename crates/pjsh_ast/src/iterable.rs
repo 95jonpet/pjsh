@@ -22,7 +22,13 @@ impl Iterator for Iterable {
 
 impl From<List> for Iterable {
     fn from(list: List) -> Self {
-        Iterable::Items(ItemIterable::from(list.items))
+        Self::from(list.items)
+    }
+}
+
+impl From<Vec<Word>> for Iterable {
+    fn from(words: Vec<Word>) -> Self {
+        Iterable::Items(ItemIterable::from(words))
     }
 }
 

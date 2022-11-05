@@ -1,4 +1,6 @@
-use crate::{ConditionalChain, ConditionalLoop, ForIterableLoop, Pipeline, Word};
+use crate::{
+    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, Pipeline, Word,
+};
 
 /// A statement is an evaluable and/or executable piece of code.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +19,9 @@ pub enum Statement {
 
     /// An iterable loop.
     ForIn(ForIterableLoop),
+
+    /// An iterable loop over an abstract iteration rule.
+    ForOfIn(ForOfIterableLoop),
 
     /// A conditional loop.
     While(ConditionalLoop),
