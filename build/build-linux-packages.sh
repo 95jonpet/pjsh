@@ -35,6 +35,10 @@ package() {
   local PACKAGE_TYPE="${1?'Missing required package type'}"
   local DOCKER_IMAGE="${2?'Missing required docker image'}"
 
+  # Output path (inside the container) for the final package file.
+  # The "/out" directory is itself mounted under ${PACKAGE_PATH} on the host.
+  local PACKAGE_FILE="/out/pjsh_${VERSION}-${RELEASE}.${PACKAGE_TYPE}"
+
   MSYS_NO_PATHCONV=1 docker run \
     --rm \
     -v "${SCRIPTS_PATH}:/scripts" \
@@ -44,7 +48,7 @@ package() {
     fpm \
     -s dir \
     --output-type "${PACKAGE_TYPE}" \
-    --package "/out/pjsh_${VERSION}-${RELEASE}.${PACKAGE_TYPE}" \
+    --package "${PACKAGE_FILE}" \
     --name pjsh \
     --version "${VERSION}" \
     --iteration "${RELEASE}" \
@@ -62,7 +66,7 @@ package() {
     --rm \
     -v "${PACKAGE_PATH}:/out" \
     "${DOCKER_IMAGE}" \
-    bash -c "chown '$(id -u):$(id -g)' /out/pjsh_${VERSION}-${RELEASE}.${PACKAGE_TYPE}"
+    bash -c "chown '$(id -u):$(id -g)' '${PACKAGE_FILE}'"
 }
 
 # Build all packages.
