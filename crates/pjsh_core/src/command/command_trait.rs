@@ -11,6 +11,7 @@ pub trait Command: CommandClone + Send + Sync {
 
 /// Helper trait for making it easier to clone `Box<Command>`.
 pub trait CommandClone {
+    /// Clones the command into a new boxed instance.
     fn clone_box(&self) -> Box<dyn Command>;
 }
 

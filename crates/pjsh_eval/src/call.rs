@@ -17,8 +17,9 @@ use crate::{
     execute_statements,
 };
 
+/// Calls a built-in command.
 pub fn call_builtin_command(
-    command: &Box<dyn Command>,
+    command: &dyn Command,
     args: &[String],
     context: &mut Context,
 ) -> EvalResult<CommandResult> {
@@ -74,6 +75,7 @@ pub fn call_external_program<P: AsRef<Path>>(
     Ok(cmd)
 }
 
+/// Calls a function.
 pub fn call_function(
     function: &Function,
     args: &[String],
