@@ -54,6 +54,14 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
         }
     }
 
+    // PWD is not known if the shell is started as a standalone process, but some
+    // shell built-ins require it to work efficiently.
+    if !vars.contains_key("PWD") {
+        if let Ok(pwd) = std::env::current_dir() {
+            vars.insert("PWD".to_owned(), path_to_string(pwd));
+        }
+    }
+
     Scope::new(
         "environment".to_owned(),
         None,
