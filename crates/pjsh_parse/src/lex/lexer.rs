@@ -379,7 +379,7 @@ impl<'a> Lexer<'a> {
         let span_start = self.input.next().0;
 
         let result = match self.input.peek().1 {
-            '(' => self.eat_char(OpenParen),
+            '(' => self.eat_char(DollarOpenParen),
             _ => self.eat_variable(),
         };
 

@@ -33,6 +33,8 @@ pub enum TokenContents {
     /// "\"\"\"" or "'''"
     TripleQuote,
 
+    /// "$("
+    DollarOpenParen,
     /// "("
     OpenParen,
     /// ")"

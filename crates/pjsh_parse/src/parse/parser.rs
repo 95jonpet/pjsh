@@ -107,6 +107,34 @@ impl Parser {
         Ok(Statement::Subshell(subshell_program))
     }
 
+    /// Parses a non-empty subshell word.
+    ///
+    /// Note that tokens are consumed as long as the subshell is opened - even if the subshell is
+    /// empty.
+    fn parse_subshell_word(&mut self) -> Result<Word, ParseError> {
+        if self
+            .tokens
+            .next_if_eq(TokenContents::DollarOpenParen)
+            .is_none()
+        {
+            return Err(self.unexpected_token());
+        }
+
+        let subshell_program = self.parse_subshell_program()?;
+
+        // A subshell must be terminated by a closing parenthesis.
+        if self.tokens.next_if_eq(TokenContents::CloseParen).is_none() {
+            return Err(ParseError::IncompleteSequence);
+        }
+
+        // A subshell must not be empty.
+        if subshell_program.statements.is_empty() {
+            return Err(ParseError::EmptySubshell);
+        }
+
+        Ok(Word::Subshell(subshell_program))
+    }
+
     fn parse_subshell_program(&mut self) -> Result<Program, ParseError> {
         let mut subshell_program = Program::new();
         loop {
@@ -372,6 +400,7 @@ impl Parser {
                     Err(ParseError::UnexpectedToken(next))
                 }
             }
+            TokenContents::DollarOpenParen => self.parse_subshell_word(),
             TokenContents::TripleQuote => self.parse_triple_quoted(),
             TokenContents::Quote => self.parse_quoted(),
             TokenContents::Interpolation(_) => self.parse_interpolation(),
