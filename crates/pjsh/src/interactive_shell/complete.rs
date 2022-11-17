@@ -1,86 +1,119 @@
-use rustyline::completion::{Candidate, Completer, Pair};
+use std::{fs, path::Path};
 
-use crate::completion::Complete;
+use itertools::chain;
+use pjsh_core::{
+    utils::{path_to_string, resolve_path},
+    Context,
+};
 
-const WORD_BOUNDARY: [char; 11] = [
-    // '(',
-    // ')',
-    // '{',
-    // '}',
-    // '[',
-    // ']',
-    '\u{0009}', // \t
-    '\u{000A}', // \n
-    '\u{000B}', // vertical tab
-    '\u{000C}', // form feed
-    '\u{000D}', // \r
-    '\u{0020}', // space
-    // NEXT LINE from latin1
-    '\u{0085}', // Bidi markers
-    '\u{200E}', // LEFT-TO-RIGHT MARK
-    '\u{200F}', // RIGHT-TO-LEFT MARK
-    // Dedicated whitespace characters from Unicode
-    '\u{2028}', // LINE SEPARATOR
-    '\u{2029}', // PARAGRAPH SEPARATOR
-];
-
-pub struct CombinationCompleter {
-    completers: Vec<Box<dyn Complete>>,
-}
-
-impl CombinationCompleter {
-    pub fn new(completers: Vec<Box<dyn Complete>>) -> Self {
-        Self { completers }
-    }
-}
-
-impl Completer for CombinationCompleter {
-    type Candidate = Pair;
-
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &rustyline::Context<'_>,
-    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        let start_index = line
-            .char_indices()
-            .rev()
-            .skip(line.len() - pos)
-            .find(|(_, ch)| WORD_BOUNDARY.contains(ch))
-            .map(|(index, _)| index + 1)
-            .unwrap_or(0);
-
-        let current_word = unquote(&line[start_index..pos]);
-
-        let mut completions = Vec::new();
-        for completer in &self.completers {
-            for completion in completer.complete(current_word) {
-                let quoted = quote(completion);
-                completions.push(Pair {
-                    display: quoted.clone(),
-                    replacement: quoted,
-                });
-            }
-        }
-
-        completions.sort_by(|a, b| a.display().cmp(b.display()));
-
-        Ok((start_index, completions))
-    }
-}
-
-fn quote(path: String) -> String {
-    if !path.contains(char::is_whitespace) {
-        return path;
+/// Completes a word based on a prefix.
+pub fn complete(
+    prefix: &str,
+    _words: &[&str],
+    word_index: usize,
+    context: &Context,
+) -> Vec<String> {
+    // Complete an argument.
+    if word_index != 0 {
+        return chain!(
+            complete_variables(prefix, context),
+            complete_paths(prefix, context),
+        )
+        .collect();
     }
 
-    format!("`{}`", path)
+    // Complete a program/function name.
+    chain!(
+        complete_aliases(prefix, context),
+        complete_builtins(prefix, context),
+        complete_functions(prefix, context),
+        complete_variables(prefix, context),
+        complete_paths(prefix, context),
+    )
+    .collect()
 }
 
-fn unquote(path: &str) -> &str {
-    let should_trim = |ch: char| ch.is_whitespace() || ch == '`';
-    let mut path = path.trim_end_matches(should_trim);
-    path = path.trim_start_matches(should_trim);
-    path
+/// Completes an alias.
+fn complete_aliases(prefix: &str, context: &Context) -> Vec<String> {
+    context
+        .aliases
+        .iter()
+        .map(|(name, _)| name)
+        .filter(|name| name.starts_with(prefix))
+        .cloned()
+        .collect()
+}
+
+/// Completes a built-in function name.
+fn complete_builtins(prefix: &str, context: &Context) -> Vec<String> {
+    context
+        .builtins
+        .iter()
+        .map(|(name, _)| name)
+        .filter(|name| name.starts_with(prefix))
+        .cloned()
+        .collect()
+}
+
+/// Completes a function name.
+fn complete_functions(prefix: &str, context: &Context) -> Vec<String> {
+    context
+        .get_function_names()
+        .iter()
+        .filter(|name| name.starts_with(prefix))
+        .cloned()
+        .collect()
+}
+
+/// Completes a variable.
+fn complete_variables(prefix: &str, context: &Context) -> Vec<String> {
+    let Some(prefix) = prefix.strip_prefix('$') else {
+        return Vec::default();
+    };
+
+    context
+        .get_var_names()
+        .iter()
+        .filter(|name| name.starts_with(prefix))
+        .map(|name| format!("${name}"))
+        .collect()
+}
+
+/// Completes a path.
+fn complete_paths(prefix: &str, context: &Context) -> Vec<String> {
+    if let Some((dir, file_prefix)) = prefix.rsplit_once('/') {
+        let dir_path = resolve_path(context, dir);
+        let Ok(files) = fs::read_dir(dir_path) else {
+            return Vec::default();
+        };
+
+        return files
+            .into_iter()
+            .filter_map(|file| {
+                let file = filtered_file_name(file.ok()?.path(), file_prefix)?;
+                Some(format!("{dir}/{}", file))
+            })
+            .collect();
+    }
+
+    let Ok(Ok(files)) = std::env::current_dir().map(fs::read_dir) else {
+        return Vec::default();
+    };
+
+    files
+        .into_iter()
+        .filter_map(|file| filtered_file_name(file.ok()?.path(), prefix))
+        .collect()
+}
+
+/// Returns a filtered file name.
+fn filtered_file_name<P: AsRef<Path>>(path: P, name_prefix: &str) -> Option<String> {
+    let path_str = path_to_string(path);
+    let (_, file_str) = path_str.rsplit_once('/')?;
+
+    if !file_str.starts_with(name_prefix) {
+        return None;
+    }
+
+    Some(file_str.to_owned())
 }
