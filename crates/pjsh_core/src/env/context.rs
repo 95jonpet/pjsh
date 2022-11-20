@@ -24,7 +24,7 @@ pub struct Context {
     scopes: Vec<Scope>,
 
     /// Built-in commands in the context.
-    builtins: HashMap<String, Box<dyn Command>>,
+    pub builtins: HashMap<String, Box<dyn Command>>,
 }
 
 impl Context {
@@ -101,6 +101,22 @@ impl Context {
         None
     }
 
+    /// Returns all variable names within the current scope.
+    pub fn get_var_names(&self) -> HashSet<String> {
+        let variable_scopes = self
+            .scopes
+            .iter()
+            .rev()
+            .filter_map(|scope| scope.vars.as_ref());
+        let mut variables = HashSet::new();
+
+        for scope_variables in variable_scopes {
+            variables.extend(scope_variables.keys().cloned());
+        }
+
+        variables
+    }
+
     /// Sets the value of a variable within the current scope.
     ///
     /// Parent scopes are not modified.
@@ -174,6 +190,21 @@ impl Context {
         }
 
         None
+    }
+
+    /// Returns all registered function names within the current scope.
+    pub fn get_function_names(&self) -> HashSet<String> {
+        let function_scopes = self
+            .scopes
+            .iter()
+            .filter_map(|scope| scope.functions.as_ref());
+        let mut functions = HashSet::new();
+
+        for scope_functions in function_scopes {
+            functions.extend(scope_functions.keys().cloned());
+        }
+
+        functions
     }
 
     /// Registers a function within the current scope.

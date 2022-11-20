@@ -1,5 +1,4 @@
 mod command_shell;
-mod completion;
 mod exec;
 mod file_shell;
 mod init;
@@ -58,6 +57,7 @@ struct Opts {
 /// Entrypoint for the application.
 pub fn main() {
     let mut opts = Opts::parse();
+    let interactive = !opts.is_command && opts.script_file.is_none();
     let executor: Box<dyn Execute> = match opts.is_parse_only {
         true => Box::new(AstPrinter),
         false => Box::new(ProgramExecutor),
@@ -79,23 +79,19 @@ pub fn main() {
         args.push(arg);
     }
 
-    let shell = new_shell(&opts);
     let script_file = match opts.is_command {
         true => None,
-        false => opts.script_file.map(PathBuf::from),
+        false => opts.script_file.as_ref().map(PathBuf::from),
     };
 
     let context = Arc::new(Mutex::new(initialized_context(
         args,
         script_file,
-        shell.is_interactive(),
+        interactive,
     )));
 
-    source_init_scripts(
-        shell.is_interactive(),
-        executor.as_ref(),
-        Arc::clone(&context),
-    );
+    let shell = new_shell(&opts, Arc::clone(&context));
+    source_init_scripts(interactive, executor.as_ref(), Arc::clone(&context));
 
     run_shell(shell, executor.as_ref(), Arc::clone(&context)); // Not guaranteed to exit.
 
@@ -216,7 +212,7 @@ fn print_parse_error_details(line: &str, error: &ParseError) {
 }
 
 /// Constructs a new shell.
-fn new_shell(opts: &Opts) -> Box<dyn Shell> {
+fn new_shell(opts: &Opts, context: Arc<Mutex<Context>>) -> Box<dyn Shell> {
     if opts.is_command {
         // The script_file argument is a command rather than a file path.
         let command = opts.script_file.to_owned().expect("command is defined");
@@ -228,7 +224,7 @@ fn new_shell(opts: &Opts) -> Box<dyn Shell> {
     }
 
     // Construct a new interactive shell if no other arguments are given.
-    Box::new(RustylineShell::new(history_file().as_path()))
+    Box::new(RustylineShell::new(history_file().as_path(), context))
 }
 
 /// Interrupts the currently running threads and processes in a context.

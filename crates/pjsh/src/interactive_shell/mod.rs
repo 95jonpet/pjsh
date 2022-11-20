@@ -1,24 +1,26 @@
 mod complete;
 mod utils;
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
+use parking_lot::Mutex;
+use pjsh_core::Context;
 use rustyline::{
     completion::{Completer, Pair},
     error::ReadlineError,
     highlight::{Highlighter, MatchingBracketHighlighter},
     hint::{Hinter, HistoryHinter},
     validate::{self, ValidationResult, Validator},
-    Config, Context, Editor,
+    Config, Editor,
 };
 use rustyline_derive::Helper;
 
-use crate::{
-    completion::FileCompleter,
-    shell::{Shell, ShellInput},
-};
+use crate::shell::{Shell, ShellInput};
 
-use self::{complete::CombinationCompleter, utils::strip_ansi_escapes};
+use self::{
+    complete::complete,
+    utils::{input_words, strip_ansi_escapes},
+};
 
 pub struct RustylineShell {
     /// Rustyline editor.
@@ -35,9 +37,9 @@ impl RustylineShell {
     /// Constructs a new shell backed by rustyline.
     ///
     /// Shell command history is read from a file.
-    pub fn new(history_file: &std::path::Path) -> Self {
+    pub fn new(history_file: &std::path::Path, context: Arc<Mutex<Context>>) -> Self {
         let helper = ShellHelper {
-            completer: CombinationCompleter::new(vec![Box::new(FileCompleter {})]),
+            context,
             highlighter: MatchingBracketHighlighter::new(),
             hinter: HistoryHinter {},
             colored_prompt: "$ ".to_owned(),
@@ -123,7 +125,7 @@ impl Shell for RustylineShell {
 #[derive(Helper)]
 struct ShellHelper {
     /// Command completer.
-    completer: CombinationCompleter,
+    context: Arc<Mutex<Context>>,
 
     /// Text color highlighter.
     highlighter: MatchingBracketHighlighter,
@@ -142,16 +144,37 @@ impl Completer for ShellHelper {
         &self,
         line: &str,
         pos: usize,
-        ctx: &Context<'_>,
+        _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        self.completer.complete(line, pos, ctx)
+        let words = input_words(line);
+        let Some(word_index) = words
+            .iter()
+            .position(|(_, span)| pos > span.start && pos <= span.end) else {
+                return Ok((pos, Vec::default()));
+            };
+
+        let word = words[word_index];
+        let prefix = &word.0[..(pos - word.1.start)];
+
+        let words: Vec<&str> = input_words(line)
+            .into_iter()
+            .map(|(word, _)| word)
+            .collect();
+        let pairs = complete(prefix, &words, word_index, &self.context.lock())
+            .into_iter()
+            .map(|word| Pair {
+                display: word.clone(),
+                replacement: word,
+            })
+            .collect();
+        Ok((word.1.start, pairs))
     }
 }
 
 impl Hinter for ShellHelper {
     type Hint = String;
 
-    fn hint(&self, line: &str, pos: usize, ctx: &Context<'_>) -> Option<String> {
+    fn hint(&self, line: &str, pos: usize, ctx: &rustyline::Context<'_>) -> Option<String> {
         self.hinter.hint(line, pos, ctx)
     }
 }
