@@ -260,8 +260,6 @@ fn execute_command(command: &Command, context: &mut Context) -> EvalResult<Comma
     }
 
     if let Some(program) = find_in_path(&args[0], context) {
-        // let cmd = call_external_program(&program, &args[1..], context)?;
-        // return Ok(CommandResult::from()
         return call_external_program(&program, &args[1..], context).map(CommandResult::from);
     }
 

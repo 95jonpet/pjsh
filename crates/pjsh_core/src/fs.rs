@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::Context;
+use crate::{utils::resolve_path, Context};
 
 /// Find a program by searching for its name in the paths present in `$PATH`.
 ///
@@ -10,6 +10,11 @@ use crate::Context;
 ///
 /// Also note that file system case-insensitivity may be in effect.
 pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
+    // Match an exact program path.
+    if name.contains('/') {
+        return Some(resolve_path(context, name));
+    }
+
     // Define all possible file extensions that can be matched.
     let mut extensions = vec![String::new()]; // Empty string = no file extension.
     if let Some(ext_env) = context.get_var("PATHEXT") {
