@@ -5,6 +5,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
 use pjsh_core::Context;
+use pjsh_parse::Span;
 use rustyline::{
     completion::{Completer, Pair},
     error::ReadlineError,
@@ -146,11 +147,19 @@ impl Completer for ShellHelper {
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        let words = input_words(line);
+        let mut words = input_words(line);
+
+        // The current position may be inside whitespace following the final word.
+        // If this is the case, completions should be provided for a new word with an
+        // empty prefix. They should, however, not be provided for the first word.
+        if pos > words.last().map(|(_, pos)| pos.end).unwrap_or(usize::MAX) {
+            words.push(("", Span::new(pos, pos)));
+        }
+
         let Some(word_index) = words
             .iter()
-            .position(|(_, span)| pos > span.start && pos <= span.end) else {
-                return Ok((pos, Vec::default()));
+            .position(|(_, span)| pos >= span.start && pos <= span.end) else {
+                return Ok((pos, Vec::default())); // No input to complete.
             };
 
         let word = words[word_index];
@@ -160,6 +169,7 @@ impl Completer for ShellHelper {
             .into_iter()
             .map(|(word, _)| word)
             .collect();
+
         let pairs = complete(prefix, &words, word_index, &self.context.lock())
             .into_iter()
             .map(|word| Pair {
