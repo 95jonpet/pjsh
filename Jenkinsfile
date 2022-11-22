@@ -21,6 +21,7 @@ pipeline {
           steps {
             sh label: "Run tests", script: "cargo test --locked"
             sh label: "Run linter", script: "cargo clippy -- -D warnings"
+            sh label: "Run rustfmt", script: "scripts/check-code-format.sh"
           }
           post {
             cleanup {
