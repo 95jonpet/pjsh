@@ -1,6 +1,3 @@
-mod complete;
-mod utils;
-
 use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
@@ -18,8 +15,8 @@ use rustyline_derive::Helper;
 
 use crate::shell::{Shell, ShellInput};
 
-use self::{
-    complete::complete,
+use super::{
+    super::complete::complete,
     utils::{input_words, strip_ansi_escapes},
 };
 

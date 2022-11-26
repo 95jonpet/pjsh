@@ -1,8 +1,5 @@
-mod command_shell;
+mod complete;
 mod exec;
-mod file_shell;
-mod init;
-mod interactive_shell;
 mod shell;
 
 #[cfg(test)]
@@ -12,16 +9,15 @@ use std::{env::current_exe, path::PathBuf, sync::Arc};
 
 use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
-use command_shell::SingleCommandShell;
 use exec::{AstPrinter, Execute, ProgramExecutor};
-use file_shell::FileBufferShell;
-use init::initialized_context;
-use interactive_shell::RustylineShell;
 use parking_lot::Mutex;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::interpolate_word;
 use pjsh_parse::{parse, parse_interpolation, ParseError};
+use shell::file_buffer_shell::FileBufferShell;
+use shell::interactive::RustylineShell;
 use shell::Shell;
+use shell::{context::initialized_context, single_command_shell::SingleCommandShell};
 
 /// Init script to always source when starting a new shell.
 const INIT_ALWAYS_SCRIPT_NAME: &str = ".pjsh/init-always.pjsh";
