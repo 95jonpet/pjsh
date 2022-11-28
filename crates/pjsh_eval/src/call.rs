@@ -38,7 +38,7 @@ pub fn call_builtin_command(
     }
 
     let mut io = Io::new(stdin, stdout, stderr);
-    let original_args = context.replace_args(args.to_vec());
+    let original_args = context.replace_args(Some(args.to_vec()));
     let mut args = Args::new(context, &mut io);
     let result = command.run(&mut args);
     context.replace_args(original_args);

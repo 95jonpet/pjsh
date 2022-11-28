@@ -239,18 +239,9 @@ impl Context {
     }
 
     /// Replaces the positional arguments for the current scope and returns its old value.
-    pub fn replace_args(&mut self, args: Vec<String>) -> Vec<String> {
-        let scope_args = self
-            .scopes
-            .iter_mut()
-            .rev()
-            .filter_map(|scope| scope.args.as_mut())
-            .last();
-        if let Some(arg_vec) = scope_args {
-            std::mem::replace(arg_vec, args)
-        } else {
-            Vec::new()
-        }
+    pub fn replace_args(&mut self, args: Option<Vec<String>>) -> Option<Vec<String>> {
+        let scope = self.scopes.last_mut().expect("a scope exists");
+        std::mem::replace(&mut scope.args, args)
     }
 
     /// Returns a slice containing all positional arguments within the current scope.
@@ -535,7 +526,7 @@ mod tests {
             false,
         )]);
 
-        context.replace_args(new_args.clone());
+        context.replace_args(Some(new_args.clone()));
 
         assert_eq!(context.args(), &new_args[..]);
     }

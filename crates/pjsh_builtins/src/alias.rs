@@ -33,7 +33,6 @@ impl Command for Alias {
         NAME
     }
 
-    // fn run(&self, context: &mut Context, io: &mut Io) -> CommandResult {
     fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
         match AliasOpts::try_parse_from(args.context.args()) {
             Ok(opts) => match (opts.name, opts.value) {

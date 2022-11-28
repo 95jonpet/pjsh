@@ -1,11 +1,8 @@
-use std::{fs, path::Path};
-
 use is_executable::is_executable;
 use itertools::chain;
-use pjsh_core::{
-    utils::{path_to_string, resolve_path},
-    Context,
-};
+use pjsh_core::Context;
+
+use super::fs::complete_paths;
 
 /// Completes a word based on a prefix.
 pub fn complete(
@@ -22,20 +19,20 @@ pub fn complete(
             complete_builtins(prefix, context),
             complete_functions(prefix, context),
             complete_variables(prefix, context),
-            complete_paths(prefix, context, ExecutablePath),
+            complete_paths(prefix, context, |path| is_executable(path)),
         )
         .collect();
     }
 
     // Complete paths if starting a new word.
     if prefix.is_empty() {
-        return complete_paths(prefix, context, AnyPath);
+        return complete_paths(prefix, context, |_| true);
     }
 
     // Otherwise, complete a generic argument-like word.
     chain!(
         complete_variables(prefix, context),
-        complete_paths(prefix, context, AnyPath),
+        complete_paths(prefix, context, |_| true),
     )
     .collect()
 }
@@ -84,65 +81,4 @@ fn complete_variables(prefix: &str, context: &Context) -> Vec<String> {
         .filter(|name| name.starts_with(prefix))
         .map(|name| format!("${name}"))
         .collect()
-}
-
-/// Completes a path.
-fn complete_paths(prefix: &str, context: &Context, filter: impl FilterPath) -> Vec<String> {
-    if let Some((dir, file_prefix)) = prefix.rsplit_once('/') {
-        let Ok(files) = fs::read_dir(resolve_path(context, dir)) else {
-            return Vec::default();
-        };
-
-        return files
-            .into_iter()
-            .filter_map(|file| file.ok().map(|f| f.path()))
-            .filter(|path| filter.filter_path(path))
-            .filter_map(|path| Some(format!("{dir}/{}", filtered_file_name(path, file_prefix)?)))
-            .collect();
-    }
-
-    let Ok(Ok(files)) = std::env::current_dir().map(fs::read_dir) else {
-        return Vec::default();
-    };
-
-    files
-        .into_iter()
-        .filter_map(|file| file.ok().map(|f| f.path()))
-        .filter(|path| filter.filter_path(path))
-        .filter_map(|path| filtered_file_name(path, prefix))
-        .collect()
-}
-
-/// Returns a filtered file name.
-fn filtered_file_name<P: AsRef<Path>>(path: P, name_prefix: &str) -> Option<String> {
-    let path_str = path_to_string(path);
-    let (_, file_str) = path_str.rsplit_once('/')?;
-
-    if !file_str.starts_with(name_prefix) {
-        return None;
-    }
-
-    Some(file_str.to_owned())
-}
-
-/// Used to filter a path.
-trait FilterPath {
-    /// Returns true if a path passes the filter.
-    fn filter_path(&self, path: impl AsRef<Path>) -> bool;
-}
-
-/// Used to allow any path.
-struct AnyPath;
-impl FilterPath for AnyPath {
-    fn filter_path(&self, _path: impl AsRef<Path>) -> bool {
-        true
-    }
-}
-
-/// Used to allow executable paths and directories.
-struct ExecutablePath;
-impl FilterPath for ExecutablePath {
-    fn filter_path(&self, path: impl AsRef<Path>) -> bool {
-        path.as_ref().is_dir() || is_executable(path)
-    }
 }

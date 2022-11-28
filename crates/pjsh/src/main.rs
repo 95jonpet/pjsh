@@ -11,6 +11,7 @@ use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
 use exec::{AstPrinter, Execute, ProgramExecutor};
 use parking_lot::Mutex;
+use pjsh_core::Completions;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::interpolate_word;
 use pjsh_parse::{parse, parse_interpolation, ParseError};
@@ -80,13 +81,10 @@ pub fn main() {
         false => opts.script_file.as_ref().map(PathBuf::from),
     };
 
-    let context = Arc::new(Mutex::new(initialized_context(
-        args,
-        script_file,
-        interactive,
-    )));
+    let (context, completions) = initialized_context(args, script_file, interactive);
+    let context = Arc::new(Mutex::new(context));
 
-    let shell = new_shell(&opts, Arc::clone(&context));
+    let shell = new_shell(&opts, Arc::clone(&context), completions);
     source_init_scripts(interactive, executor.as_ref(), Arc::clone(&context));
 
     run_shell(shell, executor.as_ref(), Arc::clone(&context)); // Not guaranteed to exit.
@@ -208,7 +206,11 @@ fn print_parse_error_details(line: &str, error: &ParseError) {
 }
 
 /// Constructs a new shell.
-fn new_shell(opts: &Opts, context: Arc<Mutex<Context>>) -> Box<dyn Shell> {
+fn new_shell(
+    opts: &Opts,
+    context: Arc<Mutex<Context>>,
+    completions: Arc<Mutex<Completions>>,
+) -> Box<dyn Shell> {
     if opts.is_command {
         // The script_file argument is a command rather than a file path.
         let command = opts.script_file.to_owned().expect("command is defined");
@@ -220,7 +222,11 @@ fn new_shell(opts: &Opts, context: Arc<Mutex<Context>>) -> Box<dyn Shell> {
     }
 
     // Construct a new interactive shell if no other arguments are given.
-    Box::new(RustylineShell::new(history_file().as_path(), context))
+    Box::new(RustylineShell::new(
+        history_file().as_path(),
+        context,
+        completions,
+    ))
 }
 
 /// Interrupts the currently running threads and processes in a context.
