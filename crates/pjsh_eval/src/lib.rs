@@ -10,7 +10,7 @@ use pjsh_core::{
     command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
 };
 use words::expand_words;
-pub use words::interpolate_word;
+pub use words::{interpolate_function_call, interpolate_word};
 
 mod call;
 mod error;

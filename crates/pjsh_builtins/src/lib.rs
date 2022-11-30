@@ -1,5 +1,6 @@
 mod alias;
 mod cd;
+mod complete;
 mod echo;
 mod exit;
 mod export;
@@ -18,6 +19,7 @@ pub(crate) mod utils;
 
 pub use alias::Alias;
 pub use cd::Cd;
+pub use complete::Complete;
 pub use echo::Echo;
 pub use exit::Exit;
 pub use export::Export;

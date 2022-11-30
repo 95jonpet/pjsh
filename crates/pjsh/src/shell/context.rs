@@ -1,10 +1,13 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
+use parking_lot::Mutex;
 use pjsh_core::{
-    utils::path_to_string, Context, Host, Scope, StdHost, FD_STDERR, FD_STDIN, FD_STDOUT,
+    utils::path_to_string, Completions, Context, Host, Scope, StdHost, FD_STDERR, FD_STDIN,
+    FD_STDOUT,
 };
 
 /// Constructs a new initialized execution context containing some common environment variables such
@@ -13,20 +16,21 @@ pub fn initialized_context(
     args: Vec<String>,
     script_file: Option<PathBuf>,
     interactive: bool,
-) -> Context {
+) -> (Context, Arc<Mutex<Completions>>) {
     let host = StdHost::default();
     let mut context = Context::with_scopes(vec![
         environment_scope(host, script_file.clone()),
         pjsh_scope(script_file, interactive),
         global_scope(args, interactive),
     ]);
-    register_builtins(&mut context);
+    let completions = Arc::new(Mutex::new(Completions::default()));
+    register_builtins(&mut context, Arc::clone(&completions));
 
     context.set_file_descriptor(FD_STDIN, pjsh_core::FileDescriptor::Stdin);
     context.set_file_descriptor(FD_STDOUT, pjsh_core::FileDescriptor::Stdout);
     context.set_file_descriptor(FD_STDERR, pjsh_core::FileDescriptor::Stderr);
 
-    context
+    (context, completions)
 }
 
 /// Returns a scope containing all environment variables belonging to the
@@ -116,9 +120,10 @@ fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
 }
 
 /// Registers built-in commands in a context.
-fn register_builtins(context: &mut Context) {
+fn register_builtins(context: &mut Context, completions: Arc<Mutex<Completions>>) {
     context.register_builtin(Box::new(pjsh_builtins::Alias));
     context.register_builtin(Box::new(pjsh_builtins::Cd));
+    context.register_builtin(Box::new(pjsh_builtins::Complete::new(completions)));
     context.register_builtin(Box::new(pjsh_builtins::Echo));
     context.register_builtin(Box::new(pjsh_builtins::Exit));
     context.register_builtin(Box::new(pjsh_builtins::Export));

@@ -1,10 +1,7 @@
-mod complete;
-mod utils;
-
 use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
-use pjsh_core::Context;
+use pjsh_core::{Completions, Context};
 use pjsh_parse::Span;
 use rustyline::{
     completion::{Completer, Pair},
@@ -18,8 +15,8 @@ use rustyline_derive::Helper;
 
 use crate::shell::{Shell, ShellInput};
 
-use self::{
-    complete::complete,
+use super::{
+    super::complete::complete,
     utils::{input_words, strip_ansi_escapes},
 };
 
@@ -38,11 +35,16 @@ impl RustylineShell {
     /// Constructs a new shell backed by rustyline.
     ///
     /// Shell command history is read from a file.
-    pub fn new(history_file: &std::path::Path, context: Arc<Mutex<Context>>) -> Self {
+    pub fn new(
+        history_file: &std::path::Path,
+        context: Arc<Mutex<Context>>,
+        completions: Arc<Mutex<Completions>>,
+    ) -> Self {
         let helper = ShellHelper {
             context,
             highlighter: MatchingBracketHighlighter::new(),
             hinter: HistoryHinter {},
+            completions,
             colored_prompt: "$ ".to_owned(),
         };
 
@@ -125,7 +127,7 @@ impl Shell for RustylineShell {
 /// Rustyline shell helper for enhancing the user experience.
 #[derive(Helper)]
 struct ShellHelper {
-    /// Command completer.
+    /// Shell execution context.
     context: Arc<Mutex<Context>>,
 
     /// Text color highlighter.
@@ -133,6 +135,9 @@ struct ShellHelper {
 
     /// Suggestion hinter.
     hinter: HistoryHinter,
+
+    /// Shell completions.
+    completions: Arc<Mutex<Completions>>,
 
     /// Colored shell prompt optionally containing ANSI control sequences.
     colored_prompt: String,
@@ -170,13 +175,19 @@ impl Completer for ShellHelper {
             .map(|(word, _)| word)
             .collect();
 
-        let pairs = complete(prefix, &words, word_index, &self.context.lock())
-            .into_iter()
-            .map(|word| Pair {
-                display: word.clone(),
-                replacement: word,
-            })
-            .collect();
+        let pairs = complete(
+            prefix,
+            &words,
+            word_index,
+            &self.context.lock(),
+            &self.completions.lock(),
+        )
+        .into_iter()
+        .map(|word| Pair {
+            display: word.clone(),
+            replacement: word,
+        })
+        .collect();
         Ok((word.1.start, pairs))
     }
 }

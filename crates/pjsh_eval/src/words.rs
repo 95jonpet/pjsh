@@ -6,12 +6,13 @@ use std::{
 };
 
 use dirs::home_dir;
-use pjsh_ast::{InterpolationUnit, Program, Word};
+use pjsh_ast::{Function, InterpolationUnit, Program, Word};
 use pjsh_core::{utils::path_to_string, Context, FileDescriptor, FD_STDOUT};
 use rand::Rng;
 use tempfile::tempfile;
 
 use crate::{
+    call::call_function,
     error::{EvalError, EvalResult},
     execute_subshell,
 };
@@ -132,13 +133,29 @@ fn interpolate_units(units: &[InterpolationUnit], context: &Context) -> EvalResu
 
 /// Interpolates a subshell.
 fn interpolate_subshell(subshell: &Program, context: &Context) -> EvalResult<String> {
+    interpolate(context, |context| execute_subshell(subshell, context))
+}
+
+/// Interpolates a function call.
+pub fn interpolate_function_call(
+    function: &Function,
+    args: &[String],
+    context: &Context,
+) -> EvalResult<String> {
+    interpolate(context, |mut context| {
+        call_function(function, args, &mut context)
+    })
+}
+
+/// Returns the interpolated stdout of a function.
+fn interpolate(context: &Context, func: impl Fn(Context) -> EvalResult<()>) -> EvalResult<String> {
     let mut inner_context = context.try_clone().map_err(EvalError::ContextCloneFailed)?;
 
     let stdout = tempfile().map_err(EvalError::IoError)?;
     let stdout_fd = FileDescriptor::FileHandle(stdout.try_clone().map_err(EvalError::IoError)?);
     inner_context.set_file_descriptor(FD_STDOUT, stdout_fd);
 
-    execute_subshell(subshell, inner_context)?;
+    func(inner_context)?;
 
     let read_file = |mut file: std::fs::File| {
         let _ = file.seek(std::io::SeekFrom::Start(0));
