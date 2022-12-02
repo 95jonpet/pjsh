@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use is_executable::is_executable;
-use itertools::chain;
-use pjsh_core::Context;
+use itertools::{chain, Itertools};
+use pjsh_core::{paths, Context};
 
 use super::fs::complete_paths;
 
@@ -19,8 +21,11 @@ pub fn complete(
             complete_builtins(prefix, context),
             complete_functions(prefix, context),
             complete_variables(prefix, context),
+            complete_programs(prefix, context),
             complete_paths(prefix, context, |path| is_executable(path)),
         )
+        .unique()
+        .sorted()
         .collect();
     }
 
@@ -34,6 +39,8 @@ pub fn complete(
         complete_variables(prefix, context),
         complete_paths(prefix, context, |_| true),
     )
+    .unique()
+    .sorted()
     .collect()
 }
 
@@ -67,6 +74,30 @@ fn complete_functions(prefix: &str, context: &Context) -> Vec<String> {
         .filter(|name| name.starts_with(prefix))
         .cloned()
         .collect()
+}
+
+/// Completes a program name.
+fn complete_programs(prefix: &str, context: &Context) -> Vec<String> {
+    let mut programs = HashSet::new();
+    for dir in paths(context) {
+        let Ok(files) = std::fs::read_dir(dir) else {
+            continue
+        };
+
+        for file in files {
+            let Ok(file) = file else {
+                continue
+            };
+
+            let name = file.file_name().to_string_lossy().to_string();
+            if !name.starts_with(prefix) || !is_executable(file.path()) {
+                continue;
+            }
+
+            programs.insert(name);
+        }
+    }
+    programs.into_iter().collect()
 }
 
 /// Completes a variable.
