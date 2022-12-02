@@ -45,35 +45,42 @@ pub fn complete(
 }
 
 /// Completes an alias.
-fn complete_aliases(prefix: &str, context: &Context) -> Vec<String> {
-    context
-        .aliases
-        .iter()
-        .map(|(name, _)| name)
-        .filter(|name| name.starts_with(prefix))
-        .cloned()
-        .collect()
+fn complete_aliases<'a>(
+    prefix: &'a str,
+    context: &'a Context,
+) -> impl Iterator<Item = String> + 'a {
+    context.aliases.iter().filter_map(move |(name, _)| {
+        if name.starts_with(prefix) {
+            Some(name.to_string())
+        } else {
+            None
+        }
+    })
 }
 
 /// Completes a built-in function name.
-fn complete_builtins(prefix: &str, context: &Context) -> Vec<String> {
-    context
-        .builtins
-        .iter()
-        .map(|(name, _)| name)
-        .filter(|name| name.starts_with(prefix))
-        .cloned()
-        .collect()
+fn complete_builtins<'a>(
+    prefix: &'a str,
+    context: &'a Context,
+) -> impl Iterator<Item = String> + 'a {
+    context.builtins.iter().filter_map(move |(name, _)| {
+        if name.starts_with(prefix) {
+            Some(name.to_string())
+        } else {
+            None
+        }
+    })
 }
 
 /// Completes a function name.
-fn complete_functions(prefix: &str, context: &Context) -> Vec<String> {
+fn complete_functions<'a>(
+    prefix: &'a str,
+    context: &'a Context,
+) -> impl Iterator<Item = String> + 'a {
     context
         .get_function_names()
-        .iter()
-        .filter(|name| name.starts_with(prefix))
-        .cloned()
-        .collect()
+        .into_iter()
+        .filter(move |name| name.starts_with(prefix))
 }
 
 /// Completes a program name.
