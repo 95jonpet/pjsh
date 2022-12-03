@@ -1,5 +1,5 @@
 pub(crate) mod context;
-pub(crate) mod file_buffer_shell;
+pub(crate) mod input_shell;
 pub(crate) mod interactive;
 pub(crate) mod single_command_shell;
 pub(crate) mod utils;
