@@ -70,11 +70,10 @@ fn source_file(opts: SourceOpts, args: &mut Args) -> CommandResult {
     // This operation is destructive, so the original arguments must be stored temporarily in order
     // to restore the context before exiting.
     let mut args = Vec::with_capacity(opts.args.len() + 1);
-    let source_file_name = opts
-        .file
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| String::from("pjsh"));
+    let source_file_name = opts.file.file_name().map_or_else(
+        || String::from("pjsh"),
+        |name| name.to_string_lossy().to_string(),
+    );
     args.push(source_file_name);
     args.extend(opts.args);
 

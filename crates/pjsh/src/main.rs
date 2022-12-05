@@ -62,9 +62,7 @@ pub fn main() {
     };
 
     let first_arg = match &opts.is_command {
-        true => current_exe()
-            .map(path_to_string)
-            .unwrap_or_else(|_| String::from("pjsh")),
+        true => current_exe().map_or_else(|_| String::from("pjsh"), path_to_string),
         false => opts
             .script_file
             .to_owned()

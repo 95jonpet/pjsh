@@ -80,7 +80,7 @@ impl Command for Complete {
                 if let Some(wordlist) = opts.wordlist {
                     self.completions
                         .lock()
-                        .insert(opts.name, Completion::Constant(words(wordlist)))
+                        .insert(opts.name, Completion::Constant(words(wordlist)));
                 }
 
                 CommandResult::code(status::SUCCESS)

@@ -47,16 +47,14 @@ impl Context {
     pub fn is_interactive(&self) -> bool {
         self.scopes
             .last()
-            .map(|scope| scope.is_interactive)
-            .unwrap_or(false)
+            .map_or(false, |scope| scope.is_interactive)
     }
 
     /// Returns the name of the current scope.
     pub fn name(&self) -> &str {
         self.scopes
             .last()
-            .map(|scope| scope.name.as_str())
-            .unwrap_or("global")
+            .map_or("global", |scope| scope.name.as_str())
     }
 
     /// Constructs a new context from a set of scopes.
@@ -255,12 +253,12 @@ impl Context {
 
     /// Returns the last exit code reported by the shell.
     pub fn last_exit(&self) -> i32 {
-        self.scopes.last().map(|scope| scope.last_exit).unwrap_or(0)
+        self.scopes.last().map_or(0, |scope| scope.last_exit)
     }
 
     pub fn register_exit(&mut self, exit: i32) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.last_exit = exit
+            scope.last_exit = exit;
         }
     }
 

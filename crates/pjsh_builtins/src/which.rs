@@ -53,12 +53,11 @@ fn resolve_command_paths(args: WhichOpts) -> CommandResult {
     for name in args.name {
         let action = Action::ResolveCommandPath(
             name.clone(),
-            Box::new(|name, mut io, path| match path {
-                Some(path) => {
+            Box::new(|name, mut io, path| {
+                if let Some(path) = path {
                     let _ = writeln!(io.stdout, "{}", path_to_string(path));
                     status::SUCCESS
-                }
-                None => {
+                } else {
                     let _ = writeln!(io.stderr, "{NAME}: no '{name}' in path.");
                     status::GENERAL_ERROR
                 }

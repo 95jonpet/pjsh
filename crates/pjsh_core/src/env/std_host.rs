@@ -18,21 +18,21 @@ pub struct StdHost {
 impl Host for StdHost {
     /// Prints a text line to stdout.
     fn println(&mut self, text: &str) {
-        println!("{}", text)
+        println!("{}", text);
     }
 
     /// Prints a text line to stderr.
     fn eprintln(&mut self, text: &str) {
-        eprintln!("{}", text)
+        eprintln!("{}", text);
     }
 
     /// Marks a child process as owned by the host.
     fn add_child_process(&mut self, child: std::process::Child) {
-        self.child_processes.push(child)
+        self.child_processes.push(child);
     }
 
     fn add_thread(&mut self, thread: std::thread::JoinHandle<i32>) {
-        self.threads.push(thread)
+        self.threads.push(thread);
     }
 
     fn kill_all_processes(&mut self) {
@@ -83,11 +83,11 @@ impl Host for StdHost {
     /// Sets the value for an environment variable with a specific key.
     /// Replaces any previously existing variable with the same key.
     fn set_env(&mut self, key: std::ffi::OsString, value: std::ffi::OsString) {
-        std::env::set_var(key, value)
+        std::env::set_var(key, value);
     }
 
     /// Removes an environment variable from the host.
     fn unset_env(&mut self, key: &std::ffi::OsStr) {
-        std::env::remove_var(key)
+        std::env::remove_var(key);
     }
 }

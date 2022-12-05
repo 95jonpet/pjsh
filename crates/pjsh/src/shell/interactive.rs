@@ -157,7 +157,7 @@ impl Completer for ShellHelper {
         // The current position may be inside whitespace following the final word.
         // If this is the case, completions should be provided for a new word with an
         // empty prefix. They should, however, not be provided for the first word.
-        if pos > words.last().map(|(_, pos)| pos.end).unwrap_or(usize::MAX) {
+        if pos > words.last().map_or(usize::MAX, |(_, pos)| pos.end) {
             words.push(("", Span::new(pos, pos)));
         }
 

@@ -183,7 +183,7 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
     for segment in &pipeline.segments {
         match segment {
             pjsh_ast::PipelineSegment::Command(command) => {
-                commands.push(execute_command(command, context)?)
+                commands.push(execute_command(command, context)?);
             }
             pjsh_ast::PipelineSegment::Condition(_) => todo!(),
         }

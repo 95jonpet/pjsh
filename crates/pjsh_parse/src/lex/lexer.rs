@@ -45,7 +45,7 @@ pub fn lex(src: &str, aliases: &HashMap<String, String>) -> Result<Vec<Token>, L
                         aliases.remove(literal);
                         tokens.extend(lex(alias, &aliases)?);
                     } else {
-                        tokens.push(token)
+                        tokens.push(token);
                     }
                 }
                 _ => tokens.push(token),
