@@ -185,7 +185,7 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
             pjsh_ast::PipelineSegment::Command(command) => {
                 commands.push(execute_command(command, context)?);
             }
-            pjsh_ast::PipelineSegment::Condition(_) => todo!(),
+            pjsh_ast::PipelineSegment::Condition(_condition) => todo!(),
         }
     }
 

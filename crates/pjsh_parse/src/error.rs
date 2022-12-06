@@ -18,6 +18,8 @@ pub enum ParseError {
 
     /// Error indicating that the syntax is invalid.
     ///
+    /// Contains an error message.
+    ///
     /// This error is not recoverable.
     InvalidSyntax(String),
 

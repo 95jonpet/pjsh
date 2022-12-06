@@ -1,4 +1,4 @@
-use crate::{Command, Word};
+use crate::{Command, Condition};
 
 /// A pipeline allows multiple programs to be connected using "pipes", sending
 /// one program's output as input for another program.
@@ -24,6 +24,5 @@ pub enum PipelineSegment {
 
     /// A pipable condition.
     /// TODO: How does this type of piping work?
-    /// TODO: Consider extracting discrete conditions.
-    Condition(Vec<Word>),
+    Condition(Condition),
 }

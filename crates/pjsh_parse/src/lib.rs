@@ -9,4 +9,4 @@ pub use lex::{
     input::Span,
     lexer::{lex, lex_interpolation},
 };
-pub use parse::parser::{parse, parse_interpolation};
+pub use parse::{parse, parse_interpolation};

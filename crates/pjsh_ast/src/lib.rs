@@ -1,4 +1,5 @@
 mod command;
+mod condition;
 mod control;
 mod io;
 mod iterable;
@@ -8,6 +9,7 @@ mod program;
 mod word;
 
 pub use command::Command;
+pub use condition::Condition;
 pub use control::{
     ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, IterationRule,
 };

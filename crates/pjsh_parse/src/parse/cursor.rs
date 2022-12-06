@@ -30,16 +30,7 @@ pub struct TokenCursor {
 }
 
 impl TokenCursor {
-    /// Constructs a new cursor for a predefined set of tokens.
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            eof_token: Token::new(TokenContents::Eof, Span::new(0, 0)),
-            tokens: tokens.into_iter().peekable(),
-            newline_mode: NewlineMode::Newline,
-        }
-    }
-
-    /// Returns a reference to the next non-trivial [`Token`] while advancing the cursor past
+    /// Returns a reference to the next non-trivial [`Token`] while advancingblank the cursor past
     /// trivial tokens.
     pub fn peek(&mut self) -> &Token {
         self.skip_trivial_tokens();
@@ -85,6 +76,20 @@ impl TokenCursor {
         let mode = self.newline_mode.clone();
         while is_trivial(self.tokens.peek().unwrap_or(&self.eof_token), &mode) {
             self.tokens.next();
+        }
+    }
+}
+
+impl From<Vec<Token>> for TokenCursor {
+    /// Constructs a new cursor for a predefined set of tokens.
+    fn from(tokens: Vec<Token>) -> Self {
+        let start = tokens.first().map_or(0, |token| token.span.start);
+        let end = tokens.last().map_or(start, |token| token.span.end);
+
+        Self {
+            eof_token: Token::new(TokenContents::Eof, Span::new(start, end)),
+            tokens: tokens.into_iter().peekable(),
+            newline_mode: NewlineMode::Newline,
         }
     }
 }
