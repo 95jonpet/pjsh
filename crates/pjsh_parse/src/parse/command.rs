@@ -6,20 +6,18 @@ use super::{cursor::TokenCursor, utils::unexpected_token, word::parse_word, Pars
 
 /// Tries to parse a [`Command`] from the next tokens of input.
 pub fn parse_command(tokens: &mut TokenCursor) -> ParseResult<Command> {
-    let prefix_redirects = parse_redirects(tokens);
     let mut command = Command::default();
+    command.redirects.extend(parse_redirects(tokens)); // Prefix redirects.
+
+    // A command must include at least one argument denoting the program name.
     command.arg(parse_word(tokens)?);
 
+    // Additional arguments are optional.
     while let Ok(argument) = parse_word(tokens) {
         command.arg(argument);
     }
 
-    for redirect in prefix_redirects {
-        command.redirect(redirect);
-    }
-    for redirect in parse_redirects(tokens) {
-        command.redirect(redirect);
-    }
+    command.redirects.extend(parse_redirects(tokens)); // Suffix redirects.
 
     Ok(command)
 }
@@ -72,6 +70,94 @@ mod tests {
     use crate::{token::Token, Span};
 
     use super::*;
+
+    #[test]
+    fn parse_single_argument_command() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_command(&mut TokenCursor::from(vec![Token::new(
+                TokenContents::Literal("program".into()),
+                span
+            )])),
+            Ok(Command {
+                arguments: vec![Word::Literal("program".into())],
+                redirects: Vec::new(),
+            })
+        )
+    }
+
+    #[test]
+    fn parse_muli_argument_command() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_command(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("program".into()), span),
+                Token::new(TokenContents::Literal("arg".into()), span),
+            ])),
+            Ok(Command {
+                arguments: vec![Word::Literal("program".into()), Word::Literal("arg".into()),],
+                redirects: Vec::new(),
+            })
+        )
+    }
+
+    #[test]
+    fn parse_command_with_prefix_redirects() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_command(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::FdReadTo(0), span),
+                Token::new(TokenContents::Literal("prefix1".into()), span),
+                Token::new(TokenContents::FdWriteFrom(1), span),
+                Token::new(TokenContents::Literal("prefix2".into()), span),
+                Token::new(TokenContents::Literal("program".into()), span),
+            ])),
+            Ok(Command {
+                arguments: vec![Word::Literal("program".into())],
+                redirects: vec![
+                    Redirect {
+                        source: FileDescriptor::File(Word::Literal("prefix1".into())),
+                        target: FileDescriptor::Number(0),
+                        mode: RedirectMode::Write
+                    },
+                    Redirect {
+                        source: FileDescriptor::Number(1),
+                        target: FileDescriptor::File(Word::Literal("prefix2".into())),
+                        mode: RedirectMode::Write
+                    },
+                ],
+            })
+        )
+    }
+
+    #[test]
+    fn parse_command_with_suffix_redirects() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_command(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("program".into()), span),
+                Token::new(TokenContents::FdReadTo(0), span),
+                Token::new(TokenContents::Literal("suffix1".into()), span),
+                Token::new(TokenContents::FdWriteFrom(1), span),
+                Token::new(TokenContents::Literal("suffix2".into()), span),
+            ])),
+            Ok(Command {
+                arguments: vec![Word::Literal("program".into())],
+                redirects: vec![
+                    Redirect {
+                        source: FileDescriptor::File(Word::Literal("suffix1".into())),
+                        target: FileDescriptor::Number(0),
+                        mode: RedirectMode::Write
+                    },
+                    Redirect {
+                        source: FileDescriptor::Number(1),
+                        target: FileDescriptor::File(Word::Literal("suffix2".into())),
+                        mode: RedirectMode::Write
+                    },
+                ],
+            })
+        )
+    }
 
     #[test]
     fn parse_redirect_read() {

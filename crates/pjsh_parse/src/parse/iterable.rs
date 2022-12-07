@@ -4,11 +4,11 @@ use regex::Regex;
 
 use crate::{
     token::{Token, TokenContents},
-    ParseError,
+    ParseError, ParseResult,
 };
 
 /// Parses an iterable.
-pub(crate) fn parse_iterable(word: &str) -> Result<Iterable, ParseError> {
+pub(crate) fn parse_iterable(word: &str) -> ParseResult<Iterable> {
     if let Some(numeric_range) = parse_numeric_range(word) {
         return Ok(Iterable::Range(numeric_range));
     }

@@ -20,7 +20,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 /// Tries to parse a [`Program`] by consuming some input `src` in its entirety.
 /// A [`ParseError`] is returned if a program can't be parsed.
-pub fn parse(src: &str, aliases: &HashMap<String, String>) -> Result<Program, ParseError> {
+pub fn parse(src: &str, aliases: &HashMap<String, String>) -> ParseResult<Program> {
     match crate::lex(src, aliases) {
         Ok(tokens) => parse_program(&mut TokenCursor::from(tokens)),
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
@@ -30,7 +30,7 @@ pub fn parse(src: &str, aliases: &HashMap<String, String>) -> Result<Program, Pa
 
 /// Tries to parse a [`Word`] from within an interpolation.
 /// A [`ParseError`] is returned if a program can't be parsed.
-pub fn parse_interpolation(src: &str) -> Result<Word, ParseError> {
+pub fn parse_interpolation(src: &str) -> ParseResult<Word> {
     match crate::lex_interpolation(src) {
         Ok(token) => parse_word(&mut TokenCursor::from(vec![token])),
         Err(LexError::UnexpectedEof) => Err(ParseError::UnexpectedEof),
