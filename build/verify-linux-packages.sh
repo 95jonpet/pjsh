@@ -40,7 +40,7 @@ verify() {
   echo
   echo "Verifying .${FILE_EXTENSION} package using ${PACKAGE_MANAGER}..."
   echo "${bsep}"
-  MSYS_NO_PATHCONV=1 docker run "${DOCKER_ARGS[@]}" "${DOCKER_IMAGE}" bash -c "
+  docker run "${DOCKER_ARGS[@]}" "${DOCKER_IMAGE}" bash -c "
     set -euo pipefail
 
     # Install pjsh.

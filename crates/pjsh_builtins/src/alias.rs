@@ -51,15 +51,12 @@ impl Command for Alias {
 ///
 /// Returns an exit code.
 fn display_alias(name: &str, args: &mut Args) -> CommandResult {
-    match args.context.aliases.get(name) {
-        Some(value) => {
-            print_alias(name, value, args.io);
-            CommandResult::code(status::SUCCESS)
-        }
-        None => {
-            let _ = writeln!(args.io.stderr, "{NAME}: {name}: not found");
-            CommandResult::code(status::GENERAL_ERROR)
-        }
+    if let Some(value) = args.context.aliases.get(name) {
+        print_alias(name, value, args.io);
+        CommandResult::code(status::SUCCESS)
+    } else {
+        let _ = writeln!(args.io.stderr, "{NAME}: {name}: not found");
+        CommandResult::code(status::GENERAL_ERROR)
     }
 }
 

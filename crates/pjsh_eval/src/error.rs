@@ -4,6 +4,7 @@ use pjsh_core::FileDescriptorError;
 
 pub type EvalResult<T> = Result<T, EvalError>;
 
+#[derive(Debug)]
 pub enum EvalError {
     FileDescriptorError(usize, FileDescriptorError),
     ChildSpawnFailed(std::io::Error),

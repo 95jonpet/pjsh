@@ -20,19 +20,14 @@ use super::{
     utils::{input_words, strip_ansi_escapes},
 };
 
+/// An interactive shell backed by [`rustyline`].
 pub struct RustylineShell {
     /// Rustyline editor.
     editor: Editor<ShellHelper>,
-
-    /// Whether or not the shell is interactive.
-    ///
-    /// TODO: When is this ever false?
-    /// TODO: Consider using a separate streamlined shell when non-interactive.
-    interactive: bool,
 }
 
 impl RustylineShell {
-    /// Constructs a new shell backed by rustyline.
+    /// Constructs a new interactive shell backed by rustyline.
     ///
     /// Shell command history is read from a file.
     pub fn new(
@@ -52,15 +47,8 @@ impl RustylineShell {
         let mut editor = Editor::with_config(config).expect("configure editor");
         editor.set_helper(Some(helper));
 
-        let interactive = atty::is(atty::Stream::Stdin);
-        let mut shell = Self {
-            editor,
-            interactive,
-        };
-
-        if interactive {
-            shell.load_history_file(history_file);
-        }
+        let mut shell = Self { editor };
+        shell.load_history_file(history_file);
 
         shell
     }
@@ -107,7 +95,7 @@ impl Shell for RustylineShell {
     }
 
     fn is_interactive(&self) -> bool {
-        self.interactive
+        true
     }
 
     fn save_history(&mut self, path: &std::path::Path) {
@@ -157,7 +145,7 @@ impl Completer for ShellHelper {
         // The current position may be inside whitespace following the final word.
         // If this is the case, completions should be provided for a new word with an
         // empty prefix. They should, however, not be provided for the first word.
-        if pos > words.last().map(|(_, pos)| pos.end).unwrap_or(usize::MAX) {
+        if pos > words.last().map_or(usize::MAX, |(_, pos)| pos.end) {
             words.push(("", Span::new(pos, pos)));
         }
 

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    env::current_exe,
     path::PathBuf,
     sync::Arc,
 };
@@ -105,9 +106,7 @@ fn pjsh_scope(script_file: Option<PathBuf>, interactive: bool) -> Scope {
 
 /// Returns an empty scope for use as the shell's global scope.
 fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
-    let name = std::env::current_exe()
-        .map(|path| path_to_string(&path))
-        .unwrap_or_else(|_| String::from("pjsh"));
+    let name = current_exe().map_or_else(|_| String::from("pjsh"), |path| path_to_string(&path));
 
     Scope::new(
         name,

@@ -15,7 +15,7 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
         return Some(resolve_path(context, name));
     }
 
-    // Define all possible file extensions that can be matched.
+    // Define all possible file extensions that can be matched implicitly.
     let mut extensions = vec![String::new()]; // Empty string = no file extension.
     if let Some(ext_env) = context.get_var("PATHEXT") {
         extensions.extend(ext_env.split(';').map(str::to_owned));
@@ -31,13 +31,11 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
         })
     });
 
-    for path in possible_paths {
-        if path.exists() {
-            return Some(path.canonicalize().unwrap_or(path));
-        }
-    }
-
-    None
+    // Search through all possible paths for a matching file.
+    possible_paths
+        .into_iter()
+        .find(|path| path.exists())
+        .map(|path| path.canonicalize().unwrap_or(path))
 }
 
 /// Returns a list of all paths in `$PATH` separated by ':' on Unix systems, and
@@ -46,4 +44,20 @@ pub fn paths(context: &Context) -> Vec<PathBuf> {
     let separator = if cfg!(windows) { ';' } else { ':' };
     let path_string = context.get_var("PATH").unwrap_or_default();
     path_string.split(separator).map(PathBuf::from).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_splits_paths() {
+        let separator = if cfg!(windows) { ';' } else { ':' };
+        let mut context = Context::default();
+        context.set_var("PATH".into(), format!("/tmp/a{separator}/var/tmp/b"));
+        assert_eq!(
+            paths(&context),
+            vec![PathBuf::from("/tmp/a"), PathBuf::from("/var/tmp/b")]
+        );
+    }
 }

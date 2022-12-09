@@ -24,8 +24,7 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> String {
 pub fn resolve_path<P: AsRef<OsStr>>(context: &Context, path: P) -> PathBuf {
     let mut resolved_path = context
         .get_var("PWD")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/"));
+        .map_or_else(|| PathBuf::from("/"), PathBuf::from);
     resolved_path.push(path.as_ref());
 
     // Attempt to canonicalize the path into an absolute path.

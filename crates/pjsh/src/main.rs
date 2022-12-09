@@ -5,6 +5,7 @@ mod shell;
 #[cfg(test)]
 mod tests;
 
+use std::fs::File;
 use std::{env::current_exe, path::PathBuf, sync::Arc};
 
 use ansi_term::{Color, Style};
@@ -15,7 +16,7 @@ use pjsh_core::Completions;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::interpolate_word;
 use pjsh_parse::{parse, parse_interpolation, ParseError};
-use shell::file_buffer_shell::FileBufferShell;
+use shell::input_shell::InputShell;
 use shell::interactive::RustylineShell;
 use shell::Shell;
 use shell::{context::initialized_context, single_command_shell::SingleCommandShell};
@@ -61,9 +62,7 @@ pub fn main() {
     };
 
     let first_arg = match &opts.is_command {
-        true => current_exe()
-            .map(path_to_string)
-            .unwrap_or_else(|_| String::from("pjsh")),
+        true => current_exe().map_or_else(|_| String::from("pjsh"), path_to_string),
         false => opts
             .script_file
             .to_owned()
@@ -218,10 +217,16 @@ fn new_shell(
     }
 
     if let Some(script_file) = opts.script_file.to_owned() {
-        return Box::new(FileBufferShell::new(script_file));
+        let file = File::open(script_file).expect("script file should be readable");
+        return Box::new(InputShell::new(file));
     }
 
-    // Construct a new interactive shell if no other arguments are given.
+    // Read input from stdin if stdin is not considered interactive.
+    if !atty::is(atty::Stream::Stdin) {
+        return Box::new(InputShell::new(std::io::stdin()));
+    }
+
+    // Construct a new interactive shell if stdin is considered interactive.
     Box::new(RustylineShell::new(
         history_file().as_path(),
         context,
@@ -260,7 +265,8 @@ fn source_init_scripts(interactive: bool, executor: &dyn Execute, context: Arc<M
             path
         }) {
             if init_script.exists() {
-                let init_shell = Box::new(FileBufferShell::new(init_script));
+                let file = File::open(init_script).expect("script file should be readable");
+                let init_shell = Box::new(InputShell::new(file));
                 run_shell(init_shell, executor, Arc::clone(&context));
             }
         }

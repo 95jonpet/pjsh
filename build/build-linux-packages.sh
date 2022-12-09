@@ -37,9 +37,9 @@ package() {
 
   # Output path (inside the container) for the final package file.
   # The "/out" directory is itself mounted under ${PACKAGE_PATH} on the host.
-  local PACKAGE_FILE="/out/pjsh_${VERSION}-${RELEASE}.${PACKAGE_TYPE}"
+  local PACKAGE_FILE="/out/pjsh_${VERSION}-${RELEASE}_all.${PACKAGE_TYPE}"
 
-  MSYS_NO_PATHCONV=1 docker run \
+  docker run \
     --rm \
     -v "${SCRIPTS_PATH}:/scripts" \
     -v "${RELEASE_PATH}:/src" \
@@ -62,7 +62,7 @@ package() {
     "/src/pjsh=/bin/pjsh"
 
   # Correct file ownership.
-  MSYS_NO_PATHCONV=1 docker run \
+  docker run \
     --rm \
     -v "${PACKAGE_PATH}:/out" \
     "${DOCKER_IMAGE}" \

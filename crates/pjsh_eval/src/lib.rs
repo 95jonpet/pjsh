@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use call::{call_builtin_command, call_external_program, call_function};
+use condition::eval_condition;
 use error::{EvalError, EvalResult};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
@@ -13,6 +14,7 @@ use words::expand_words;
 pub use words::{interpolate_function_call, interpolate_word};
 
 mod call;
+mod condition;
 mod error;
 mod words;
 
@@ -183,9 +185,16 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
     for segment in &pipeline.segments {
         match segment {
             pjsh_ast::PipelineSegment::Command(command) => {
-                commands.push(execute_command(command, context)?)
+                commands.push(execute_command(command, context)?);
             }
-            pjsh_ast::PipelineSegment::Condition(_) => todo!(),
+            pjsh_ast::PipelineSegment::Condition(condition) => {
+                let result = eval_condition(condition, context)?;
+                if result {
+                    commands.push(CommandResult::code(0));
+                } else {
+                    commands.push(CommandResult::code(1))
+                }
+            }
         }
     }
 

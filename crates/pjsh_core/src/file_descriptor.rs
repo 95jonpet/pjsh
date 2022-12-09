@@ -17,6 +17,7 @@ pub const FD_STDOUT: usize = 1;
 pub const FD_STDERR: usize = 2;
 
 /// File descriptor-related errors.
+#[derive(Debug)]
 pub enum FileDescriptorError {
     UnusableForOutput,
     UnusableForInput,

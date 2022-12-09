@@ -12,7 +12,7 @@ pub struct List {
 impl List {
     /// Appends a word to the back of the list.
     pub fn push(&mut self, word: Word) {
-        self.items.push(word)
+        self.items.push(word);
     }
 }
 
