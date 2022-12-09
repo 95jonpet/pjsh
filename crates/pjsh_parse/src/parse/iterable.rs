@@ -24,23 +24,25 @@ fn parse_numeric_range(word: &str) -> Option<NumericRange> {
         static ref RE: Regex = Regex::new(r#"(-?\d+)\.\.(=?)(-?\d+)"#).expect("Compile regex");
     }
 
-    if let Some(captures) = RE.captures(word) {
-        let start = captures[1].parse::<isize>();
-        let is_end_included = &captures[2] == "=";
-        let end = captures[3].parse::<isize>();
+    let Some(captures) = RE.captures(word) else {
+        return  None;
+    };
 
-        if let (Ok(start), Ok(end)) = (start, end) {
-            let end = match is_end_included {
-                true if start > end => end - 1, // Decrementing one more.
-                true => end + 1,                // Incrementing one more.
-                false => end,
-            };
+    let start = captures[1].parse::<isize>();
+    let is_end_included = &captures[2] == "=";
+    let end = captures[3].parse::<isize>();
 
-            return Some(NumericRange::new(start, end));
-        }
-    }
+    let (Ok(start), Ok(end)) = (start, end) else {
+        return None;
+    };
 
-    None
+    let end = match is_end_included {
+        true if start > end => end - 1, // Decrementing one more.
+        true => end + 1,                // Incrementing one more.
+        false => end,
+    };
+
+    return Some(NumericRange::new(start, end));
 }
 
 /// Parses an abstract iteration rule.

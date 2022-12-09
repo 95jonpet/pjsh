@@ -66,17 +66,17 @@ pub(crate) fn parse_list(tokens: &mut TokenCursor) -> Result<List, ParseError> {
 
 /// Parses an interpolation consisting of multiple interpolation units.
 fn parse_interpolation(tokens: &mut TokenCursor) -> ParseResult<Word> {
-    // TODO: Avoid cloning here.
-    if let TokenContents::Interpolation(units) = tokens.peek().contents.clone() {
-        tokens.next(); // Skip matched token.
-        let mut word_units = Vec::with_capacity(units.len());
-        for unit in units {
-            word_units.push(parse_interpolation_unit(unit)?);
-        }
-        Ok(Word::Interpolation(word_units))
-    } else {
-        Err(ParseError::UnexpectedToken(tokens.peek().clone()))
+    let Some(TokenContents::Interpolation(units)) = tokens
+        .next_if(|t| matches!(t.contents, TokenContents::Interpolation(_)))
+        .map(|t| t.contents) else {
+            return Err(unexpected_token(tokens));
+        };
+
+    let mut word_units = Vec::with_capacity(units.len());
+    for unit in units {
+        word_units.push(parse_interpolation_unit(unit)?);
     }
+    Ok(Word::Interpolation(word_units))
 }
 
 /// Parses a single interpolation unit.

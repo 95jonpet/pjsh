@@ -164,11 +164,15 @@ pub(crate) fn parse_for_loop(tokens: &mut TokenCursor) -> Result<Statement, Pars
         match parse_word(tokens) {
             Ok(Word::Literal(literal)) => parse_iterable(&literal)?,
             Ok(_) => return Err(ParseError::InvalidSyntax("expected iterable".to_owned())),
+            Err(ParseError::UnexpectedEof) => return Err(ParseError::IncompleteSequence),
             Err(error) => return Err(error),
         }
     };
 
-    let body = parse_block(tokens)?;
+    let body = parse_block(tokens).map_err(|err| match err {
+        ParseError::UnexpectedEof => ParseError::IncompleteSequence,
+        err => err,
+    })?;
 
     Ok(Statement::ForIn(ForIterableLoop {
         variable,
@@ -307,6 +311,19 @@ mod tests {
                     })]
                 }]
             }))
+        )
+    }
+
+    #[test]
+    fn parse_incomplete_if_statement() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_statement(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("if".into()), span),
+                Token::new(TokenContents::Literal("true".into()), span),
+                Token::new(TokenContents::OpenBrace, span), // Unexpected EOF after this.
+            ])),
+            Err(ParseError::IncompleteSequence)
         )
     }
 
@@ -451,6 +468,19 @@ mod tests {
     }
 
     #[test]
+    fn parse_incomplete_while_loop() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_statement(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("while".into()), span),
+                Token::new(TokenContents::Literal("true".into()), span),
+                Token::new(TokenContents::OpenBrace, span), // Unexpected EOF after this.
+            ])),
+            Err(ParseError::IncompleteSequence)
+        )
+    }
+
+    #[test]
     fn parse_for_in_loop() {
         let span = Span::new(0, 0); // Does not matter during this test.
         assert_eq!(
@@ -498,6 +528,28 @@ mod tests {
                     })]
                 }
             }))
+        );
+    }
+
+    #[test]
+    fn parse_incomplete_for_in_loop() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_for_loop(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("for".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("i".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("in".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::OpenBracket, span),
+                Token::new(TokenContents::Literal("a".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("b".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("c".into()), span), // Unexpected EOF after this.
+            ])),
+            Err(ParseError::IncompleteSequence)
         );
     }
 
