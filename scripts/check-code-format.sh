@@ -8,4 +8,4 @@ APP_DIR="$(realpath "${SCRIPT_DIR}/..")"
 
 cd -- "${APP_DIR}"
 
-find . -name "*.rs" -type f -print0 | xargs -0 rustfmt --check --verbose --
+find . -name "*.rs" -type f -print0 | xargs -r -0 rustfmt --check --

@@ -68,9 +68,45 @@ pipeline {
       post {
         success {
           archiveArtifacts(artifacts: "target/package/*", fingerprint: true)
+          stash(name: 'packages', includes: 'target/package/*')
         }
         cleanup {
           cleanWs()
+        }
+      }
+    }
+    stage("Deploy") {
+      when {
+        branch 'main'
+        beforeAgent true
+      }
+      agent {
+        docker {
+          image "lgatica/openssh-client"
+          args "-u root:root"
+        }
+      }
+      steps {
+        unstash(name: "packages")
+        withCredentials([
+          sshUserPrivateKey(
+            credentialsId: "ssh-peterjonsson.se-deployer",
+            keyFileVariable: "SSH_KEY_FILE",
+            usernameVariable: "SSH_USER"
+          )
+        ]) {
+          sh(
+            label: "Deploy to Debian repo",
+            script: """
+              set -euo pipefail
+              scp -i "\${SSH_KEY_FILE}" \
+                -o "BatchMode yes" -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" \
+                target/package/*.deb "\${SSH_USER}@peterjonsson.se:/var/www/package-repos/deb-repo/pool/main"
+              ssh -i "\${SSH_KEY_FILE}" \
+                -o "BatchMode yes" -o "StrictHostKeyChecking no" -o "UserKnownHostsFile /dev/null" \
+                "\${SSH_USER}@peterjonsson.se" /var/www/package-repos/refresh-deb-repo.sh
+            """
+          )
         }
       }
     }

@@ -42,7 +42,7 @@ fn parse_numeric_range(word: &str) -> Option<NumericRange> {
         false => end,
     };
 
-    return Some(NumericRange::new(start, end));
+    Some(NumericRange::new(start, end))
 }
 
 /// Parses an abstract iteration rule.

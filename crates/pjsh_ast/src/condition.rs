@@ -20,7 +20,6 @@ pub enum Condition {
     IsPath(Word),
 
     // Word-related conditions.
-
     /// True if the given word is empty.
     ///
     /// Typically `[[ -z word ]]`.
