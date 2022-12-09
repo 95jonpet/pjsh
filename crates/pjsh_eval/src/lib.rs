@@ -124,10 +124,9 @@ fn execute_for_iterable_loop(
     context.push_scope(Scope::new(
         format!("{} for-in", context.name()),
         None,
-        Some(HashMap::default()),
-        Some(HashMap::default()),
+        HashMap::default(),
+        HashMap::default(),
         HashSet::default(),
-        context.is_interactive(),
     ));
 
     let mut result = Ok(());

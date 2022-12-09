@@ -79,7 +79,7 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -92,10 +92,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "message".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -116,10 +115,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "first".into(), "second".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -140,10 +138,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["echo".into(), "-n".into(), "message".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);

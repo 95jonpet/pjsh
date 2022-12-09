@@ -82,10 +82,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["interpolate".into(), "word".into()]),
-            Some(HashMap::default()),
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);

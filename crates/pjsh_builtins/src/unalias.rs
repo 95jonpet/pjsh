@@ -62,10 +62,9 @@ mod tests {
         Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(args),
-            Some(HashMap::default()),
-            Some(HashMap::default()),
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )])
     }
 

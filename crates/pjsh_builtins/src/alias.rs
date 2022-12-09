@@ -96,7 +96,7 @@ fn set_alias(context: &mut Context, name: String, value: String) -> CommandResul
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -109,10 +109,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into(), "ls".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.aliases.insert("ls".into(), "ls -lah".into());
         let (mut io, mut stdout, mut stderr) = mock_io();
@@ -135,10 +134,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.aliases.insert("x".into(), "xyz".into());
         ctx.aliases.insert("a".into(), "abc".into());
@@ -165,10 +163,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into(), "name".into(), "value".into()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);

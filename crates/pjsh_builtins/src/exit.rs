@@ -36,7 +36,7 @@ impl Command for Exit {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -49,10 +49,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         ctx.register_exit(17);
@@ -71,10 +70,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned(), "1".to_owned()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let exit = Exit {};
@@ -92,10 +90,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned(), "non-integer".to_owned()]),
-            None,
-            None,
+            HashMap::default(),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let exit = Exit {};

@@ -85,13 +85,12 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["export".into(), "var1".into(), "var2".into()]),
-            Some(HashMap::from([
-                ("var1".into(), "val1".into()),
-                ("var2".into(), "val2".into()),
-            ])),
-            None,
+            HashMap::from([
+                ("var1".into(), Some("val1".into())),
+                ("var2".into(), Some("val2".into())),
+            ]),
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -115,10 +114,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["export".into(), "var=val".into()]),
-            Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(), // No variables are known.
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -141,10 +139,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["export".into(), "var=".into()]),
-            Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(), // No variables are known.
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -167,10 +164,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["export".into(), "var=key=val".into()]),
-            Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(), // No variables are known.
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -193,10 +189,9 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["export".into(), "var1".into(), "var2".into()]),
-            Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(), // No variables are known.
+            HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
