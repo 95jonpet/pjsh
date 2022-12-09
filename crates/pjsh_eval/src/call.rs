@@ -102,7 +102,7 @@ pub fn call_function(
         function.name.clone(),
         Some(Vec::from(args)),
         Some(vars),
-        Some(HashMap::new()),
+        HashMap::new(),
         HashSet::new(),
         false,
     ));

@@ -36,7 +36,7 @@ impl Command for Exit {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -50,7 +50,7 @@ mod tests {
             String::new(),
             Some(vec!["exit".to_owned()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -72,7 +72,7 @@ mod tests {
             String::new(),
             Some(vec!["exit".to_owned(), "1".to_owned()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -93,7 +93,7 @@ mod tests {
             String::new(),
             Some(vec!["exit".to_owned(), "non-integer".to_owned()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);

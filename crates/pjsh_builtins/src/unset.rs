@@ -4,7 +4,7 @@ use pjsh_core::{
     Context,
 };
 
-use crate::utils;
+use crate::{status, utils};
 
 /// Command name.
 const NAME: &str = "unset";
@@ -54,11 +54,11 @@ impl Command for Unset {
 /// Unsets a collection of names in a context.
 ///
 /// Returns an exit code.
-fn unset_names(opts: UnsetOpts, _ctx: &mut Context) -> CommandResult {
+fn unset_names(opts: UnsetOpts, ctx: &mut Context) -> CommandResult {
     match opts.r#type {
-        UnsetType::Function => todo!("unset function"),
+        UnsetType::Function => opts.name.iter().for_each(|f| ctx.unregister_function(f)),
         UnsetType::Variable => todo!("unset variable"), // opts.name.iter().for_each(|name| ctx.scope.unset_env(name)),
     };
 
-    // CommandResult::code(status::SUCCESS)
+    CommandResult::code(status::SUCCESS)
 }

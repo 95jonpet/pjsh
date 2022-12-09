@@ -116,7 +116,7 @@ mod tests {
             String::new(),
             Some(vec!["cd".into(), path_to_string(&path)]),
             Some(HashMap::default()),
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )])
@@ -151,7 +151,7 @@ mod tests {
             String::new(),
             Some(vec!["cd".into()]),
             Some(HashMap::default()),
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -175,7 +175,7 @@ mod tests {
             String::new(),
             Some(vec!["cd".into(), "-".into()]),
             Some(HashMap::default()),
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);

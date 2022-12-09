@@ -63,7 +63,7 @@ mod tests {
             String::new(),
             Some(args),
             Some(HashMap::default()),
-            Some(HashMap::default()),
+            HashMap::default(),
             HashSet::default(),
             false,
         )])

@@ -71,7 +71,7 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
         "environment".to_owned(),
         None,
         Some(vars),
-        None,
+        HashMap::default(),
         HashSet::default(),
         false,
     )
@@ -98,7 +98,7 @@ fn pjsh_scope(script_file: Option<PathBuf>, interactive: bool) -> Scope {
         "pjsh".to_owned(),
         None,
         Some(vars),
-        None,
+        HashMap::default(),
         HashSet::default(),
         interactive,
     )
@@ -112,7 +112,7 @@ fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
         name,
         Some(args),
         Some(HashMap::default()),
-        Some(HashMap::default()),
+        HashMap::default(),
         HashSet::default(),
         interactive,
     )

@@ -96,7 +96,7 @@ fn set_alias(context: &mut Context, name: String, value: String) -> CommandResul
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -110,7 +110,7 @@ mod tests {
             String::new(),
             Some(vec!["alias".into(), "ls".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -136,7 +136,7 @@ mod tests {
             String::new(),
             Some(vec!["alias".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -166,7 +166,7 @@ mod tests {
             String::new(),
             Some(vec!["alias".into(), "name".into(), "value".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);

@@ -89,7 +89,7 @@ mod tests {
                 ("var1".into(), "val1".into()),
                 ("var2".into(), "val2".into()),
             ])),
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -116,7 +116,7 @@ mod tests {
             "scope".into(),
             Some(vec!["export".into(), "var=val".into()]),
             Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -142,7 +142,7 @@ mod tests {
             "scope".into(),
             Some(vec!["export".into(), "var=".into()]),
             Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -168,7 +168,7 @@ mod tests {
             "scope".into(),
             Some(vec!["export".into(), "var=key=val".into()]),
             Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -194,7 +194,7 @@ mod tests {
             "scope".into(),
             Some(vec!["export".into(), "var1".into(), "var2".into()]),
             Some(HashMap::default()), // No variables are known.
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);

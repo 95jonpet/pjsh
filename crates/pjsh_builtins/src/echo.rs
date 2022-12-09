@@ -79,7 +79,7 @@ fn try_print_words(opts: EchoOpts, io: &mut Io) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use pjsh_core::{Context, Scope};
 
@@ -93,7 +93,7 @@ mod tests {
             String::new(),
             Some(vec!["echo".into(), "message".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -117,7 +117,7 @@ mod tests {
             String::new(),
             Some(vec!["echo".into(), "first".into(), "second".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
@@ -141,7 +141,7 @@ mod tests {
             String::new(),
             Some(vec!["echo".into(), "-n".into(), "message".into()]),
             None,
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);

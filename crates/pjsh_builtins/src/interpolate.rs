@@ -83,7 +83,7 @@ mod tests {
             "scope".into(),
             Some(vec!["interpolate".into(), "word".into()]),
             Some(HashMap::default()),
-            None,
+            HashMap::default(),
             HashSet::default(),
             false,
         )]);
