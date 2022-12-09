@@ -85,31 +85,23 @@ impl Context {
 
     /// Returns the value of a variable within the current scope.
     pub fn get_var<'a>(&'a self, name: &str) -> Option<&'a str> {
-        let variable_scopes = self
+        let Some(Some(value)) = self
             .scopes
             .iter()
             .rev()
-            .filter_map(|scope| scope.vars.as_ref());
-        for scope_vars in variable_scopes {
-            if let Some(value) = scope_vars.get(name) {
-                return Some(value);
-            }
-        }
+            .find_map(|scope| scope.vars.get(name)) else {
+                return None;
+            };
 
-        None
+        Some(value)
     }
 
     /// Returns all variable names within the current scope.
     pub fn get_var_names(&self) -> HashSet<String> {
-        let variable_scopes = self
-            .scopes
-            .iter()
-            .rev()
-            .filter_map(|scope| scope.vars.as_ref());
         let mut variables = HashSet::new();
 
-        for scope_variables in variable_scopes {
-            variables.extend(scope_variables.keys().cloned());
+        for scope in &self.scopes {
+            variables.extend(scope.vars.keys().cloned());
         }
 
         variables
@@ -119,32 +111,29 @@ impl Context {
     ///
     /// Parent scopes are not modified.
     pub fn set_var(&mut self, name: String, value: String) -> Option<String> {
-        let scope_vars = self
-            .scopes
-            .iter_mut()
-            .filter_map(|scope| scope.vars.as_mut())
-            .last();
-        if let Some(vars) = scope_vars {
-            vars.insert(name, value)
-        } else {
-            unreachable!("A variable scope should always exist");
-        }
+        let Some(scope) = self.scopes.last_mut() else {
+            return None;
+        };
+
+        scope.vars.insert(name, Some(value)).flatten()
     }
 
     /// Removes the value of a variable within the current scope. Returns the
     /// removed value.
     ///
     /// Parent scopes are not modified.
-    ///
-    /// TODO: Allow parent variables to be hidden when unset in a child scope.
-    pub fn unset_var(&mut self, name: &str) -> Option<String> {
-        if let Some(scope) = self.scopes.last_mut() {
-            if let Some(vars) = &mut scope.vars {
-                return vars.remove(name);
-            }
+    pub fn unset_var(&mut self, name: &str) {
+        let Some(scope) = self.scopes.last_mut() else {
+            return;
+        };
+
+        // Remove the function if it is defined in the current scope.
+        if scope.vars.remove(name).is_some() {
+            return;
         }
 
-        None
+        // Shadow the function if declared in a parent scope.
+        scope.vars.insert(name.to_owned(), None);
     }
 
     /// Exports a variable from the shell's environment, causing the variable to be
@@ -333,7 +322,7 @@ impl Default for Context {
             scopes: vec![Scope::new(
                 "global".to_owned(),
                 Some(Vec::default()),
-                Some(HashMap::default()),
+                HashMap::default(),
                 HashMap::default(),
                 HashSet::default(),
                 false,
@@ -356,7 +345,7 @@ pub struct Scope {
 
     /// A hash map containing variables that have been registered within this scope. More variables
     /// can be available through the [`Context`] itself.
-    vars: Option<HashMap<String, String>>,
+    vars: HashMap<String, Option<String>>,
 
     /// A hash map containing functions that have been registered within this scope. More functions
     /// can be available through the [`Context`] itself.
@@ -384,7 +373,7 @@ impl Scope {
     pub fn new(
         name: String,
         args: Option<Vec<String>>,
-        vars: Option<HashMap<String, String>>,
+        vars: HashMap<String, Option<String>>,
         functions: HashMap<String, Option<Function>>,
         exported_keys: HashSet<String>,
         is_interactive: bool,
@@ -447,7 +436,7 @@ mod tests {
         let interactive = || Scope {
             name: "interactive".to_owned(),
             args: None,
-            vars: None,
+            vars: HashMap::default(),
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: true,
@@ -458,7 +447,7 @@ mod tests {
         let non_interactive = || Scope {
             name: "non-interactive".to_owned(),
             args: None,
-            vars: None,
+            vars: HashMap::default(),
             functions: HashMap::default(),
             exported_keys: HashSet::default(),
             is_interactive: false,
@@ -486,10 +475,10 @@ mod tests {
             Scope {
                 name: "outer".to_owned(),
                 args: None,
-                vars: Some(HashMap::from([
-                    ("outer".to_owned(), "outer".to_owned()),
-                    ("replace".to_owned(), "outer".to_owned()),
-                ])),
+                vars: HashMap::from([
+                    ("outer".to_owned(), Some("outer".to_owned())),
+                    ("replace".to_owned(), Some("outer".to_owned())),
+                ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
@@ -500,10 +489,10 @@ mod tests {
             Scope {
                 name: "inner".to_owned(),
                 args: None,
-                vars: Some(HashMap::from([
-                    ("inner".to_owned(), "inner".to_owned()),
-                    ("replace".to_owned(), "inner".to_owned()),
-                ])),
+                vars: HashMap::from([
+                    ("inner".to_owned(), Some("inner".to_owned())),
+                    ("replace".to_owned(), Some("inner".to_owned())),
+                ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
                 is_interactive: false,
@@ -525,7 +514,7 @@ mod tests {
         let mut context = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["original".to_owned(), "args".to_owned()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -544,7 +533,7 @@ mod tests {
         let mut context = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             None,
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -576,7 +565,7 @@ mod tests {
             Scope::new(
                 "outer".into(),
                 None,
-                None,
+                HashMap::default(),
                 HashMap::from([("outer".to_string(), Some(outer_fn.clone()))]),
                 HashSet::default(),
                 false,
@@ -584,7 +573,7 @@ mod tests {
             Scope::new(
                 "inner".into(),
                 None,
-                None,
+                HashMap::default(),
                 HashMap::from([("inner".to_string(), Some(inner_fn.clone()))]),
                 HashSet::default(),
                 false,
@@ -602,6 +591,41 @@ mod tests {
             context.get_function("outer"),
             Some(&outer_fn),
             "the function should not be dropped from the outer scope"
+        );
+    }
+
+    #[test]
+    fn it_unsets_vars() {
+        let mut context = Context::with_scopes(vec![
+            Scope::new(
+                "outer".into(),
+                None,
+                HashMap::from([("outer".to_string(), Some("outer".into()))]),
+                HashMap::default(),
+                HashSet::default(),
+                false,
+            ),
+            Scope::new(
+                "inner".into(),
+                None,
+                HashMap::from([("inner".to_string(), Some("inner".into()))]),
+                HashMap::default(),
+                HashSet::default(),
+                false,
+            ),
+        ]);
+
+        context.unset_var("outer");
+        context.unset_var("inner");
+
+        assert_eq!(context.get_var("outer"), None);
+        assert_eq!(context.get_var("inner"), None);
+
+        context.pop_scope();
+        assert_eq!(
+            context.get_var("outer"),
+            Some("outer"),
+            "the var should not be dropped from the outer scope"
         );
     }
 }

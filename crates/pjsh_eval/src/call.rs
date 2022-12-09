@@ -97,11 +97,17 @@ pub fn call_function(
     }
 
     // Construct a temporary scope for the function body.
-    let vars = HashMap::from_iter(function.args.iter().cloned().zip(args.iter().cloned()));
+    let vars = HashMap::from_iter(
+        function
+            .args
+            .iter()
+            .cloned()
+            .zip(args.iter().cloned().map(Some)),
+    );
     context.push_scope(Scope::new(
         function.name.clone(),
         Some(Vec::from(args)),
-        Some(vars),
+        vars,
         HashMap::new(),
         HashSet::new(),
         false,

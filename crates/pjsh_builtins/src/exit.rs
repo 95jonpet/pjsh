@@ -49,7 +49,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -71,7 +71,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned(), "1".to_owned()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -92,7 +92,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["exit".to_owned(), "non-integer".to_owned()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,

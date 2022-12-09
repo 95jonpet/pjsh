@@ -109,7 +109,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into(), "ls".into()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -135,7 +135,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,
@@ -165,7 +165,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             String::new(),
             Some(vec!["alias".into(), "name".into(), "value".into()]),
-            None,
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,

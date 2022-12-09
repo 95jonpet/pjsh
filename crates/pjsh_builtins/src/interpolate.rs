@@ -82,7 +82,7 @@ mod tests {
         let mut ctx = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(vec!["interpolate".into(), "word".into()]),
-            Some(HashMap::default()),
+            HashMap::default(),
             HashMap::default(),
             HashSet::default(),
             false,

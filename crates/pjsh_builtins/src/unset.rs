@@ -57,7 +57,7 @@ impl Command for Unset {
 fn unset_names(opts: UnsetOpts, ctx: &mut Context) -> CommandResult {
     match opts.r#type {
         UnsetType::Function => opts.name.iter().for_each(|f| ctx.unregister_function(f)),
-        UnsetType::Variable => todo!("unset variable"), // opts.name.iter().for_each(|name| ctx.scope.unset_env(name)),
+        UnsetType::Variable => opts.name.iter().for_each(|v| ctx.unset_var(v)),
     };
 
     CommandResult::code(status::SUCCESS)
