@@ -112,7 +112,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.aliases.insert("ls".into(), "ls -lah".into());
         let (mut io, mut stdout, mut stderr) = mock_io();
@@ -138,7 +137,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.aliases.insert("x".into(), "xyz".into());
         ctx.aliases.insert("a".into(), "abc".into());
@@ -168,7 +166,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);

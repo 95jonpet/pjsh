@@ -80,7 +80,7 @@ pub fn main() {
         false => opts.script_file.as_ref().map(PathBuf::from),
     };
 
-    let (context, completions) = initialized_context(args, script_file, interactive);
+    let (context, completions) = initialized_context(args, script_file);
     let context = Arc::new(Mutex::new(context));
 
     let shell = new_shell(&opts, Arc::clone(&context), completions);

@@ -95,7 +95,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -119,7 +118,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -143,7 +141,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let (mut io, mut stdout, mut stderr) = mock_io();
         let mut args = Args::new(&mut ctx, &mut io);

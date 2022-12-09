@@ -43,13 +43,6 @@ impl Context {
         })
     }
 
-    /// Returns `true` if the context is interactive.
-    pub fn is_interactive(&self) -> bool {
-        self.scopes
-            .last()
-            .map_or(false, |scope| scope.is_interactive)
-    }
-
     /// Returns the name of the current scope.
     pub fn name(&self) -> &str {
         self.scopes
@@ -325,7 +318,6 @@ impl Default for Context {
                 HashMap::default(),
                 HashMap::default(),
                 HashSet::default(),
-                false,
             )],
             builtins: Default::default(),
         }
@@ -355,9 +347,6 @@ pub struct Scope {
     /// can be available through the [`Context`] itself.
     exported_keys: HashSet<String>,
 
-    /// Determines whether or not user interaction is available within this scope.
-    is_interactive: bool,
-
     /// The exit code reported by the shell.
     last_exit: i32,
 
@@ -376,7 +365,6 @@ impl Scope {
         vars: HashMap<String, Option<String>>,
         functions: HashMap<String, Option<Function>>,
         exported_keys: HashSet<String>,
-        is_interactive: bool,
     ) -> Self {
         Self {
             name,
@@ -384,7 +372,6 @@ impl Scope {
             vars,
             functions,
             exported_keys,
-            is_interactive,
             last_exit: 0,
             file_descriptors: Default::default(),
             temporary_files: Vec::new(),
@@ -404,7 +391,6 @@ impl Scope {
             vars: self.vars.clone(),
             functions: self.functions.clone(),
             exported_keys: self.exported_keys.clone(),
-            is_interactive: self.is_interactive,
             last_exit: self.last_exit,
             file_descriptors,
             temporary_files: self.temporary_files.clone(),
@@ -432,44 +418,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn is_interactive() {
-        let interactive = || Scope {
-            name: "interactive".to_owned(),
-            args: None,
-            vars: HashMap::default(),
-            functions: HashMap::default(),
-            exported_keys: HashSet::default(),
-            is_interactive: true,
-            last_exit: 0,
-            file_descriptors: HashMap::default(),
-            temporary_files: vec![],
-        };
-        let non_interactive = || Scope {
-            name: "non-interactive".to_owned(),
-            args: None,
-            vars: HashMap::default(),
-            functions: HashMap::default(),
-            exported_keys: HashSet::default(),
-            is_interactive: false,
-            last_exit: 0,
-            file_descriptors: HashMap::default(),
-            temporary_files: vec![],
-        };
-        assert!(
-            !Context::with_scopes(vec![]).is_interactive(),
-            "non-interactive by default"
-        );
-        assert!(
-            !Context::with_scopes(vec![interactive(), non_interactive()]).is_interactive(),
-            "non-interactive if last scope is non-interactive"
-        );
-        assert!(
-            Context::with_scopes(vec![non_interactive(), interactive()]).is_interactive(),
-            "interactive if last scope is interactive"
-        );
-    }
-
-    #[test]
     fn get_var() {
         let context = Context::with_scopes(vec![
             Scope {
@@ -481,7 +429,6 @@ mod tests {
                 ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
-                is_interactive: false,
                 last_exit: 0,
                 file_descriptors: HashMap::default(),
                 temporary_files: vec![],
@@ -495,7 +442,6 @@ mod tests {
                 ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
-                is_interactive: false,
                 last_exit: 0,
                 file_descriptors: HashMap::default(),
                 temporary_files: vec![],
@@ -517,7 +463,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
 
         context.replace_args(Some(new_args.clone()));
@@ -536,7 +481,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         context.register_temporary_file(file.clone());
 
@@ -568,7 +512,6 @@ mod tests {
                 HashMap::default(),
                 HashMap::from([("outer".to_string(), Some(outer_fn.clone()))]),
                 HashSet::default(),
-                false,
             ),
             Scope::new(
                 "inner".into(),
@@ -576,7 +519,6 @@ mod tests {
                 HashMap::default(),
                 HashMap::from([("inner".to_string(), Some(inner_fn.clone()))]),
                 HashSet::default(),
-                false,
             ),
         ]);
 
@@ -603,7 +545,6 @@ mod tests {
                 HashMap::from([("outer".to_string(), Some("outer".into()))]),
                 HashMap::default(),
                 HashSet::default(),
-                false,
             ),
             Scope::new(
                 "inner".into(),
@@ -611,7 +552,6 @@ mod tests {
                 HashMap::from([("inner".to_string(), Some("inner".into()))]),
                 HashMap::default(),
                 HashSet::default(),
-                false,
             ),
         ]);
 

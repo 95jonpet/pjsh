@@ -16,13 +16,12 @@ use pjsh_core::{
 pub fn initialized_context(
     args: Vec<String>,
     script_file: Option<PathBuf>,
-    interactive: bool,
 ) -> (Context, Arc<Mutex<Completions>>) {
     let host = StdHost::default();
     let mut context = Context::with_scopes(vec![
         environment_scope(host, script_file.clone()),
-        pjsh_scope(script_file, interactive),
-        global_scope(args, interactive),
+        pjsh_scope(script_file),
+        global_scope(args),
     ]);
     let completions = Arc::new(Mutex::new(Completions::default()));
     register_builtins(&mut context, Arc::clone(&completions));
@@ -79,12 +78,11 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
         vars,
         HashMap::default(),
         HashSet::default(),
-        false,
     )
 }
 
 /// Returns a scope containing shell-specific default variables.
-fn pjsh_scope(script_file: Option<PathBuf>, interactive: bool) -> Scope {
+fn pjsh_scope(script_file: Option<PathBuf>) -> Scope {
     let mut vars = HashMap::from([
         ("PS1".to_owned(), Some("\\$ ".to_owned())),
         ("PS2".to_owned(), Some("> ".to_owned())),
@@ -112,12 +110,11 @@ fn pjsh_scope(script_file: Option<PathBuf>, interactive: bool) -> Scope {
         vars,
         HashMap::default(),
         HashSet::default(),
-        interactive,
     )
 }
 
 /// Returns an empty scope for use as the shell's global scope.
-fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
+fn global_scope(args: Vec<String>) -> Scope {
     let name = current_exe().map_or_else(|_| String::from("pjsh"), |path| path_to_string(&path));
 
     Scope::new(
@@ -126,7 +123,6 @@ fn global_scope(args: Vec<String>, interactive: bool) -> Scope {
         HashMap::default(),
         HashMap::default(),
         HashSet::default(),
-        interactive,
     )
 }
 

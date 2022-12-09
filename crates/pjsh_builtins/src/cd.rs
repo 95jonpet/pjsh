@@ -118,7 +118,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )])
     }
 
@@ -153,7 +152,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.set_var("HOME".into(), path_to_string(&home));
         let (mut io, _stdout, _stderr) = mock_io();
@@ -177,7 +175,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         ctx.set_var("OLDPWD".into(), path_to_string(&oldpwd));
         let (mut io, mut stdout, _stderr) = mock_io();

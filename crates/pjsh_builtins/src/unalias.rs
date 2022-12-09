@@ -65,7 +65,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )])
     }
 

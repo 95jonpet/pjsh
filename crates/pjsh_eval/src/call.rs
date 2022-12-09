@@ -110,7 +110,6 @@ pub fn call_function(
         vars,
         HashMap::new(),
         HashSet::new(),
-        false,
     ));
 
     let result = execute_statements(&function.body.statements, context);

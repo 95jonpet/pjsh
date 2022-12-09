@@ -91,7 +91,6 @@ mod tests {
             ]),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -118,7 +117,6 @@ mod tests {
             HashMap::default(), // No variables are known.
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -144,7 +142,6 @@ mod tests {
             HashMap::default(), // No variables are known.
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -170,7 +167,6 @@ mod tests {
             HashMap::default(), // No variables are known.
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);
@@ -196,7 +192,6 @@ mod tests {
             HashMap::default(), // No variables are known.
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let mut args = Args::new(&mut ctx, &mut io);

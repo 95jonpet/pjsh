@@ -52,7 +52,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         ctx.register_exit(17);
@@ -74,7 +73,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let exit = Exit {};
@@ -95,7 +93,6 @@ mod tests {
             HashMap::default(),
             HashMap::default(),
             HashSet::default(),
-            false,
         )]);
         let mut io = empty_io();
         let exit = Exit {};

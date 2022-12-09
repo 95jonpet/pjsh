@@ -127,7 +127,6 @@ fn execute_for_iterable_loop(
         HashMap::default(),
         HashMap::default(),
         HashSet::default(),
-        context.is_interactive(),
     ));
 
     let mut result = Ok(());
