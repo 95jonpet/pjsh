@@ -1,2 +1,4 @@
-Perfectly Justified SHell
- PJSH is a shell for the modern age.
+perfectly justified shell
+
+PJSH is a UNIX command interpreter (shell).
+It can be used both interactively or with script files.
