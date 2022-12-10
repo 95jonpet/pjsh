@@ -15,6 +15,8 @@ SCRIPTS_PATH="$(realpath "${SCRIPTS_PATH}")"
 RELEASE_PATH="$(realpath "${RELEASE_PATH}")"
 PACKAGE_PATH="$(realpath "${PACKAGE_PATH}")"
 
+DESCRIPTION="$(cat "${SCRIPTS_PATH}/description.txt")"
+
 if [[ ! -d "${RELEASE_PATH}" ]]; then
   echo "ERROR: The software has not been build. Nothing to package." >&2
   exit 1
@@ -54,7 +56,7 @@ package() {
     --iteration "${RELEASE}" \
     --architecture all \
     --license mit \
-    --description "A non-POIX shell for the modern age" \
+    --description "${DESCRIPTION}" \
     --url "https://peterjonsson.se/shell" \
     --maintainer "Peter Jonsson" \
     --after-install "/scripts/after-install.sh" \

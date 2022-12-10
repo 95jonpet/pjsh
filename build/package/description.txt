@@ -1,0 +1,2 @@
+Perfectly Justified SHell
+ PJSH is a shell for the modern age.

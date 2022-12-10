@@ -37,7 +37,7 @@ const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
     version(crate_version!())
 )]
 struct Opts {
-    /// Treat the first argument as a command rather than a script file.
+    /// Execute a command rather than a script file.
     #[clap(short('c'), long("command"), requires("script_file"))]
     is_command: bool,
 
