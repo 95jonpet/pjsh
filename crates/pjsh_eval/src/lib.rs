@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use call::{call_builtin_command, call_external_program, call_function};
 use condition::eval_condition;
-use error::{EvalError, EvalResult};
+pub use error::{EvalError, EvalResult};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
     ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Word,
