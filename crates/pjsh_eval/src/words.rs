@@ -227,7 +227,15 @@ mod tests {
     use pjsh_ast::Word;
     use pjsh_core::{Context, Scope};
 
-    use crate::interpolate_word;
+    use super::*;
+
+    #[test]
+    fn it_expands_empty_words() {
+        assert_eq!(
+            expand_words(&[], &Context::default()).unwrap(),
+            Vec::<String>::default()
+        );
+    }
 
     #[test]
     fn it_interpolates_words() {
