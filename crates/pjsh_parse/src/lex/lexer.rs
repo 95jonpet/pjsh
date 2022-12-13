@@ -62,7 +62,7 @@ pub fn lex_interpolation(src: &str) -> Result<Token, LexError> {
     let mut lexer = Lexer::new(src);
     let interpolation = lexer.eat_interpolation(None)?;
 
-    debug_assert_eq!(lexer.input.peek().1, EOF, "the input should be consumed");
+    assert_eq!(lexer.input.peek().1, EOF, "the input should be consumed");
 
     Ok(interpolation)
 }
@@ -116,7 +116,7 @@ impl<'a> Lexer<'a> {
 
     /// Returns the next token in unquoted mode.
     fn next_unquoted_token(&mut self) -> LexResult<'a> {
-        debug_assert_eq!(self.mode, LexerMode::Unquoted);
+        assert_eq!(self.mode, LexerMode::Unquoted);
         match self.input.peek().1 {
             '#' => self.eat_comment(),
             '|' => self.eat_pipe_or_orif(),
@@ -150,7 +150,7 @@ impl<'a> Lexer<'a> {
 
     /// Returns the next token in quoted mode.
     fn next_quoted_token(&mut self, delimiter: char) -> LexResult<'a> {
-        debug_assert_eq!(self.mode, LexerMode::Quoted(delimiter));
+        assert_eq!(self.mode, LexerMode::Quoted(delimiter));
         let is_quoted = |ch: char| ch != delimiter && ch != '\\';
         match self.input.peek().1 {
             EOF => Err(LexError::UnexpectedEof),
@@ -180,7 +180,7 @@ impl<'a> Lexer<'a> {
 
     /// Returns the next token in quoted multiline mode.
     fn next_quoted_multiline_token(&mut self, delimiter: char) -> LexResult<'a> {
-        debug_assert_eq!(self.mode, LexerMode::QuotedMultiline(delimiter));
+        assert_eq!(self.mode, LexerMode::QuotedMultiline(delimiter));
         let start = self.input.peek().0;
         let mut contents = String::new();
 
@@ -375,7 +375,7 @@ impl<'a> Lexer<'a> {
 
     /// Eats an expandable value that starts with a `$` character.
     fn eat_expandable(&mut self) -> LexResult<'a> {
-        debug_assert!(self.input.peek().1 == '$');
+        assert!(self.input.peek().1 == '$');
         let span_start = self.input.next().0;
 
         let result = match self.input.peek().1 {
@@ -395,7 +395,7 @@ impl<'a> Lexer<'a> {
         let delimiter_char = delimiter.unwrap_or(EOF);
         let start = self.input.peek().0;
         if delimiter.is_some() {
-            debug_assert!(self.input.peek().1 == delimiter.unwrap());
+            assert!(self.input.peek().1 == delimiter.unwrap());
             self.input.next();
         }
         let mut units = Vec::new();

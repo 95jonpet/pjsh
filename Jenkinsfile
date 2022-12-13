@@ -2,8 +2,9 @@ pipeline {
   agent none
   environment {
     BASE_VERSION ="0.1.0"
-    VERSION = "${env.BASE_VERSION}${env.BRANCH_NAME == 'main' ? '-SNAPSHOT' : "~${env.BRANCH_NAME}"}"
+    VERSION = "${env.BASE_VERSION}${env.BRANCH_NAME == "main" ? "-SNAPSHOT" : "~${env.BRANCH_NAME}"}"
     CARGO_HOME = "/.cargo"
+    CARGO_TARGET_DIR = "/.cargo-target"
   }
   options {
     timeout(time: 1, unit: "HOURS")
@@ -15,12 +16,12 @@ pipeline {
         stage("Test") {
           agent {
             dockerfile {
-              args "-v /jenkins-cache/cargo:${CARGO_HOME}"
+              args "-v /jenkins-cache/\${EXECUTOR_NUMBER}/cargo:${CARGO_HOME} -v /jenkins-cache/\${EXECUTOR_NUMBER}/cargo-target:${CARGO_TARGET_DIR}"
             }
           }
           steps {
             sh label: "Run tests", script: "cargo test --locked"
-            sh label: "Run linter", script: "cargo clippy -- -D warnings"
+            sh label: "Run linter", script: "cargo clippy -- --no-deps -D warnings"
             sh label: "Run rustfmt", script: "scripts/check-code-format.sh"
           }
           post {
@@ -32,7 +33,7 @@ pipeline {
         stage("Build (Linux)") {
           agent {
             dockerfile {
-              args "-v /jenkins-cache/cargo:${CARGO_HOME}"
+              args "-v /jenkins-cache/\${EXECUTOR_NUMBER}/cargo:${CARGO_HOME} -v /jenkins-cache/\${EXECUTOR_NUMBER}/cargo-target:${CARGO_TARGET_DIR}"
             }
           }
           steps {
@@ -40,6 +41,10 @@ pipeline {
           }
           post {
             success {
+              sh label: "Copy built binary", script: """
+                mkdir -p target/release
+                cp '${CARGO_TARGET_DIR}/release/pjsh' target/release
+              """
               stash(name: "linux-binary", includes: "target/release/pjsh")
             }
             cleanup {
@@ -68,7 +73,7 @@ pipeline {
       post {
         success {
           archiveArtifacts(artifacts: "target/package/*", fingerprint: true)
-          stash(name: 'packages', includes: 'target/package/*')
+          stash(name: "packages", includes: "target/package/*")
         }
         cleanup {
           cleanWs()
@@ -77,7 +82,7 @@ pipeline {
     }
     stage("Deploy") {
       when {
-        branch 'main'
+        branch "main"
         beforeAgent true
       }
       agent {
