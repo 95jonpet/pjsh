@@ -60,8 +60,7 @@ pub(crate) fn parse_statement(tokens: &mut TokenCursor) -> ParseResult<Statement
     if assignment_iter.peek().contents == TokenContents::Assign {
         let key = parse_word(tokens)?;
 
-        debug_assert_eq!(tokens.peek().contents, TokenContents::Assign);
-        tokens.next();
+        take_token(tokens, &TokenContents::Assign)?;
 
         let value = parse_word(tokens)?;
         return Ok(Statement::Assignment(Assignment { key, value }));

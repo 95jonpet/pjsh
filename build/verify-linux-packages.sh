@@ -49,7 +49,6 @@ verify() {
       -exec '${PACKAGE_MANAGER}' install -y $* {} \;
 
     # Run all examples using pjsh.
-    # find /examples -name '*.pjsh' -exec pjsh -- {} \;
     for example in /examples/*.pjsh; do
       echo
       echo \"Running \${example}:\"
