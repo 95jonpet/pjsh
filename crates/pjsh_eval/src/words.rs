@@ -219,3 +219,44 @@ fn substitute_process(process: &Program, context: &Context) -> EvalResult<String
 
     Ok(stdout_path_string)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use pjsh_ast::Word;
+    use pjsh_core::{Context, Scope};
+
+    use super::*;
+
+    #[test]
+    fn it_expands_empty_words() {
+        assert_eq!(
+            expand_words(&[], &Context::default()).unwrap(),
+            Vec::<String>::default()
+        );
+    }
+
+    #[test]
+    fn it_interpolates_words() {
+        let context = Context::with_scopes(vec![Scope::new(
+            "scope".into(),
+            Some(Vec::default()),
+            HashMap::from([("var".into(), Some("val".into()))]),
+            HashMap::default(),
+            HashSet::default(),
+        )]);
+        assert_eq!(
+            interpolate_word(&Word::Literal("literal".into()), &context).unwrap_or("ERROR".into()),
+            "literal",
+        );
+        assert_eq!(
+            interpolate_word(&Word::Quoted("two words".into()), &context).unwrap_or("ERROR".into()),
+            "two words",
+        );
+        assert_eq!(
+            interpolate_word(&Word::Variable("var".into()), &context).unwrap_or("ERROR".into()),
+            "val",
+        );
+    }
+}

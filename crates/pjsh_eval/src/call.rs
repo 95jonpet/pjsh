@@ -118,3 +118,46 @@ pub fn call_function(
 
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use pjsh_core::FileDescriptor;
+
+    use super::*;
+
+    #[derive(Clone)]
+    struct MyBuiltin;
+    impl Command for MyBuiltin {
+        fn name(&self) -> &str {
+            "mybuiltin"
+        }
+
+        fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+            CommandResult::code(0)
+        }
+    }
+
+    #[test]
+    fn test_call_builtin_command() -> EvalResult<()> {
+        let mut context = Context::with_scopes(vec![Scope::new(
+            "scope".into(),
+            None,
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+        )]);
+
+        context.set_file_descriptor(FD_STDIN, FileDescriptor::Null);
+        context.set_file_descriptor(FD_STDOUT, FileDescriptor::Null);
+        context.set_file_descriptor(FD_STDERR, FileDescriptor::Null);
+
+        let command = MyBuiltin;
+
+        let CommandResult::Builtin(result) =
+            call_builtin_command(&command, &["mybuiltin".into()], &mut context)? else {
+                unreachable!()
+            };
+        assert_eq!(result.code, 0);
+        Ok(())
+    }
+}

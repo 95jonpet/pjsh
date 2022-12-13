@@ -30,22 +30,34 @@ pub enum FileDescriptorError {
 pub enum FileDescriptor {
     /// Handle for [`std::io::stdin()`].
     Stdin,
+
     /// Handle for [`std::io::stdout()`].
     Stdout,
+
     /// Handle for [`std::io::stderr()`].
     Stderr,
+
     /// A pipe with a [`PipeReader`] output and a [`PipeWriter`] input.
     Pipe((PipeReader, PipeWriter)),
+
     /// A file handle to an opened file.
     FileHandle(File),
+
     /// A file path. Can be used for reading and/or writing.
     ///
     /// Converted to a [`FileDescriptor::FileHandle(File)`] on use.
     File(PathBuf),
+
     /// A file path for appending data to. Can only be used for writing.
     ///
     /// Converted to a [`FileDescriptor::FileHandle(File)`] on use.
     AppendFile(PathBuf),
+
+    /// An empty void.
+    /// Provides nothing when read from and consumes everything when written to.
+    ///
+    /// This behavior mimics that of `/dev/null`.
+    Null,
 }
 
 impl FileDescriptor {
@@ -62,6 +74,7 @@ impl FileDescriptor {
             FileDescriptor::FileHandle(file) => Ok(FileDescriptor::FileHandle(file.try_clone()?)),
             FileDescriptor::File(path) => Ok(FileDescriptor::File(path.clone())),
             FileDescriptor::AppendFile(path) => Ok(FileDescriptor::AppendFile(path.clone())),
+            FileDescriptor::Null => Ok(FileDescriptor::Null),
         }
     }
 
@@ -89,6 +102,7 @@ impl FileDescriptor {
                     Err(error) => Err(FileDescriptorError::FileNotWritable(path.clone(), error)),
                 }
             }
+            FileDescriptor::Null => Ok(Stdio::null()),
         }
     }
 
@@ -107,6 +121,7 @@ impl FileDescriptor {
                 Err(error) => Err(FileDescriptorError::FileNotReadable(path.clone(), error)),
             },
             FileDescriptor::AppendFile(_) => unreachable!(),
+            FileDescriptor::Null => Ok(Stdio::null()),
             _ => self.output(),
         }
     }
@@ -127,6 +142,7 @@ impl FileDescriptor {
             },
             FileDescriptor::FileHandle(file) => Ok(Box::new(file.try_clone().unwrap())),
             FileDescriptor::AppendFile(_) => unreachable!(),
+            FileDescriptor::Null => Ok(Box::new(io::empty())),
         }
     }
 
@@ -154,6 +170,7 @@ impl FileDescriptor {
                     Err(error) => Err(FileDescriptorError::FileNotWritable(path.clone(), error)),
                 }
             }
+            FileDescriptor::Null => Ok(Box::new(io::sink())),
         }
     }
 }
