@@ -36,13 +36,13 @@ pub fn initialized_context(
 /// Returns a scope containing all environment variables belonging to the
 /// current process.
 fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
-    let mut vars: HashMap<String, Option<String>> = host
+    let mut vars: HashMap<String, Option<pjsh_core::Value>> = host
         .env_vars()
         .iter()
         .map(|(key, value)| {
             (
                 key.to_string_lossy().to_string(),
-                Some(value.to_string_lossy().to_string()),
+                Some(pjsh_core::Value::Word(value.to_string_lossy().to_string())),
             )
         })
         .collect();
@@ -53,12 +53,12 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
             let file = file.canonicalize().unwrap_or(file);
             vars.insert(
                 "PJSH_INITIAL_SCRIPT_PATH".to_owned(),
-                Some(path_to_string(&file)),
+                Some(pjsh_core::Value::Word(path_to_string(&file))),
             );
             if let Some(dir) = file.parent() {
                 vars.insert(
                     "PJSH_INITIAL_SCRIPT_DIR".to_owned(),
-                    Some(path_to_string(dir)),
+                    Some(pjsh_core::Value::Word(path_to_string(dir))),
                 );
             }
         }
@@ -68,7 +68,10 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
     // shell built-ins require it to work efficiently.
     if !vars.contains_key("PWD") {
         if let Ok(pwd) = std::env::current_dir() {
-            vars.insert("PWD".to_owned(), Some(path_to_string(pwd)));
+            vars.insert(
+                "PWD".to_owned(),
+                Some(pjsh_core::Value::Word(path_to_string(pwd))),
+            );
         }
     }
 
@@ -84,9 +87,18 @@ fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
 /// Returns a scope containing shell-specific default variables.
 fn pjsh_scope(script_file: Option<PathBuf>) -> Scope {
     let mut vars = HashMap::from([
-        ("PS1".to_owned(), Some("\\$ ".to_owned())),
-        ("PS2".to_owned(), Some("> ".to_owned())),
-        ("PS4".to_owned(), Some("+ ".to_owned())),
+        (
+            "PS1".to_owned(),
+            Some(pjsh_core::Value::Word("\\$ ".to_owned())),
+        ),
+        (
+            "PS2".to_owned(),
+            Some(pjsh_core::Value::Word("> ".to_owned())),
+        ),
+        (
+            "PS4".to_owned(),
+            Some(pjsh_core::Value::Word("+ ".to_owned())),
+        ),
     ]);
 
     // Inject the current script path if known.
@@ -94,12 +106,12 @@ fn pjsh_scope(script_file: Option<PathBuf>) -> Scope {
         let file = file.canonicalize().unwrap_or(file);
         vars.insert(
             "PJSH_CURRENT_SCRIPT_PATH".to_owned(),
-            Some(path_to_string(&file)),
+            Some(pjsh_core::Value::Word(path_to_string(&file))),
         );
         if let Some(dir) = file.parent() {
             vars.insert(
                 "PJSH_CURRENT_SCRIPT_DIR".to_owned(),
-                Some(path_to_string(dir)),
+                Some(pjsh_core::Value::Word(path_to_string(dir))),
             );
         }
     }

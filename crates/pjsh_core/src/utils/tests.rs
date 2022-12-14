@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::Context;
+use crate::{env::context::Value, Context};
 
 #[test]
 fn path_to_string() {
@@ -28,7 +28,7 @@ fn resolve_path() {
     );
 
     let mut linux_context = Context::default();
-    linux_context.set_var("PWD".into(), "/home/user".into());
+    linux_context.set_var("PWD".into(), Value::Word("/home/user".into()));
     assert_eq!(
         super::resolve_path(&linux_context, "relative"),
         PathBuf::from("/home/user/relative")

@@ -1,5 +1,5 @@
 use crate::{
-    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, Pipeline, Word,
+    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, List, Pipeline, Word,
 };
 
 /// A statement is an evaluable and/or executable piece of code.
@@ -30,6 +30,15 @@ pub enum Statement {
     Subshell(Program),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Value {
+    /// A list value with 0 or more elements.
+    List(List),
+
+    /// A word value.
+    Word(Word),
+}
+
 /// Assigns a value to a named key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assignment {
@@ -37,12 +46,12 @@ pub struct Assignment {
     pub key: Word,
 
     /// The value to assign.
-    pub value: Word,
+    pub value: Value,
 }
 
 impl Assignment {
     /// Constructs a new assignment.
-    pub fn new(key: Word, value: Word) -> Self {
+    pub fn new(key: Word, value: Value) -> Self {
         Self { key, value }
     }
 }
@@ -155,7 +164,7 @@ mod tests {
     fn block_statements_can_be_appended() {
         let statement = Statement::Assignment(Assignment {
             key: Word::Literal("key".into()),
-            value: Word::Literal("value".into()),
+            value: Value::Word(Word::Literal("value".into())),
         });
         let mut block = Block::default();
         block.statement(statement.clone());
@@ -166,7 +175,7 @@ mod tests {
     fn program_statements_can_be_appended() {
         let statement = Statement::Assignment(Assignment {
             key: Word::Literal("key".into()),
-            value: Word::Literal("value".into()),
+            value: Value::Word(Word::Literal("value".into())),
         });
         let mut program = Program::default();
         program.statement(statement.clone());

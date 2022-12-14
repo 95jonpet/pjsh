@@ -1,0 +1,12 @@
+#!/bin/pjsh
+
+list := [
+  literal
+  ${HOME}
+  "quoted word"
+]
+
+echo `List length: ${list | len}`
+echo `Element #0: ${list[0]}`
+echo `Element #1: ${list[1]}`
+echo `Element #2: ${list[2]}`

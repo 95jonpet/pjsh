@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use pjsh_ast::{AndOr, Assignment, Command, Pipeline, PipelineSegment, Statement, Word};
+use pjsh_ast::{AndOr, Assignment, Command, Pipeline, PipelineSegment, Statement, Value, Word};
 use pjsh_core::{Context, Scope};
 use pjsh_eval::{execute_statement, EvalResult};
 
@@ -28,11 +28,14 @@ fn it_assigns_variables() {
 
     let statement = Statement::Assignment(Assignment {
         key: Word::Literal("key".into()),
-        value: Word::Literal("value".into()),
+        value: Value::Word(Word::Literal("value".into())),
     });
 
     assert!(execute_statement(&statement, &mut context).is_ok());
-    assert_eq!(context.get_var("key"), Some("value"));
+    assert_eq!(
+        context.get_var("key"),
+        Some(&pjsh_core::Value::Word("value".into()))
+    );
 }
 
 #[test]

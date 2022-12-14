@@ -52,7 +52,7 @@ pub(crate) fn parse_list(tokens: &mut TokenCursor) -> Result<List, ParseError> {
             TokenContents::Eof => return Err(ParseError::IncompleteSequence),
             TokenContents::CloseBracket => break,
             _ => {
-                list.push(parse_word(tokens)?);
+                list.items.push(parse_word(tokens)?);
             }
         }
     }

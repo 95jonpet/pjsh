@@ -6,8 +6,11 @@ use std::{
 };
 
 use dirs::home_dir;
-use pjsh_ast::{Function, InterpolationUnit, Program, Word};
-use pjsh_core::{utils::path_to_string, Context, FileDescriptor, FD_STDOUT};
+use pjsh_ast::{Function, InterpolationUnit, List, Program, Word};
+use pjsh_core::{
+    utils::{path_to_string, word_var},
+    Context, FileDescriptor, Value, FD_STDOUT,
+};
 use rand::Rng;
 use tempfile::tempfile;
 
@@ -92,11 +95,19 @@ fn expand_asterisk(word: String) -> VecDeque<String> {
 /// Expands the tilde (`~`) symbol.
 fn expand_tilde(word: &mut String, context: &Context) {
     if word.starts_with('~') {
-        let home = context.get_var("HOME").unwrap_or("/");
+        let home = word_var(context, "HOME").unwrap_or("/");
 
         // Replace the word.
         *word = word.replacen('~', home, 1);
     }
+}
+
+pub(crate) fn interpolate_list(list: &List, context: &Context) -> EvalResult<Vec<String>> {
+    let mut words = Vec::with_capacity(list.items.len());
+    for word in &list.items {
+        words.push(interpolate_word(word, context)?);
+    }
+    Ok(words)
 }
 
 /// Interpolates a word.
@@ -195,7 +206,10 @@ fn interpolate_variable(variable_name: &str, context: &Context) -> EvalResult<St
             |path| Ok(path_to_string(path)),
         ),
         _ => match context.get_var(variable_name) {
-            Some(value) => Ok(value.to_owned()),
+            Some(Value::Word(word)) => Ok(word.to_owned()),
+            Some(Value::List(_)) => Err(EvalError::InvalidListInterpolation(
+                variable_name.to_owned(),
+            )),
             None => Err(EvalError::UndefinedVariable(variable_name.to_owned())),
         },
     }
@@ -242,7 +256,7 @@ mod tests {
         let context = Context::with_scopes(vec![Scope::new(
             "scope".into(),
             Some(Vec::default()),
-            HashMap::from([("var".into(), Some("val".into()))]),
+            HashMap::from([("var".into(), Some(Value::Word("val".into())))]),
             HashMap::default(),
             HashSet::default(),
         )]);

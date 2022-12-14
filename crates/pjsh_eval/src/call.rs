@@ -9,7 +9,8 @@ use std::{
 use pjsh_ast::Function;
 use pjsh_core::{
     command::{Args, Command, CommandResult, Io},
-    Context, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
+    utils::word_var,
+    Context, Scope, Value, FD_STDERR, FD_STDIN, FD_STDOUT,
 };
 
 use crate::{
@@ -57,7 +58,7 @@ pub fn call_external_program<P: AsRef<Path>>(
 
     // Spawn the new process within the context's working directory rather than that
     // of the current process.
-    if let Some(path) = context.get_var("PWD") {
+    if let Some(path) = word_var(context, "PWD") {
         cmd.current_dir(path);
     }
 
@@ -102,7 +103,7 @@ pub fn call_function(
             .args
             .iter()
             .cloned()
-            .zip(args.iter().cloned().map(Some)),
+            .zip(args.iter().cloned().map(Value::Word).map(Some)),
     );
     context.push_scope(Scope::new(
         function.name.clone(),

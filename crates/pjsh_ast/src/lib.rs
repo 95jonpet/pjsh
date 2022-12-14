@@ -17,5 +17,5 @@ pub use io::{FileDescriptor, Redirect, RedirectMode};
 pub use iterable::{Iterable, NumericRange};
 pub use list::List;
 pub use pipeline::{Pipeline, PipelineSegment};
-pub use program::{AndOr, AndOrOp, Assignment, Block, Function, Program, Statement};
+pub use program::{AndOr, AndOrOp, Assignment, Block, Function, Program, Statement, Value};
 pub use word::{InterpolationUnit, Word};

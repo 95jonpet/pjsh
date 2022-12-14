@@ -5,12 +5,13 @@ use condition::eval_condition;
 pub use error::{EvalError, EvalResult};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
-    ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Word,
+    ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Value,
+    Word,
 };
 use pjsh_core::{
     command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
 };
-use words::expand_words;
+use words::{expand_words, interpolate_list};
 pub use words::{interpolate_function_call, interpolate_word};
 
 mod call;
@@ -52,7 +53,10 @@ pub fn execute_statement(statement: &Statement, context: &mut Context) -> EvalRe
 /// Executes an assignment.
 fn execute_assignment(assignment: &Assignment, context: &mut Context) -> EvalResult<()> {
     let key = interpolate_word(&assignment.key, context)?;
-    let value = interpolate_word(&assignment.value, context)?;
+    let value = match &assignment.value {
+        Value::List(list) => pjsh_core::Value::List(interpolate_list(list, context)?),
+        Value::Word(word) => pjsh_core::Value::Word(interpolate_word(word, context)?),
+    };
     context.set_var(key, value);
     Ok(())
 }
@@ -132,7 +136,9 @@ fn execute_for_iterable_loop(
     let mut result = Ok(());
     for word in for_iterable.iterable {
         match interpolate_word(&word, context) {
-            Ok(value) => context.set_var(for_iterable.variable.clone(), value),
+            Ok(value) => {
+                context.set_var(for_iterable.variable.clone(), pjsh_core::Value::Word(value))
+            }
             Err(err) => {
                 result = Err(err);
                 break;
