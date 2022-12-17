@@ -39,6 +39,8 @@ pub enum TokenContents {
     OpenParen,
     /// ")"
     CloseParen,
+    /// "${"
+    DollarOpenBrace,
     /// "{"
     OpenBrace,
     /// "}"
@@ -110,6 +112,9 @@ pub enum InterpolationUnit {
 
     /// The name of a variable unit that is evaluated at runtime.
     Variable(String),
+
+    /// A value pipeline inside an interpolation.
+    ValuePipeline(Vec<Token>),
 
     /// A subshell that is evaluated at runtime.
     Subshell(Vec<Token>),

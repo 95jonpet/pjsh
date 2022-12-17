@@ -6,7 +6,7 @@ use std::{
 };
 
 use dirs::home_dir;
-use pjsh_ast::{Function, InterpolationUnit, List, Program, Word};
+use pjsh_ast::{Function, InterpolationUnit, List, Program, ValuePipeline, Word};
 use pjsh_core::{
     utils::{path_to_string, word_var},
     Context, FileDescriptor, Value, FD_STDOUT,
@@ -18,6 +18,7 @@ use crate::{
     call::call_function,
     error::{EvalError, EvalResult},
     execute_subshell,
+    filter::apply_filter,
 };
 
 /// Expands words.
@@ -119,6 +120,7 @@ pub fn interpolate_word(word: &Word, context: &Context) -> EvalResult<String> {
         Word::Subshell(subshell) => interpolate_subshell(subshell, context),
         Word::ProcessSubstitution(process) => substitute_process(process, context),
         Word::Interpolation(units) => interpolate_units(units, context),
+        Word::ValuePipeline(pipeline) => interpolate_value_pipeline(pipeline.as_ref(), context),
     }
 }
 
@@ -136,10 +138,29 @@ fn interpolate_units(units: &[InterpolationUnit], context: &Context) -> EvalResu
             pjsh_ast::InterpolationUnit::Subshell(subshell) => {
                 output.push_str(&interpolate_subshell(subshell, context)?);
             }
+            pjsh_ast::InterpolationUnit::ValuePipeline(pipeline) => {
+                output.push_str(&interpolate_value_pipeline(pipeline, context)?);
+            }
         }
     }
 
     Ok(output)
+}
+
+/// Interpolates a value pipeline.
+fn interpolate_value_pipeline(pipeline: &ValuePipeline, context: &Context) -> EvalResult<String> {
+    let Some(mut value) = context.get_var(&pipeline.base).cloned() else {
+        return Err(EvalError::UndefinedVariable(pipeline.base.clone()));
+    };
+
+    for filter in &pipeline.filters {
+        value = apply_filter(filter, &value, context)?;
+    }
+
+    match value {
+        Value::Word(word) => Ok(word),
+        Value::List(_) => Err(EvalError::InvalidListInterpolation(pipeline.base.clone())),
+    }
 }
 
 /// Interpolates a subshell.

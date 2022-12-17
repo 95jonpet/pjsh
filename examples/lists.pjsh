@@ -7,6 +7,6 @@ list := [
 ]
 
 echo `List length: ${list | len}`
-echo `Element #0: ${list[0]}`
-echo `Element #1: ${list[1]}`
-echo `Element #2: ${list[2]}`
+echo `Element #0: ${list | index 0}`
+echo `Element #1: ${list | index 1}`
+echo `Element #2: ${list | index 2}`

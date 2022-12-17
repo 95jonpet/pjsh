@@ -9,6 +9,7 @@ use self::{cursor::TokenCursor, program::parse_program, word::parse_word};
 mod command;
 mod condition;
 mod cursor;
+mod filter;
 mod iterable;
 mod pipeline;
 mod program;

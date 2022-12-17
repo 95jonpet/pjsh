@@ -1,6 +1,6 @@
 use crate::Word;
 
-/// A command represents a boolean condition.
+/// A boolean condition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Condition {
     // Path-related conditions.

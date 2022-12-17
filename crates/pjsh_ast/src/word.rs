@@ -1,4 +1,4 @@
-use crate::Program;
+use crate::{Filter, Program};
 
 /// A word represents a single unit of input and are commonly used for
 /// identifiers, program names, and program arguments.
@@ -22,6 +22,9 @@ pub enum Word {
 
     /// A complex word containing interpolable sub-units.
     Interpolation(Vec<InterpolationUnit>),
+
+    /// A complex value-based pipeline.
+    ValuePipeline(Box<ValuePipeline>),
 }
 
 /// Interpolation units are sub-units of interpolable words.
@@ -36,6 +39,19 @@ pub enum InterpolationUnit {
     /// A variable name for a value that is resolved at runtime.
     Variable(String),
 
+    /// A value-based pipeline.
+    ValuePipeline(ValuePipeline),
+
     /// Substitute the interpolation unit with the output from a subshell.
     Subshell(Program),
+}
+
+/// A value-based pipeline resulting in a single value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValuePipeline {
+    /// Base value reference (a variable name).
+    pub base: String,
+
+    /// Filters to run value and its resultant values through.
+    pub filters: Vec<Filter>,
 }

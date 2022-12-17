@@ -17,6 +17,7 @@ pub use words::{interpolate_function_call, interpolate_word};
 mod call;
 mod condition;
 mod error;
+mod filter;
 mod words;
 
 /// Executes a [`Vec<Statement>`].
@@ -197,7 +198,7 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
                 if result {
                     commands.push(CommandResult::code(0));
                 } else {
-                    commands.push(CommandResult::code(1))
+                    commands.push(CommandResult::code(1));
                 }
             }
         }
@@ -232,7 +233,7 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
     }
 
     // Wait for synchronous processes to terminate.
-    // Register asyncronous processes in the shell.
+    // Register asynchronous processes in the shell.
     // Register and return all pipeline errors.
     if pipeline.is_async && io_errors.is_empty() {
         let mut host = context.host.lock();
