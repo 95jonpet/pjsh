@@ -170,7 +170,10 @@ pub fn is_literal(ch: char) -> bool {
     }
 
     // Reserved non-literal characters.
-    if matches!(ch, ';' | '(' | ')' | '{' | '}' | '[' | ']' | '<' | '>') {
+    if matches!(
+        ch,
+        ';' | '(' | ')' | '{' | '}' | '[' | ']' | '<' | '>' | '|'
+    ) {
         return false;
     }
 
