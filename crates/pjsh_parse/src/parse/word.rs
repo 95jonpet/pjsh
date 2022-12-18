@@ -1,4 +1,4 @@
-use pjsh_ast::{InterpolationUnit, List, Word};
+use pjsh_ast::{InterpolationUnit, List, ValuePipeline, Word};
 
 use crate::{
     token::{self, TokenContents},
@@ -7,8 +7,9 @@ use crate::{
 
 use super::{
     cursor::TokenCursor,
+    filter::parse_filter,
     program::{parse_program, parse_subshell_program, parse_subshell_word},
-    utils::{skip_newlines, unexpected_token},
+    utils::{skip_newlines, take_token, unexpected_token},
     ParseResult,
 };
 
@@ -23,6 +24,7 @@ pub(crate) fn parse_word(tokens: &mut TokenCursor) -> ParseResult<Word> {
             }
         }
         TokenContents::DollarOpenParen => parse_subshell_word(tokens),
+        TokenContents::DollarOpenBrace => parse_value_pipeline(tokens),
         TokenContents::TripleQuote => parse_triple_quoted(tokens),
         TokenContents::Quote => parse_quoted(tokens),
         TokenContents::Interpolation(_) => parse_interpolation(tokens),
@@ -52,7 +54,7 @@ pub(crate) fn parse_list(tokens: &mut TokenCursor) -> Result<List, ParseError> {
             TokenContents::Eof => return Err(ParseError::IncompleteSequence),
             TokenContents::CloseBracket => break,
             _ => {
-                list.push(parse_word(tokens)?);
+                list.items.push(parse_word(tokens)?);
             }
         }
     }
@@ -87,6 +89,13 @@ fn parse_interpolation_unit(
         token::InterpolationUnit::Literal(literal) => Ok(InterpolationUnit::Literal(literal)),
         token::InterpolationUnit::Unicode(ch) => Ok(InterpolationUnit::Unicode(ch)),
         token::InterpolationUnit::Variable(var) => Ok(InterpolationUnit::Variable(var)),
+        token::InterpolationUnit::ValuePipeline(pipeline_tokens) => {
+            match parse_value_pipeline(&mut TokenCursor::from(pipeline_tokens))? {
+                Word::Variable(variable) => Ok(InterpolationUnit::Variable(variable)),
+                Word::ValuePipeline(pipeline) => Ok(InterpolationUnit::ValuePipeline(*pipeline)),
+                _ => unreachable!("All possible parsed values should be covered"),
+            }
+        }
         token::InterpolationUnit::Subshell(subshell_tokens) => {
             let subshell_program = parse_program(&mut TokenCursor::from(subshell_tokens))?;
             Ok(InterpolationUnit::Subshell(subshell_program))
@@ -168,11 +177,50 @@ fn parse_quoted(tokens: &mut TokenCursor) -> ParseResult<Word> {
     Ok(Word::Quoted(quoted))
 }
 
+/// Parses a value pipeline.
+fn parse_value_pipeline(tokens: &mut TokenCursor) -> ParseResult<Word> {
+    take_token(tokens, &TokenContents::DollarOpenBrace)?;
+
+    let base_token = tokens.next();
+    let base = match base_token.contents {
+        TokenContents::Literal(literal) => literal,
+        TokenContents::Eof => return Err(ParseError::IncompleteSequence),
+        _ => return Err(ParseError::UnexpectedToken(base_token)),
+    };
+
+    // Value pipelines without any filters can be simplified into single variables.
+    // This does, however, require the function to return values of type Word rather
+    // than values of type ValuePipeline.
+    if take_token(tokens, &TokenContents::CloseBrace).is_ok() {
+        return Ok(Word::Variable(base));
+    }
+
+    tokens.newline_is_whitespace(true);
+    let mut filters = Vec::new();
+
+    loop {
+        let next = tokens.next();
+        match next.contents {
+            TokenContents::Pipe => (),
+            TokenContents::CloseBrace => break,
+            TokenContents::Eof => return Err(ParseError::IncompleteSequence),
+            _ => return Err(ParseError::UnexpectedToken(next)),
+        }
+
+        filters.push(parse_filter(tokens)?);
+    }
+
+    Ok(Word::ValuePipeline(Box::new(ValuePipeline {
+        base,
+        filters,
+    })))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use pjsh_ast::{AndOr, Command, Pipeline, PipelineSegment, Program, Statement};
+    use pjsh_ast::{AndOr, Command, Filter, Pipeline, PipelineSegment, Program, Statement};
 
     use crate::{parse::pipeline::parse_pipeline, token::Token, Span};
 
@@ -229,6 +277,37 @@ mod tests {
                 Word::Literal("b".into()),
                 Word::Literal("c".into()),
             ]))
+        );
+    }
+
+    #[test]
+    fn it_parses_brace_wrapped_variables() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_value_pipeline(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::DollarOpenBrace, span),
+                Token::new(TokenContents::Literal("variable".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+            ])),
+            Ok(Word::Variable("variable".into()))
+        );
+    }
+
+    #[test]
+    fn it_parses_value_pipelines() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_value_pipeline(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::DollarOpenBrace, span),
+                Token::new(TokenContents::Literal("base".into()), span),
+                Token::new(TokenContents::Pipe, span),
+                Token::new(TokenContents::Literal("sort".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+            ])),
+            Ok(Word::ValuePipeline(Box::new(ValuePipeline {
+                base: "base".into(),
+                filters: vec![Filter::Sort],
+            })))
         );
     }
 

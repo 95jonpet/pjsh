@@ -29,7 +29,12 @@ pub fn take_literal(tokens: &mut TokenCursor, literal: &str) -> ParseResult<Toke
 pub fn take_token(tokens: &mut TokenCursor, contents: &TokenContents) -> ParseResult<Token> {
     tokens
         .next_if(|token| &token.contents == contents)
-        .ok_or_else(|| unexpected_token(tokens))
+        .ok_or_else(|| expected_token(tokens, contents.clone()))
+}
+
+/// Returns a [`ParseError::UnexpectedToken`] around a copy of the next token.
+pub fn expected_token(tokens: &mut TokenCursor, expected: TokenContents) -> ParseError {
+    ParseError::ExpectedToken(expected, tokens.peek().clone())
 }
 
 /// Returns a [`ParseError::UnexpectedToken`] around a copy of the next token.

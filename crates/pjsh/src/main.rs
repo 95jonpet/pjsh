@@ -12,6 +12,7 @@ use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
 use exec::{AstPrinter, Execute, ProgramExecutor};
 use parking_lot::Mutex;
+use pjsh_core::utils::word_var;
 use pjsh_core::Completions;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::interpolate_word;
@@ -114,8 +115,12 @@ fn get_prompts(interactive: bool, context: Arc<Mutex<Context>>) -> (String, Stri
         return (String::default(), String::default());
     }
 
-    let raw_ps1 = context.lock().get_var("PS1").unwrap_or("\\$ ").to_owned();
-    let raw_ps2 = context.lock().get_var("PS2").unwrap_or("\\> ").to_owned();
+    let raw_ps1 = word_var(&context.lock(), "PS1")
+        .unwrap_or("\\$ ")
+        .to_owned();
+    let raw_ps2 = word_var(&context.lock(), "PS2")
+        .unwrap_or("\\> ")
+        .to_owned();
 
     let ps1 = interpolate(&raw_ps1, Arc::clone(&context));
     let ps2 = interpolate(&raw_ps2, Arc::clone(&context));

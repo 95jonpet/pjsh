@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use crate::{utils::resolve_path, Context};
+use crate::{
+    utils::{resolve_path, word_var},
+    Context,
+};
 
 /// Find a program by searching for its name in the paths present in `$PATH`.
 ///
@@ -17,7 +20,7 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
 
     // Define all possible file extensions that can be matched implicitly.
     let mut extensions = vec![String::new()]; // Empty string = no file extension.
-    if let Some(ext_env) = context.get_var("PATHEXT") {
+    if let Some(ext_env) = word_var(context, "PATHEXT") {
         extensions.extend(ext_env.split(';').map(str::to_owned));
     }
 
@@ -42,19 +45,24 @@ pub fn find_in_path(name: &str, context: &Context) -> Option<PathBuf> {
 /// by ';' on Windows.
 pub fn paths(context: &Context) -> Vec<PathBuf> {
     let separator = if cfg!(windows) { ';' } else { ':' };
-    let path_string = context.get_var("PATH").unwrap_or_default();
+    let path_string = word_var(context, "PATH").unwrap_or_default();
     path_string.split(separator).map(PathBuf::from).collect()
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::Value;
+
     use super::*;
 
     #[test]
     fn it_splits_paths() {
         let separator = if cfg!(windows) { ';' } else { ':' };
         let mut context = Context::default();
-        context.set_var("PATH".into(), format!("/tmp/a{separator}/var/tmp/b"));
+        context.set_var(
+            "PATH".into(),
+            Value::Word(format!("/tmp/a{separator}/var/tmp/b")),
+        );
         assert_eq!(
             paths(&context),
             vec![PathBuf::from("/tmp/a"), PathBuf::from("/var/tmp/b")]

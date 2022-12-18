@@ -9,7 +9,8 @@ use std::{
 use pjsh_ast::Function;
 
 use crate::{
-    command::Command, file_descriptor::FileDescriptorError, FileDescriptor, Host, StdHost,
+    command::Command, file_descriptor::FileDescriptorError, utils::word_var, FileDescriptor, Host,
+    StdHost,
 };
 
 /// An execution context consisting of a number of execution scopes.
@@ -77,7 +78,7 @@ impl Context {
     }
 
     /// Returns the value of a variable within the current scope.
-    pub fn get_var<'a>(&'a self, name: &str) -> Option<&'a str> {
+    pub fn get_var<'a>(&'a self, name: &str) -> Option<&'a Value> {
         let Some(Some(value)) = self
             .scopes
             .iter()
@@ -103,7 +104,7 @@ impl Context {
     /// Sets the value of a variable within the current scope.
     ///
     /// Parent scopes are not modified.
-    pub fn set_var(&mut self, name: String, value: String) -> Option<String> {
+    pub fn set_var(&mut self, name: String, value: Value) -> Option<Value> {
         let Some(scope) = self.scopes.last_mut() else {
             return None;
         };
@@ -134,8 +135,10 @@ impl Context {
     ///
     /// The variable name must be known to the shell.
     pub fn export_var(&mut self, name: String) -> Result<(), String> {
-        if self.get_var(&name).is_none() {
-            return Err(format!("unknown variable: {name}"));
+        match self.get_var(&name) {
+            None => return Err(format!("unknown variable: {name}")),
+            Some(Value::List(_)) => return Err(format!("lists are not exportable: {name}")),
+            _ => (),
         }
 
         self.scopes
@@ -149,11 +152,18 @@ impl Context {
 
     /// Returns a collection with references to all exported variables within the current scope.
     pub fn exported_vars(&self) -> HashMap<&str, &str> {
-        self.scopes
+        let keys = self
+            .scopes
             .iter()
-            .flat_map(|scope| scope.exported_keys.iter())
-            .map(|name| (name.as_str(), self.get_var(name).expect("defined variable")))
-            .collect()
+            .flat_map(|scope| scope.exported_keys.iter());
+
+        keys.map(|key| {
+            (
+                key.as_str(),
+                word_var(self, key).expect("only word variables should be exportable"),
+            )
+        })
+        .collect()
     }
 
     /// Returns a registered function with a specific name within the current scope.
@@ -337,7 +347,7 @@ pub struct Scope {
 
     /// A hash map containing variables that have been registered within this scope. More variables
     /// can be available through the [`Context`] itself.
-    vars: HashMap<String, Option<String>>,
+    vars: HashMap<String, Option<Value>>,
 
     /// A hash map containing functions that have been registered within this scope. More functions
     /// can be available through the [`Context`] itself.
@@ -362,7 +372,7 @@ impl Scope {
     pub fn new(
         name: String,
         args: Option<Vec<String>>,
-        vars: HashMap<String, Option<String>>,
+        vars: HashMap<String, Option<Value>>,
         functions: HashMap<String, Option<Function>>,
         exported_keys: HashSet<String>,
     ) -> Self {
@@ -409,6 +419,16 @@ impl Drop for Scope {
     }
 }
 
+/// A single value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Value {
+    /// A value consisting of a single word.
+    Word(String),
+
+    /// A value consisting of 0 or more words.
+    List(Vec<String>),
+}
+
 #[cfg(test)]
 mod tests {
     use std::env::temp_dir;
@@ -424,8 +444,8 @@ mod tests {
                 name: "outer".to_owned(),
                 args: None,
                 vars: HashMap::from([
-                    ("outer".to_owned(), Some("outer".to_owned())),
-                    ("replace".to_owned(), Some("outer".to_owned())),
+                    ("outer".to_owned(), Some(Value::Word("outer".to_owned()))),
+                    ("both".to_owned(), Some(Value::Word("outer".to_owned()))),
                 ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
@@ -437,8 +457,8 @@ mod tests {
                 name: "inner".to_owned(),
                 args: None,
                 vars: HashMap::from([
-                    ("inner".to_owned(), Some("inner".to_owned())),
-                    ("replace".to_owned(), Some("inner".to_owned())),
+                    ("inner".to_owned(), Some(Value::Word("inner".to_owned()))),
+                    ("both".to_owned(), Some(Value::Word("inner".to_owned()))),
                 ]),
                 functions: HashMap::default(),
                 exported_keys: HashSet::default(),
@@ -449,9 +469,9 @@ mod tests {
         ]);
 
         assert_eq!(context.get_var("unset"), None);
-        assert_eq!(context.get_var("outer"), Some("outer"));
-        assert_eq!(context.get_var("inner"), Some("inner"));
-        assert_eq!(context.get_var("replace"), Some("inner"));
+        assert_eq!(context.get_var("outer"), Some(&Value::Word("outer".into())));
+        assert_eq!(context.get_var("inner"), Some(&Value::Word("inner".into())));
+        assert_eq!(context.get_var("both"), Some(&Value::Word("inner".into())));
     }
 
     #[test]
@@ -542,14 +562,14 @@ mod tests {
             Scope::new(
                 "outer".into(),
                 None,
-                HashMap::from([("outer".to_string(), Some("outer".into()))]),
+                HashMap::from([("outer".to_string(), Some(Value::Word("outer".into())))]),
                 HashMap::default(),
                 HashSet::default(),
             ),
             Scope::new(
                 "inner".into(),
                 None,
-                HashMap::from([("inner".to_string(), Some("inner".into()))]),
+                HashMap::from([("inner".to_string(), Some(Value::Word("inner".into())))]),
                 HashMap::default(),
                 HashSet::default(),
             ),
@@ -564,7 +584,7 @@ mod tests {
         context.pop_scope();
         assert_eq!(
             context.get_var("outer"),
-            Some("outer"),
+            Some(&Value::Word("outer".into())),
             "the var should not be dropped from the outer scope"
         );
     }

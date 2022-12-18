@@ -1,7 +1,7 @@
 use clap::Parser;
 use pjsh_core::{
     command::{Args, Command, CommandResult},
-    Context,
+    Context, Value,
 };
 
 use crate::{status, utils};
@@ -60,7 +60,7 @@ fn export_variable(variable: String, context: &mut Context) -> Result<(), String
         Some(separator) => {
             let name = variable[..separator].to_owned();
             let value = variable[separator + 1..].to_owned(); // The separator is not included.
-            context.set_var(name.clone(), value);
+            context.set_var(name.clone(), Value::Word(value));
             context.export_var(name)
         }
 
@@ -86,8 +86,8 @@ mod tests {
             "scope".into(),
             Some(vec!["export".into(), "var1".into(), "var2".into()]),
             HashMap::from([
-                ("var1".into(), Some("val1".into())),
-                ("var2".into(), Some("val2".into())),
+                ("var1".into(), Some(Value::Word("val1".into()))),
+                ("var2".into(), Some(Value::Word("val2".into()))),
             ]),
             HashMap::default(),
             HashSet::default(),
@@ -129,7 +129,7 @@ mod tests {
         assert!(result.actions.is_empty());
 
         // The variable should be set and exported.
-        assert_eq!(ctx.get_var("var"), Some("val"));
+        assert_eq!(ctx.get_var("var"), Some(&Value::Word("val".into())));
         assert_eq!(ctx.exported_vars(), HashMap::from([("var", "val")]),);
     }
 
@@ -154,7 +154,7 @@ mod tests {
         assert!(result.actions.is_empty());
 
         // The variable should be set and exported.
-        assert_eq!(ctx.get_var("var"), Some(""));
+        assert_eq!(ctx.get_var("var"), Some(&Value::Word("".into())));
         assert_eq!(ctx.exported_vars(), HashMap::from([("var", "")]),);
     }
 
@@ -179,7 +179,7 @@ mod tests {
         assert!(result.actions.is_empty());
 
         // The variable should be set and exported.
-        assert_eq!(ctx.get_var("var"), Some("key=val"));
+        assert_eq!(ctx.get_var("var"), Some(&Value::Word("key=val".into())));
         assert_eq!(ctx.exported_vars(), HashMap::from([("var", "key=val")]),);
     }
 

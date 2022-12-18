@@ -10,7 +10,10 @@ pub enum EvalError {
     ChildSpawnFailed(std::io::Error),
     ContextCloneFailed(std::io::Error),
     CreatePipeFailed(std::io::Error),
-    IoError(std::io::Error), // General IO catch-all error.
+    InvalidIndex,
+    InvalidListInterpolation(String),
+    InvalidValuePipeline(String), // Contains an error message.
+    IoError(std::io::Error),      // General IO catch-all error.
     PipelineFailed(Vec<std::io::Error>),
     UnboundFunctionArguments(Vec<String>),
     UndefinedFileDescriptor(usize),
@@ -39,6 +42,11 @@ impl Display for EvalError {
             EvalError::ChildSpawnFailed(err) => write!(f, "failed to spawn child process: {err}"),
             EvalError::ContextCloneFailed(err) => write!(f, "failed to clone context: {err}"),
             EvalError::CreatePipeFailed(err) => write!(f, "failed to create pipe: {err}"),
+            EvalError::InvalidIndex => write!(f, "invalid index"),
+            EvalError::InvalidListInterpolation(var) => {
+                write!(f, "invalid list interpolation: {var}")
+            }
+            EvalError::InvalidValuePipeline(msg) => write!(f, "invalid value pipeline: {msg}"),
             EvalError::IoError(err) => write!(f, "input/output error: {err}"),
             EvalError::PipelineFailed(errors) => write!(f, "pipeline failed: {:?}", errors),
             EvalError::UnboundFunctionArguments(args) => {

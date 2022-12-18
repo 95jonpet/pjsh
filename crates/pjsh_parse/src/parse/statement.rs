@@ -1,6 +1,6 @@
 use pjsh_ast::{
     Assignment, Block, ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop,
-    Function, Iterable, Statement, Word,
+    Function, Iterable, Statement, Value, Word,
 };
 
 use crate::{parse::word::parse_word, token::TokenContents, ParseError};
@@ -55,18 +55,37 @@ pub(crate) fn parse_statement(tokens: &mut TokenCursor) -> ParseResult<Statement
     }
 
     // Try to parse an assignment.
-    let mut assignment_iter = tokens.clone();
-    assignment_iter.next();
-    if assignment_iter.peek().contents == TokenContents::Assign {
-        let key = parse_word(tokens)?;
-
-        take_token(tokens, &TokenContents::Assign)?;
-
-        let value = parse_word(tokens)?;
-        return Ok(Statement::Assignment(Assignment { key, value }));
+    match parse_assignment(tokens) {
+        Ok(function_statement) => return Ok(function_statement),
+        Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+        _ => (),
     }
 
     Ok(Statement::AndOr(parse_and_or(tokens)?))
+}
+
+/// Parses an assignment statement.
+fn parse_assignment(tokens: &mut TokenCursor) -> ParseResult<Statement> {
+    let mut peek = tokens.clone();
+    let key = parse_word(&mut peek)?;
+    take_token(&mut peek, &TokenContents::Assign)?;
+
+    // Parse a single word value assignment.
+    if let Ok(value) = parse_word(&mut peek) {
+        *tokens = peek;
+        return Ok(Statement::Assignment(Assignment {
+            key,
+            value: Value::Word(value),
+        }));
+    }
+
+    // Parse a list value assignment.
+    let list = parse_list(&mut peek)?;
+    *tokens = peek;
+    Ok(Statement::Assignment(Assignment {
+        key,
+        value: Value::List(list),
+    }))
 }
 
 /// Parses a function declaration,
@@ -213,14 +232,14 @@ fn parse_block(tokens: &mut TokenCursor) -> ParseResult<Block> {
 
 #[cfg(test)]
 mod tests {
-    use pjsh_ast::{AndOr, Command, IterationRule, List, Pipeline, PipelineSegment};
+    use pjsh_ast::{AndOr, Command, IterationRule, List, Pipeline, PipelineSegment, Value};
 
     use crate::{token::Token, Span};
 
     use super::*;
 
     #[test]
-    fn it_parses_assignment_statements() {
+    fn it_parses_word_assignments() {
         assert_eq!(
             parse_statement(&mut TokenCursor::from(vec![
                 Token::new(TokenContents::Literal("key".into()), Span::new(0, 3)),
@@ -229,7 +248,32 @@ mod tests {
             ])),
             Ok(Statement::Assignment(Assignment {
                 key: Word::Literal("key".into()),
-                value: Word::Literal("value".into()),
+                value: Value::Word(Word::Literal("value".into())),
+            }))
+        )
+    }
+
+    #[test]
+    fn it_parses_list_assignments() {
+        let span = Span::new(0, 0);
+        assert_eq!(
+            parse_statement(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("key".into()), span),
+                Token::new(TokenContents::Assign, span),
+                Token::new(TokenContents::OpenBracket, span),
+                Token::new(TokenContents::Eol, span),
+                Token::new(TokenContents::Literal("item1".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("item2".into()), span),
+                Token::new(TokenContents::Eol, span),
+                Token::new(TokenContents::CloseBracket, span),
+            ])),
+            Ok(Statement::Assignment(Assignment {
+                key: Word::Literal("key".into()),
+                value: Value::List(List::from(vec![
+                    Word::Literal("item1".into()),
+                    Word::Literal("item2".into()),
+                ])),
             }))
         )
     }

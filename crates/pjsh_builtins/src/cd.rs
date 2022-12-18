@@ -4,7 +4,8 @@ use clap::Parser;
 use pjsh_core::{
     command::Io,
     command::{Args, Command, CommandResult},
-    utils::{path_to_string, resolve_path},
+    utils::{path_to_string, resolve_path, word_var},
+    Value,
 };
 
 use crate::{status, utils};
@@ -50,9 +51,9 @@ impl Command for Cd {
 /// Returns an exit code.
 fn change_directory(opts: CdOpts, args: &mut Args) -> CommandResult {
     let directory = match &opts.directory {
-        Some(dir) if dir == "-" => args.context.get_var("OLDPWD").map(PathBuf::from),
+        Some(dir) if dir == "-" => word_var(args.context, "OLDPWD").map(PathBuf::from),
         Some(dir) => Some(resolve_path(args.context, dir)),
-        None => args.context.get_var("HOME").map(PathBuf::from),
+        None => word_var(args.context, "HOME").map(PathBuf::from),
     };
 
     match directory {
@@ -69,7 +70,8 @@ fn change_directory(opts: CdOpts, args: &mut Args) -> CommandResult {
 
             // Set the current working directory within the current context.
             let new_path = path_to_string(&path);
-            args.context.set_var("PWD".to_string(), new_path.clone());
+            args.context
+                .set_var("PWD".to_string(), Value::Word(new_path.clone()));
             if let Err(err) = std::env::set_current_dir(&path) {
                 return exit_with_error(status::GENERAL_ERROR, args.io, &err.to_string());
             }
@@ -125,7 +127,7 @@ mod tests {
     fn it_can_change_working_directory() {
         let dir = TempDir::new().unwrap();
         let mut ctx = cd_context(&dir);
-        ctx.set_var("PWD".into(), "old-pwd".into());
+        ctx.set_var("PWD".into(), Value::Word("old-pwd".into()));
         let (mut io, _stdout, _stderr) = mock_io();
         let cd = Cd {};
 
@@ -134,9 +136,9 @@ mod tests {
             assert_eq!(result.code, status::SUCCESS);
             assert_eq!(
                 ctx.get_var("PWD"),
-                Some(path_to_string(dir.path()).as_str())
+                Some(&Value::Word(path_to_string(dir.path())))
             );
-            assert_eq!(ctx.get_var("OLDPWD"), Some("old-pwd"));
+            assert_eq!(ctx.get_var("OLDPWD"), Some(&Value::Word("old-pwd".into())));
             assert_eq!(std::env::current_dir().unwrap(), dir.path());
         } else {
             unreachable!()
@@ -153,14 +155,14 @@ mod tests {
             HashMap::default(),
             HashSet::default(),
         )]);
-        ctx.set_var("HOME".into(), path_to_string(&home));
+        ctx.set_var("HOME".into(), Value::Word(path_to_string(&home)));
         let (mut io, _stdout, _stderr) = mock_io();
         let cd = Cd {};
 
         let mut args = Args::new(&mut ctx, &mut io);
         if let CommandResult::Builtin(result) = cd.run(&mut args) {
             assert_eq!(result.code, status::SUCCESS);
-            assert_eq!(ctx.get_var("PWD"), Some(path_to_string(home).as_str()));
+            assert_eq!(ctx.get_var("PWD"), Some(&Value::Word(path_to_string(home))));
         } else {
             unreachable!()
         }
@@ -176,14 +178,17 @@ mod tests {
             HashMap::default(),
             HashSet::default(),
         )]);
-        ctx.set_var("OLDPWD".into(), path_to_string(&oldpwd));
+        ctx.set_var("OLDPWD".into(), Value::Word(path_to_string(&oldpwd)));
         let (mut io, mut stdout, _stderr) = mock_io();
         let cd = Cd {};
 
         let mut args = Args::new(&mut ctx, &mut io);
         if let CommandResult::Builtin(result) = cd.run(&mut args) {
             assert_eq!(result.code, status::SUCCESS);
-            assert_eq!(ctx.get_var("PWD"), Some(path_to_string(&oldpwd).as_str()));
+            assert_eq!(
+                ctx.get_var("PWD"),
+                Some(&Value::Word(path_to_string(&oldpwd)))
+            );
             assert_eq!(file_contents(&mut stdout), path_to_string(&oldpwd) + "\n");
         } else {
             unreachable!()

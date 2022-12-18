@@ -3,7 +3,7 @@ use std::{env::current_dir, path::PathBuf};
 use clap::Parser;
 use pjsh_core::{
     command::{Args, Command, CommandResult},
-    utils::path_to_string,
+    utils::{path_to_string, word_var},
 };
 
 use crate::{status, utils};
@@ -36,7 +36,7 @@ impl Command for Pwd {
 
 /// Prints a contexts working directory to stdout.
 fn print_working_directory(_opts: PwdOpts, args: &mut Args) -> CommandResult {
-    let cwd = current_dir().map_or_else(|_| args.context.get_var("PWD").map(PathBuf::from), Some);
+    let cwd = current_dir().map_or_else(|_| word_var(args.context, "PWD").map(PathBuf::from), Some);
 
     if let Some(dir) = cwd {
         if let Err(error) = writeln!(args.io.stdout, "{}", path_to_string(dir)) {
@@ -53,7 +53,7 @@ fn print_working_directory(_opts: PwdOpts, args: &mut Args) -> CommandResult {
 
 #[cfg(test)]
 mod tests {
-    use pjsh_core::Context;
+    use pjsh_core::{Context, Value};
 
     use crate::utils::{file_contents, mock_io};
 
@@ -64,7 +64,7 @@ mod tests {
         let mut ctx = Context::default();
         let (mut io, mut stdout, mut stderr) = mock_io();
 
-        ctx.set_var("PWD".into(), "/current/path".into());
+        ctx.set_var("PWD".into(), Value::Word("/current/path".into()));
         let pwd = Pwd {};
 
         let mut args = Args::new(&mut ctx, &mut io);

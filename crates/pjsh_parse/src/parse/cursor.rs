@@ -30,7 +30,7 @@ pub struct TokenCursor {
 }
 
 impl TokenCursor {
-    /// Returns a reference to the next non-trivial [`Token`] while advancingblank the cursor past
+    /// Returns a reference to the next non-trivial [`Token`] while advancing the cursor past
     /// trivial tokens.
     pub fn peek(&mut self) -> &Token {
         self.skip_trivial_tokens();

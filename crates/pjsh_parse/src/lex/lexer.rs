@@ -380,6 +380,7 @@ impl<'a> Lexer<'a> {
 
         let result = match self.input.peek().1 {
             '(' => self.eat_char(DollarOpenParen),
+            '{' => self.eat_char(DollarOpenBrace),
             _ => self.eat_variable(),
         };
 
@@ -442,7 +443,7 @@ impl<'a> Lexer<'a> {
                     units.push(InterpolationUnit::Literal(span_str.to_string()));
                 }
                 '$' => {
-                    self.input.next();
+                    let dollar = self.input.next();
                     match self.input.peek().1 {
                         '(' => {
                             self.input.next();
@@ -458,12 +459,24 @@ impl<'a> Lexer<'a> {
                             units.push(InterpolationUnit::Subshell(subshell_tokens));
                         }
                         '{' => {
-                            self.input.next();
-                            let (_, content) = self.input.eat_while(|c| c != '}');
-                            if self.input.next_if_eq('}').is_none() {
-                                return Err(unexpected_char(self.input.peek().1));
+                            let open_brace = self.input.next();
+                            let mut pipeline_tokens = Vec::new();
+                            pipeline_tokens.push(Token::new(
+                                TokenContents::DollarOpenBrace,
+                                Span::new(dollar.0, open_brace.0 + 1),
+                            ));
+                            loop {
+                                let next_token = self.next_unquoted_token()?;
+                                match next_token.contents {
+                                    CloseBrace => {
+                                        pipeline_tokens.push(next_token);
+                                        break;
+                                    }
+                                    Eof => return Err(LexError::UnexpectedEof),
+                                    _ => pipeline_tokens.push(next_token),
+                                }
                             }
-                            units.push(InterpolationUnit::Variable(content));
+                            units.push(InterpolationUnit::ValuePipeline(pipeline_tokens));
                         }
                         _ => match self.eat_variable()?.contents {
                             Variable(content) => units.push(InterpolationUnit::Variable(content)),

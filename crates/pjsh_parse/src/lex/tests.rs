@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::lex::input::Span;
-use crate::token::{InterpolationUnit, Token, TokenContents::*};
+use crate::token::{
+    InterpolationUnit, Token,
+    TokenContents::{self, *},
+};
 
 use super::lexer::*;
 
@@ -63,6 +66,10 @@ fn lex_surrounding_chars() {
     );
     assert_eq!(tokens("("), vec![Token::new(OpenParen, Span::new(0, 1))]);
     assert_eq!(tokens(")"), vec![Token::new(CloseParen, Span::new(0, 1))]);
+    assert_eq!(
+        tokens("${"),
+        vec![Token::new(DollarOpenBrace, Span::new(0, 2))]
+    );
     assert_eq!(tokens("{"), vec![Token::new(OpenBrace, Span::new(0, 1))]);
     assert_eq!(tokens("}"), vec![Token::new(CloseBrace, Span::new(0, 1))]);
     assert_eq!(tokens("["), vec![Token::new(OpenBracket, Span::new(0, 1))]);
@@ -106,10 +113,6 @@ fn lex_variable() {
     assert_eq!(
         tokens("$_my_var"),
         vec![Token::new(Variable("_my_var".into()), Span::new(0, 8))]
-    );
-    assert_eq!(
-        tokens("${wrapped_var}"),
-        vec![Token::new(Variable("wrapped_var".into()), Span::new(0, 14))]
     );
     assert_eq!(
         tokens("$?"),
@@ -301,6 +304,25 @@ fn lex_incomplete_word_interpolation() {
     assert_eq!(
         crate::lex_interpolation(r#"${"#),
         Err(LexError::UnexpectedEof)
+    );
+}
+
+#[test]
+fn lex_interpolation_with_braces() {
+    assert_eq!(
+        lex(r#"`${var | len}`"#, &HashMap::default()),
+        Ok(vec![Token::new(
+            TokenContents::Interpolation(vec![InterpolationUnit::ValuePipeline(vec![
+                Token::new(TokenContents::DollarOpenBrace, Span::new(1, 3)),
+                Token::new(TokenContents::Literal("var".into()), Span::new(3, 6)),
+                Token::new(TokenContents::Whitespace, Span::new(6, 7)),
+                Token::new(TokenContents::Pipe, Span::new(7, 8)),
+                Token::new(TokenContents::Whitespace, Span::new(8, 9)),
+                Token::new(TokenContents::Literal("len".into()), Span::new(9, 12)),
+                Token::new(TokenContents::CloseBrace, Span::new(12, 13)),
+            ])]),
+            Span::new(0, 14),
+        ),])
     );
 }
 
