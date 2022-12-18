@@ -324,6 +324,21 @@ fn lex_interpolation_with_braces() {
             Span::new(0, 14),
         ),])
     );
+    assert_eq!(
+        lex(r#"`${var|cmd arg}`"#, &HashMap::default()),
+        Ok(vec![Token::new(
+            TokenContents::Interpolation(vec![InterpolationUnit::ValuePipeline(vec![
+                Token::new(TokenContents::DollarOpenBrace, Span::new(1, 3)),
+                Token::new(TokenContents::Literal("var".into()), Span::new(3, 6)),
+                Token::new(TokenContents::Pipe, Span::new(6, 7)),
+                Token::new(TokenContents::Literal("cmd".into()), Span::new(7, 10)),
+                Token::new(TokenContents::Whitespace, Span::new(10, 11)),
+                Token::new(TokenContents::Literal("arg".into()), Span::new(11, 14)),
+                Token::new(TokenContents::CloseBrace, Span::new(14, 15)),
+            ])]),
+            Span::new(0, 16),
+        ),])
+    );
 }
 
 fn tokens(src: &str) -> Vec<Token> {
