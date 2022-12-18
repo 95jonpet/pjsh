@@ -2,14 +2,17 @@ use pjsh_ast::{Condition, Word};
 
 use crate::{token::TokenContents, ParseError};
 
-use super::{cursor::TokenCursor, utils::take_literal, word::parse_word, ParseResult};
+use super::{
+    cursor::TokenCursor,
+    utils::{take_literal, take_token},
+    word::parse_word,
+    ParseResult,
+};
 
 /// Parses a condition.
 pub(crate) fn parse_condition(tokens: &mut TokenCursor) -> ParseResult<Condition> {
     let mut lookahead = tokens.clone();
-    lookahead
-        .next_if_eq(TokenContents::DoubleOpenBracket)
-        .ok_or_else(|| ParseError::UnexpectedToken(lookahead.peek().clone()))?;
+    take_token(&mut lookahead, &TokenContents::DoubleOpenBracket)?;
 
     let inverted = take_literal(&mut lookahead, "!").is_ok();
 
@@ -26,9 +29,7 @@ pub(crate) fn parse_condition(tokens: &mut TokenCursor) -> ParseResult<Condition
         .or_else(|_| two_word_condition(&mut lookahead, "!=", Condition::Ne))
         .or_else(|_| Ok(Condition::NotEmpty(parse_word(&mut lookahead)?)))?;
 
-    lookahead
-        .next_if_eq(TokenContents::DoubleCloseBracket)
-        .ok_or_else(|| ParseError::UnexpectedToken(lookahead.peek().clone()))?;
+    take_token(&mut lookahead, &TokenContents::DoubleCloseBracket)?;
 
     if inverted {
         condition = Condition::Invert(Box::new(condition));

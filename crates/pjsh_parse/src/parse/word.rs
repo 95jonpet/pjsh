@@ -43,9 +43,7 @@ pub(crate) fn parse_word(tokens: &mut TokenCursor) -> ParseResult<Word> {
 
 /// Parses a list of words surrounded by square brackets.
 pub(crate) fn parse_list(tokens: &mut TokenCursor) -> Result<List, ParseError> {
-    tokens
-        .next_if_eq(TokenContents::OpenBracket)
-        .ok_or_else(|| unexpected_token(tokens))?;
+    take_token(tokens, &TokenContents::OpenBracket)?;
 
     let mut list = List::default();
     loop {
@@ -59,9 +57,7 @@ pub(crate) fn parse_list(tokens: &mut TokenCursor) -> Result<List, ParseError> {
         }
     }
 
-    tokens
-        .next_if_eq(TokenContents::CloseBracket)
-        .ok_or_else(|| unexpected_token(tokens))?;
+    take_token(tokens, &TokenContents::CloseBracket)?;
 
     Ok(list)
 }
