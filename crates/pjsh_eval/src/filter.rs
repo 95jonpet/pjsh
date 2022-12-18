@@ -17,6 +17,9 @@ pub fn apply_filter(filter: &Filter, value: &Value, context: &Context) -> EvalRe
                 .ok_or(EvalError::InvalidIndex)
                 .map(Value::Word)
         }
+        (Filter::Join(sep), Value::List(list)) => {
+            Ok(Value::Word(list.join(&interpolate_word(sep, context)?)))
+        }
         (Filter::Len, Value::List(list)) => Ok(Value::Word(list.len().to_string())),
         (Filter::Lower, Value::Word(word)) => Ok(Value::Word(word.to_lowercase())),
         (Filter::Upper, Value::Word(word)) => Ok(Value::Word(word.to_uppercase())),
@@ -26,6 +29,11 @@ pub fn apply_filter(filter: &Filter, value: &Value, context: &Context) -> EvalRe
         (Filter::Sort, Value::List(items)) => {
             Ok(Value::List(items.clone().into_iter().sorted().collect()))
         }
+        (Filter::Split(sep), Value::Word(word)) => Ok(Value::List(
+            word.split(&interpolate_word(sep, context)?)
+                .map(ToString::to_string)
+                .collect(),
+        )),
         (Filter::Unique, Value::List(items)) => {
             Ok(Value::List(items.clone().into_iter().unique().collect()))
         }
