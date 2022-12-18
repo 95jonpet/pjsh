@@ -12,6 +12,7 @@
 - [Commands](./commands.md)
 - [Quoting](./quoting.md)
 - [Environment](./environment.md)
+- [Filtering](./filtering.md)
 - [Aliasing](./aliasing.md)
 - [Globbing](./globbing.md)
 - [Conditionals](./conditionals.md)
