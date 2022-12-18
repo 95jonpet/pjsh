@@ -19,6 +19,18 @@ Variables can also be used in interpolated strings.
 echo `Value: ${my_var}`
 ```
 
+## Lists
+
+List variables can also be defined using the `:=` operator.
+```pjsh
+my_list := [
+  value1
+  value2
+]
+```
+
+List are, however, mostly useful when combined with [Filtering](filtering.md) as lists by themselves cannot be directly used in command execution.
+
 ## Scopes
 
 By default, variables are only visible to the shell itself. In order to use variables outside the shell, they must be _exported_.
