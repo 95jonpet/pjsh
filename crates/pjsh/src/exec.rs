@@ -12,13 +12,29 @@ pub(crate) trait Execute {
 }
 
 /// Program executor.
-pub(crate) struct ProgramExecutor;
+pub(crate) struct ProgramExecutor {
+    /// Exit on encountering errors during execution.
+    exit_on_error: bool,
+}
+
+impl ProgramExecutor {
+    /// Constructs a new program executor.
+    pub(crate) fn new(exit_on_error: bool) -> Self {
+        Self { exit_on_error }
+    }
+}
 
 impl Execute for ProgramExecutor {
     fn execute(&self, program: Program, context: Arc<Mutex<Context>>) {
         for statement in program.statements {
-            if let Err(error) = execute_statement(&statement, &mut context.lock()) {
-                eprintln!("pjsh: {error}");
+            let Err(error) = execute_statement(&statement, &mut context.lock()) else {
+                continue;
+            };
+
+            eprintln!("pjsh: {error}");
+
+            if self.exit_on_error {
+                break;
             }
         }
     }

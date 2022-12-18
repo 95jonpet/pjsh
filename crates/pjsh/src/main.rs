@@ -6,6 +6,7 @@ mod shell;
 mod tests;
 
 use std::fs::File;
+use std::process::ExitCode;
 use std::{env::current_exe, path::PathBuf, sync::Arc};
 
 use ansi_term::{Color, Style};
@@ -54,12 +55,12 @@ struct Opts {
 }
 
 /// Entrypoint for the application.
-pub fn main() {
+pub fn main() -> ExitCode {
     let mut opts = Opts::parse();
     let interactive = !opts.is_command && opts.script_file.is_none();
     let executor: Box<dyn Execute> = match opts.is_parse_only {
         true => Box::new(AstPrinter),
-        false => Box::new(ProgramExecutor),
+        false => Box::new(ProgramExecutor::new(!interactive)),
     };
 
     let first_arg = match &opts.is_command {
@@ -87,11 +88,14 @@ pub fn main() {
     let shell = new_shell(&opts, Arc::clone(&context), completions);
     source_init_scripts(interactive, executor.as_ref(), Arc::clone(&context));
 
-    run_shell(shell, executor.as_ref(), Arc::clone(&context)); // Not guaranteed to exit.
+    // Not guaranteed to exit.
+    let code = run_shell(shell, executor.as_ref(), Arc::clone(&context));
 
     // If the shell exits cleanly, attempt to stop all threads and processes that it has spawned.
     context.lock().host.lock().join_all_threads();
     context.lock().host.lock().kill_all_processes();
+
+    code
 }
 
 /// Interpolates a string using a [`Context`].
@@ -135,7 +139,8 @@ pub(crate) fn run_shell(
     mut shell: Box<dyn Shell>,
     executor: &dyn Execute,
     context: Arc<Mutex<Context>>,
-) {
+) -> ExitCode {
+    let mut exit_code = ExitCode::SUCCESS;
     'main: loop {
         let (ps1, ps2) = get_prompts(shell.is_interactive(), Arc::clone(&context));
         print_exited_child_processes(&mut context.lock());
@@ -185,13 +190,26 @@ pub(crate) fn run_shell(
                 Err(error) => {
                     eprintln!("pjsh: parse error: {}", error);
                     print_parse_error_details(&line, &error);
-                    break;
+                    if shell.is_interactive() {
+                        break;
+                    } else {
+                        exit_code = ExitCode::FAILURE;
+                        break 'main;
+                    }
                 }
             }
+        }
+
+        // Execution errors are not tolerated within non-interactive shells.
+        // Thus, execution should be terminated.
+        if context.lock().last_exit() != 0 && !shell.is_interactive() {
+            exit_code = ExitCode::from(context.lock().last_exit().abs().min(u8::MAX.into()) as u8);
+            break;
         }
     }
 
     shell.save_history(history_file().as_path());
+    exit_code
 }
 
 /// Prints details related to a parse error.

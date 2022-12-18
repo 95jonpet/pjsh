@@ -26,7 +26,7 @@ mock! {
 #[test]
 fn shell_interrupt() {
     let mut context = Context::default();
-    let executor: Box<dyn Execute> = Box::new(ProgramExecutor);
+    let executor: Box<dyn Execute> = Box::new(ProgramExecutor::new(true));
     let mut mock_host = MockTestHost::new();
     mock_host
         .expect_take_exited_child_processes()
