@@ -14,6 +14,8 @@ pub(crate) fn parse_filter(tokens: &mut TokenCursor) -> ParseResult<Filter> {
         .or_else(|_| argumentless_filter(tokens, "reverse", Filter::Reverse))
         .or_else(|_| argumentless_filter(tokens, "sort", Filter::Sort))
         .or_else(|_| one_argument_filter(tokens, "index", Filter::Index))
+        .or_else(|_| one_argument_filter(tokens, "join", Filter::Join))
+        .or_else(|_| one_argument_filter(tokens, "split", Filter::Split))
 }
 
 /// Returns a filter from a single word.
@@ -101,6 +103,28 @@ mod tests {
                 TokenContents::Literal("1".into()),
             ]),
             Ok(Filter::Index(Word::Literal("1".into())))
+        );
+    }
+
+    #[test]
+    fn it_parses_join() {
+        assert_eq!(
+            parse(vec![
+                TokenContents::Literal("join".into()),
+                TokenContents::Literal(", ".into()),
+            ]),
+            Ok(Filter::Join(Word::Literal(", ".into())))
+        );
+    }
+
+    #[test]
+    fn it_parses_split() {
+        assert_eq!(
+            parse(vec![
+                TokenContents::Literal("split".into()),
+                TokenContents::Literal(",".into()),
+            ]),
+            Ok(Filter::Split(Word::Literal(",".into())))
         );
     }
 }
