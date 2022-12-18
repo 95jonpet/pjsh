@@ -92,4 +92,15 @@ mod tests {
             Ok(Filter::Upper)
         );
     }
+
+    #[test]
+    fn it_parses_index() {
+        assert_eq!(
+            parse(vec![
+                TokenContents::Literal("index".into()),
+                TokenContents::Literal("1".into()),
+            ]),
+            Ok(Filter::Index(Word::Literal("1".into())))
+        );
+    }
 }
