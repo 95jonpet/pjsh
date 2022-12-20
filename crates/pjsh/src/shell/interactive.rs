@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
-use pjsh_core::{Completions, Context};
+use pjsh_core::{utils::word_var, Completions, Context};
 use pjsh_parse::Span;
 use rustyline::{
     completion::{Completer, Pair},
@@ -9,16 +9,13 @@ use rustyline::{
     highlight::{Highlighter, MatchingBracketHighlighter},
     hint::{Hinter, HistoryHinter},
     validate::{self, ValidationResult, Validator},
-    Config, Editor,
+    CompletionType, Config, Editor,
 };
 use rustyline_derive::Helper;
 
 use crate::shell::{Shell, ShellInput};
 
-use super::{
-    super::complete::complete,
-    utils::{input_words, strip_ansi_escapes},
-};
+use super::{super::complete::complete, utils::input_words};
 
 /// An interactive shell backed by [`rustyline`].
 pub struct RustylineShell {
@@ -35,6 +32,15 @@ impl RustylineShell {
         context: Arc<Mutex<Context>>,
         completions: Arc<Mutex<Completions>>,
     ) -> Self {
+        let completion_type = match word_var(&context.lock(), "PJSH_COMPLETION_TYPE") {
+            Some("circular") => CompletionType::Circular,
+            Some("list") | None => CompletionType::List,
+            Some(other) => {
+                eprintln!("pjsh: Invalid completion type: {other}");
+                CompletionType::List
+            }
+        };
+
         let helper = ShellHelper {
             context,
             highlighter: MatchingBracketHighlighter::new(),
@@ -43,7 +49,7 @@ impl RustylineShell {
             colored_prompt: "$ ".to_owned(),
         };
 
-        let config = Config::builder().build();
+        let config = Config::builder().completion_type(completion_type).build();
         let mut editor = Editor::with_config(config).expect("configure editor");
         editor.set_helper(Some(helper));
 
@@ -71,12 +77,7 @@ impl Shell for RustylineShell {
         // passed to the terminal.
         self.editor.helper_mut().expect("No helper").colored_prompt = prompt.to_string();
 
-        // The rustyline::Editor::readline method uses a prompt to determine the cursor's position
-        // through the prompt's length in characters. This does not work for colored prompts as the
-        // ANSI escape codes contribute to the perceived length. Thus, all ANSII escape sequences
-        // must be stripped prior to prompting the user for input.
-        let prompt_text = strip_ansi_escapes(prompt);
-        match self.editor.readline(&prompt_text) {
+        match self.editor.readline(prompt) {
             Ok(mut line) => {
                 line.push('\n');
                 ShellInput::Line(line)
