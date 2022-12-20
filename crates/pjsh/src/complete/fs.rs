@@ -37,6 +37,7 @@ where
 
 /// Returns a filtered file name.
 fn filtered_file_name<P: AsRef<Path>>(path: P, name_prefix: &str) -> Option<String> {
+    let path = path.as_ref();
     let path_str = path_to_string(path);
     let (_, file_str) = path_str.rsplit_once('/')?;
 
@@ -44,5 +45,13 @@ fn filtered_file_name<P: AsRef<Path>>(path: P, name_prefix: &str) -> Option<Stri
         return None;
     }
 
-    Some(file_str.to_owned())
+    let mut file_name = file_str.to_owned();
+
+    // Distinguish directories from regular files by adding a trailing slash.
+    // This character will also be completed, resulting in faster navigation.
+    if path.is_dir() {
+        file_name += "/";
+    }
+
+    Some(file_name)
 }
