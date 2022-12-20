@@ -25,7 +25,7 @@ pub fn complete(
     Some(match completion {
         Completion::Constant(words) => complete_words(prefix, words),
         Completion::Directory => complete_paths(prefix, context, Path::is_dir),
-        Completion::File => complete_paths(prefix, context, Path::is_file),
+        Completion::File => complete_paths(prefix, context, Path::exists),
         Completion::Function(function_name) => {
             let Some(function) = context.get_function(function_name) else {
                 return Some(Vec::new());
