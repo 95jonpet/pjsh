@@ -567,7 +567,6 @@ dependencies = [
  "dirs",
  "is_executable",
  "itertools",
- "lazy_static",
  "mockall",
  "parking_lot",
  "pjsh_ast",

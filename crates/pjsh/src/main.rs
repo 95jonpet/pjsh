@@ -85,8 +85,8 @@ pub fn main() -> ExitCode {
     let (context, completions) = initialized_context(args, script_file);
     let context = Arc::new(Mutex::new(context));
 
-    let shell = new_shell(&opts, Arc::clone(&context), completions);
     source_init_scripts(interactive, executor.as_ref(), Arc::clone(&context));
+    let shell = new_shell(&opts, Arc::clone(&context), completions);
 
     // Not guaranteed to exit.
     let code = run_shell(shell, executor.as_ref(), Arc::clone(&context));
