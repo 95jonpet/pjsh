@@ -5,7 +5,7 @@ use pjsh_core::{Context, Value};
 use crate::{interpolate_word, EvalError, EvalResult};
 
 /// Returns the result of applying a filter to a value.
-pub fn apply_filter(filter: &Filter, value: &Value, context: &Context) -> EvalResult<Value> {
+pub(crate) fn apply_filter(filter: &Filter, value: Value, context: &Context) -> EvalResult<Value> {
     match (filter, value) {
         (Filter::Index(index), Value::List(list)) => {
             let Ok(index) = interpolate_word(index, context)?.parse::<usize>() else {
@@ -23,11 +23,13 @@ pub fn apply_filter(filter: &Filter, value: &Value, context: &Context) -> EvalRe
         (Filter::Len, Value::List(list)) => Ok(Value::Word(list.len().to_string())),
         (Filter::Lower, Value::Word(word)) => Ok(Value::Word(word.to_lowercase())),
         (Filter::Upper, Value::Word(word)) => Ok(Value::Word(word.to_uppercase())),
-        (Filter::Reverse, Value::List(items)) => {
-            Ok(Value::List(items.clone().into_iter().rev().collect()))
+        (Filter::Reverse, Value::List(mut items)) => {
+            items.reverse();
+            Ok(Value::List(items))
         }
-        (Filter::Sort, Value::List(items)) => {
-            Ok(Value::List(items.clone().into_iter().sorted().collect()))
+        (Filter::Sort, Value::List(mut items)) => {
+            items.sort();
+            Ok(Value::List(items))
         }
         (Filter::Split(sep), Value::Word(word)) => Ok(Value::List(
             word.split(&interpolate_word(sep, context)?)
@@ -35,10 +37,10 @@ pub fn apply_filter(filter: &Filter, value: &Value, context: &Context) -> EvalRe
                 .collect(),
         )),
         (Filter::Unique, Value::List(items)) => {
-            Ok(Value::List(items.clone().into_iter().unique().collect()))
+            Ok(Value::List(items.into_iter().unique().collect()))
         }
         (filter, value) => {
-            let value_type = value_type_name(value);
+            let value_type = value_type_name(&value);
             let message = format!("can't apply filter {filter} to value of type {value_type}");
             Err(EvalError::InvalidValuePipeline(message))
         }

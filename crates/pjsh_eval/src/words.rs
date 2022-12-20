@@ -154,7 +154,7 @@ fn interpolate_value_pipeline(pipeline: &ValuePipeline, context: &Context) -> Ev
     };
 
     for filter in &pipeline.filters {
-        value = apply_filter(filter, &value, context)?;
+        value = apply_filter(filter, value, context)?;
     }
 
     match value {
