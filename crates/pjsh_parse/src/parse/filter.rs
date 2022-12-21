@@ -9,6 +9,7 @@ pub(crate) fn parse_filter(tokens: &mut TokenCursor) -> ParseResult<Filter> {
     Result::Err(ParseError::InvalidSyntax("Unknown filter".into()))
         .or_else(|_| argumentless_filter(tokens, "lower", Filter::Lower))
         .or_else(|_| argumentless_filter(tokens, "upper", Filter::Upper))
+        .or_else(|_| argumentless_filter(tokens, "words", Filter::Words))
         .or_else(|_| argumentless_filter(tokens, "unique", Filter::Unique))
         .or_else(|_| argumentless_filter(tokens, "len", Filter::Len))
         .or_else(|_| argumentless_filter(tokens, "reverse", Filter::Reverse))
@@ -92,6 +93,14 @@ mod tests {
         assert_eq!(
             parse(vec![TokenContents::Literal("upper".into())]),
             Ok(Filter::Upper)
+        );
+    }
+
+    #[test]
+    fn it_parses_words() {
+        assert_eq!(
+            parse(vec![TokenContents::Literal("words".into())]),
+            Ok(Filter::Words)
         );
     }
 
