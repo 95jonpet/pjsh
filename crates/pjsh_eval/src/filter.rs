@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use pjsh_ast::Filter;
 use pjsh_core::{Context, Value};
+use pjsh_parse::is_whitespace;
 
 use crate::{interpolate_word, EvalError, EvalResult};
 
@@ -23,6 +24,12 @@ pub(crate) fn apply_filter(filter: &Filter, value: Value, context: &Context) -> 
         (Filter::Len, Value::List(list)) => Ok(Value::Word(list.len().to_string())),
         (Filter::Lower, Value::Word(word)) => Ok(Value::Word(word.to_lowercase())),
         (Filter::Upper, Value::Word(word)) => Ok(Value::Word(word.to_uppercase())),
+        (Filter::Words, Value::Word(word)) => Ok(Value::List(
+            word.split(is_whitespace)
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string)
+                .collect(),
+        )),
         (Filter::Reverse, Value::List(mut items)) => {
             items.reverse();
             Ok(Value::List(items))

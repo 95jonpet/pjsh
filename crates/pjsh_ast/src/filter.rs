@@ -15,6 +15,9 @@ pub enum Filter {
     /// Transform all letters to uppercase.
     Upper,
 
+    /// Return a list of all whitespace-separated words.
+    Words,
+
     // List filters.
     /// Return the element with the given index.
     Index(Word),
@@ -43,6 +46,7 @@ impl Display for Filter {
             Filter::Len => write!(f, "len"),
             Filter::Lower => write!(f, "lower"),
             Filter::Upper => write!(f, "upper"),
+            Filter::Words => write!(f, "words"),
             Filter::Reverse => write!(f, "reverse"),
             Filter::Sort => write!(f, "sort"),
             Filter::Split(_) => write!(f, "split"),
