@@ -8,6 +8,7 @@ pub struct Input<'a> {
     /// Position and character representing the end of input.
     /// The position is equal to `<input length> + 1`.
     eof: (usize, char),
+
     /// Peekable iterator over the individual grapheme clusters that make up the input.
     chars: Peekable<CharIndices<'a>>,
 }
@@ -67,7 +68,7 @@ impl<'a> Input<'a> {
     pub fn peek_n(&self, n: usize) -> Vec<char> {
         let mut input = self.chars.clone();
 
-        let mut peeked = Vec::new();
+        let mut peeked = Vec::with_capacity(n);
         for _ in 0..n {
             peeked.push(input.next().unwrap_or(self.eof).1);
         }
