@@ -517,11 +517,13 @@ mod tests {
         let outer_fn = Function {
             name: "outer".into(),
             args: Vec::default(),
+            list_arg: None,
             body: Block::default(),
         };
         let inner_fn = Function {
             name: "inner".into(),
             args: Vec::default(),
+            list_arg: None,
             body: Block::default(),
         };
 

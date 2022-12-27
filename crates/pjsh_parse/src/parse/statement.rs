@@ -98,10 +98,15 @@ fn parse_function(tokens: &mut TokenCursor) -> ParseResult<Statement> {
 
             // Parse argument list.
             let mut args = Vec::new();
+            let mut list_arg = None;
             while let Some(token) =
                 tokens.next_if(|t| matches!(&t.contents, &TokenContents::Literal(_)))
             {
                 match token.contents {
+                    TokenContents::Literal(arg) if arg.ends_with("...") => {
+                        list_arg = Some(arg.trim_end_matches("...").to_owned());
+                        break; // Only a single list type argument is allowed.
+                    }
                     TokenContents::Literal(arg) => args.push(arg),
                     _ => unreachable!(),
                 };
@@ -112,6 +117,7 @@ fn parse_function(tokens: &mut TokenCursor) -> ParseResult<Statement> {
             Ok(Statement::Function(Function::new(
                 name,
                 args,
+                list_arg,
                 parse_block(tokens)?,
             )))
         }
@@ -296,6 +302,7 @@ mod tests {
             Ok(Statement::Function(Function {
                 name: "function_name".into(),
                 args: vec!["arg".into()],
+                list_arg: None,
                 body: Block {
                     statements: vec![Statement::AndOr(AndOr {
                         operators: Vec::new(),

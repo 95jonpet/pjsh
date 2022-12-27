@@ -62,8 +62,11 @@ pub struct Function {
     /// The function name.
     pub name: String,
 
-    /// Argument names.
+    /// Regular argument names.
     pub args: Vec<String>,
+
+    /// List type argument name (may only be the final argument).
+    pub list_arg: Option<String>,
 
     /// Function body.
     pub body: Block,
@@ -71,8 +74,13 @@ pub struct Function {
 
 impl Function {
     /// Constructs a new function definition.
-    pub fn new(name: String, args: Vec<String>, body: Block) -> Self {
-        Self { name, args, body }
+    pub fn new(name: String, args: Vec<String>, list_arg: Option<String>, body: Block) -> Self {
+        Self {
+            name,
+            args,
+            list_arg,
+            body,
+        }
     }
 }
 
