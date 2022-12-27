@@ -9,6 +9,9 @@ pub enum Filter {
     /// Transform all letters to lowercase.
     Lower,
 
+    /// Replace content with something else.
+    Replace(Word, Word),
+
     /// Transform the input to a list split by a given word.
     Split(Word),
 
@@ -41,6 +44,7 @@ pub enum Filter {
 impl Display for Filter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Filter::Replace(_, _) => write!(f, "replace"),
             Filter::Index(_) => write!(f, "index"),
             Filter::Join(_) => write!(f, "join"),
             Filter::Len => write!(f, "len"),

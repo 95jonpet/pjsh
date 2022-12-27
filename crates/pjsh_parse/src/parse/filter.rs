@@ -17,6 +17,7 @@ pub(crate) fn parse_filter(tokens: &mut TokenCursor) -> ParseResult<Filter> {
         .or_else(|_| one_argument_filter(tokens, "index", Filter::Index))
         .or_else(|_| one_argument_filter(tokens, "join", Filter::Join))
         .or_else(|_| one_argument_filter(tokens, "split", Filter::Split))
+        .or_else(|_| two_argument_filter(tokens, "replace", Filter::Replace))
 }
 
 /// Returns a filter from a single word.
@@ -38,6 +39,18 @@ fn one_argument_filter<F: Fn(Word) -> Filter>(
     take_literal(tokens, keyword)?;
     let word = parse_word(tokens)?;
     Ok(func(word))
+}
+
+/// Returns a filter from a single word with two arguments.
+fn two_argument_filter<F: Fn(Word, Word) -> Filter>(
+    tokens: &mut TokenCursor,
+    keyword: &str,
+    func: F,
+) -> ParseResult<Filter> {
+    take_literal(tokens, keyword)?;
+    let a = parse_word(tokens)?;
+    let b = parse_word(tokens)?;
+    Ok(func(a, b))
 }
 
 #[cfg(test)]
@@ -134,6 +147,21 @@ mod tests {
                 TokenContents::Literal(",".into()),
             ]),
             Ok(Filter::Split(Word::Literal(",".into())))
+        );
+    }
+
+    #[test]
+    fn it_parses_replace() {
+        assert_eq!(
+            parse(vec![
+                TokenContents::Literal("replace".into()),
+                TokenContents::Literal("a".into()),
+                TokenContents::Literal("b".into()),
+            ]),
+            Ok(Filter::Replace(
+                Word::Literal("a".into()),
+                Word::Literal("b".into())
+            ))
         );
     }
 }

@@ -46,6 +46,20 @@ pub(crate) fn apply_filter(filter: &Filter, value: Value, context: &Context) -> 
         (Filter::Unique, Value::List(items)) => {
             Ok(Value::List(items.into_iter().unique().collect()))
         }
+        (Filter::Replace(from, to), Value::Word(word)) => {
+            let from = interpolate_word(from, context)?;
+            let to = interpolate_word(to, context)?;
+            Ok(Value::Word(word.replace(&from, &to)))
+        }
+        (Filter::Replace(from, to), Value::List(items)) => {
+            let from = interpolate_word(from, context)?;
+            let to = interpolate_word(to, context)?;
+            let items = items
+                .into_iter()
+                .map(|item| if item == from { to.clone() } else { item })
+                .collect();
+            Ok(Value::List(items))
+        }
         (filter, value) => {
             let value_type = value_type_name(&value);
             let message = format!("can't apply filter {filter} to value of type {value_type}");
