@@ -31,7 +31,9 @@ pub fn complete(
                 return Some(Vec::new());
             };
 
-            let Ok(output) = interpolate_function_call(function, &[function_name.to_owned()], context) else {
+            let args: Vec<String> = words.iter().map(ToString::to_string).collect();
+
+            let Ok(output) = interpolate_function_call(function, &args, context) else {
                 return Some(Vec::new());
             };
 

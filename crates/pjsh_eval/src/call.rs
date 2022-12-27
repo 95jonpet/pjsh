@@ -91,20 +91,29 @@ pub fn call_function(
         ));
     }
 
-    if function_args.len() > function.args.len() {
+    if function_args.len() > function.args.len() && function.list_arg.is_none() {
         return Err(EvalError::UnboundFunctionArguments(
             function_args[function.args.len()..].to_vec(),
         ));
     }
 
     // Construct a temporary scope for the function body.
-    let vars = HashMap::from_iter(
+    let mut vars = HashMap::from_iter(
         function
             .args
             .iter()
             .cloned()
             .zip(args.iter().cloned().map(Value::Word).map(Some)),
     );
+
+    if let Some(list_arg_name) = &function.list_arg {
+        let list_args = &args[function.args.len()..];
+        vars.insert(
+            list_arg_name.clone(),
+            Some(Value::List(Vec::from(list_args))),
+        );
+    }
+
     context.push_scope(Scope::new(
         function.name.clone(),
         Some(Vec::from(args)),
