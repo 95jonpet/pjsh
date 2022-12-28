@@ -65,6 +65,7 @@ impl TokenCursor {
 
     /// Further operations should treat newline as whitespace if `is_whitespace` is `true`.
     pub fn newline_is_whitespace(&mut self, is_whitespace: bool) {
+        // TODO: Force this functionality to surround a closure to allow easier resets.
         self.newline_mode = match is_whitespace {
             true => NewlineMode::Whitespace,
             false => NewlineMode::Newline,

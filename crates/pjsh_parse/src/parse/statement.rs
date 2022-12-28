@@ -1,9 +1,13 @@
 use pjsh_ast::{
     Assignment, Block, ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop,
-    Function, Iterable, Statement, Value, Word,
+    Function, Iterable, Statement, Switch, Value, Word,
 };
 
-use crate::{parse::word::parse_word, token::TokenContents, ParseError};
+use crate::{
+    parse::{utils::sequence, word::parse_word},
+    token::TokenContents,
+    ParseError,
+};
 
 use super::{
     cursor::TokenCursor,
@@ -28,6 +32,13 @@ pub(crate) fn parse_statement(tokens: &mut TokenCursor) -> ParseResult<Statement
 
     // Try to parse an if-statement.
     match parse_if_statement(tokens) {
+        Ok(statement) => return Ok(statement),
+        Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
+        _ => (),
+    }
+
+    // Try to parse a switch-statement.
+    match parse_switch_statement(tokens) {
         Ok(statement) => return Ok(statement),
         Err(ParseError::IncompleteSequence) => return Err(ParseError::IncompleteSequence),
         _ => (),
@@ -154,6 +165,39 @@ fn parse_if_statement(tokens: &mut TokenCursor) -> Result<Statement, ParseError>
     }))
 }
 
+/// Parses a switch statement.
+fn parse_switch_statement(tokens: &mut TokenCursor) -> ParseResult<Statement> {
+    take_literal(tokens, "switch")?;
+    sequence(tokens, |tokens| {
+        let input = parse_word(tokens)?;
+
+        take_token(tokens, &TokenContents::OpenBrace)?;
+        skip_newlines(tokens);
+
+        let mut branches = Vec::new();
+        while take_token(tokens, &TokenContents::CloseBrace).is_err() {
+            skip_newlines(tokens);
+            let mut keys = Vec::new();
+
+            // Parse one or more keys.
+            keys.push(parse_word(tokens)?);
+            while let Ok(word) = parse_word(tokens) {
+                keys.push(word);
+            }
+
+            let body = parse_block(tokens)?;
+
+            for key in keys {
+                branches.push((key, body.clone()));
+            }
+
+            skip_newlines(tokens);
+        }
+
+        Ok(Statement::Switch(Switch { input, branches }))
+    })
+}
+
 /// Parses a for-loop.
 pub(crate) fn parse_for_loop(tokens: &mut TokenCursor) -> Result<Statement, ParseError> {
     take_literal(tokens, "for")?;
@@ -238,7 +282,7 @@ fn parse_block(tokens: &mut TokenCursor) -> ParseResult<Block> {
 
 #[cfg(test)]
 mod tests {
-    use pjsh_ast::{AndOr, Command, IterationRule, List, Pipeline, PipelineSegment, Value};
+    use pjsh_ast::{AndOr, Command, IterationRule, List, Pipeline, PipelineSegment, Switch, Value};
 
     use crate::{token::Token, Span};
 
@@ -470,6 +514,81 @@ mod tests {
                             }]
                         })]
                     }
+                ]
+            }))
+        )
+    }
+
+    #[test]
+    fn parse_switch_statement() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_statement(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("switch".into()), span),
+                Token::new(TokenContents::Literal("b".into()), span), // The input.
+                Token::new(TokenContents::OpenBrace, span),
+                Token::new(TokenContents::Literal("a".into()), span),
+                Token::new(TokenContents::OpenBrace, span),
+                Token::new(TokenContents::Literal("in_a".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+                Token::new(TokenContents::Literal("b".into()), span),
+                Token::new(TokenContents::OpenBrace, span),
+                Token::new(TokenContents::Literal("in_b".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+                Token::new(TokenContents::Literal("c".into()), span),
+                Token::new(TokenContents::OpenBrace, span),
+                Token::new(TokenContents::Literal("in_c".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+                Token::new(TokenContents::CloseBrace, span),
+            ])),
+            Ok(Statement::Switch(Switch {
+                input: Word::Literal("b".into()),
+                branches: vec![
+                    (
+                        Word::Literal("a".into()),
+                        Block {
+                            statements: vec![Statement::AndOr(AndOr {
+                                operators: Vec::new(),
+                                pipelines: vec![Pipeline {
+                                    is_async: false,
+                                    segments: vec![PipelineSegment::Command(Command {
+                                        arguments: vec![Word::Literal("in_a".into())],
+                                        redirects: Vec::new(),
+                                    })]
+                                }]
+                            })]
+                        }
+                    ),
+                    (
+                        Word::Literal("b".into()),
+                        Block {
+                            statements: vec![Statement::AndOr(AndOr {
+                                operators: Vec::new(),
+                                pipelines: vec![Pipeline {
+                                    is_async: false,
+                                    segments: vec![PipelineSegment::Command(Command {
+                                        arguments: vec![Word::Literal("in_b".into())],
+                                        redirects: Vec::new(),
+                                    })]
+                                }]
+                            })]
+                        }
+                    ),
+                    (
+                        Word::Literal("c".into()),
+                        Block {
+                            statements: vec![Statement::AndOr(AndOr {
+                                operators: Vec::new(),
+                                pipelines: vec![Pipeline {
+                                    is_async: false,
+                                    segments: vec![PipelineSegment::Command(Command {
+                                        arguments: vec![Word::Literal("in_c".into())],
+                                        redirects: Vec::new(),
+                                    })]
+                                }]
+                            })]
+                        }
+                    ),
                 ]
             }))
         )

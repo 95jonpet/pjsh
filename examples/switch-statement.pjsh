@@ -1,0 +1,18 @@
+#!/bin/pjsh
+
+input := matching
+
+switch $input {
+  matching {
+    echo "This should be printed"
+  }
+  multiple values {
+    echo "This should not be printed"
+  }
+  `not ${input}` {
+    echo "This should not be printed"
+  }
+  static {
+    echo "This should not be printed"
+  }
+}

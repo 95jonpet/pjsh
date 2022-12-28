@@ -12,7 +12,7 @@ mod word;
 pub use command::Command;
 pub use condition::Condition;
 pub use control::{
-    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, IterationRule,
+    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, IterationRule, Switch,
 };
 pub use filter::Filter;
 pub use io::{FileDescriptor, Redirect, RedirectMode};
