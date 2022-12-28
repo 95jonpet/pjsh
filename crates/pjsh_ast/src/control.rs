@@ -79,3 +79,15 @@ pub enum IterationRule {
     /// Iterate over whitespace-separated words.
     Words,
 }
+
+/// Represents a conditional, "switch", statements over multiple values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Switch {
+    /// The input word to match.
+    pub input: Word,
+
+    /// Branches to execute conditionally based on input.
+    ///
+    /// A branch is executed if its word matches the input.
+    pub branches: Vec<(Word, Block)>,
+}

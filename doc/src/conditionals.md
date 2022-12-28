@@ -85,6 +85,32 @@ if false {
 
 If-statements always exit with code `0` unless a command fails within the executed branch.
 
+### Switch-statements
+
+The shell supports value-matching conditionals using _switch-statements_.
+Such statements contain a body that is executed if an input value is matched.
+
+```pjsh
+input := matching
+
+switch $input {
+  matching {
+    echo "This should be printed"
+  }
+  multiple values {
+    echo "This should not be printed"
+  }
+  `not ${input}` {
+    echo "This should not be printed"
+  }
+  static {
+    echo "This should not be printed"
+  }
+}
+```
+
+Note that all matchable words are interpolated by the shell prior to matching.
+
 ### Conditions
 
 Compact conditions can be declared using the `[[ ... ]]` syntax.

@@ -5,8 +5,8 @@ use condition::eval_condition;
 pub use error::{EvalError, EvalResult};
 use pjsh_ast::{
     AndOr, AndOrOp, Assignment, Command, ConditionalChain, ConditionalLoop, ForIterableLoop,
-    ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Value,
-    Word,
+    ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Switch,
+    Value, Word,
 };
 use pjsh_core::{
     command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
@@ -44,6 +44,7 @@ pub fn execute_statement(statement: &Statement, context: &mut Context) -> EvalRe
         }
         Statement::If(conditionals) => execute_conditional_chain(conditionals, context),
         Statement::While(conditional) => execute_conditional_loop(conditional, context),
+        Statement::Switch(switch) => execute_switch(switch, context),
         Statement::Subshell(subshell) => {
             let inner_context = context.try_clone().map_err(EvalError::ContextCloneFailed)?;
             execute_subshell(subshell, inner_context)
@@ -100,6 +101,22 @@ fn execute_conditional_chain(
     if let Some(branch) = branches.next() {
         return execute_statements(&branch.statements, context);
     }
+
+    Ok(())
+}
+
+/// Executes a switch statement.
+fn execute_switch(switch: &Switch, context: &mut Context) -> EvalResult<()> {
+    let input = interpolate_word(&switch.input, context)?;
+    let mut branches = HashMap::with_capacity(switch.branches.len());
+    for (key, branch) in &switch.branches {
+        branches.insert(interpolate_word(key, context)?, branch.clone());
+    }
+
+    // Take the matching branch if there is one.
+    if let Some(branch) = branches.get(&input) {
+        return execute_statements(&branch.statements, context);
+    };
 
     Ok(())
 }

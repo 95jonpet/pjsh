@@ -1,5 +1,6 @@
 use crate::{
-    ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, List, Pipeline, Word,
+    control::Switch, ConditionalChain, ConditionalLoop, ForIterableLoop, ForOfIterableLoop, List,
+    Pipeline, Word,
 };
 
 /// A statement is an evaluable and/or executable piece of code.
@@ -22,6 +23,9 @@ pub enum Statement {
 
     /// An iterable loop over an abstract iteration rule.
     ForOfIn(ForOfIterableLoop),
+
+    /// A conditional over multiple values.
+    Switch(Switch),
 
     /// A conditional loop.
     While(ConditionalLoop),

@@ -5,6 +5,25 @@ use crate::{
 
 use super::{cursor::TokenCursor, ParseResult};
 
+/// Does everything inside a closure and advance the cursor.
+///
+/// This function assumes that everything inside the closure is related and that
+/// its contents should be evaluated sequentially.
+pub fn sequence<F, T>(tokens: &mut TokenCursor, func: F) -> ParseResult<T>
+where
+    F: Fn(&mut TokenCursor) -> ParseResult<T>,
+{
+    let mut peek = tokens.clone();
+    match func(&mut peek) {
+        Ok(value) => {
+            *tokens = peek;
+            Ok(value)
+        }
+        Err(ParseError::UnexpectedEof) => Err(ParseError::IncompleteSequence),
+        error => error,
+    }
+}
+
 /// Advances the token cursor until the next token is not an end-of-line token.
 pub fn skip_newlines(tokens: &mut TokenCursor) {
     while matches!(
