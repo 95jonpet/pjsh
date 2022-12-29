@@ -7,8 +7,7 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_core::{
-    utils::path_to_string, Completions, Context, Host, Scope, StdHost, FD_STDERR, FD_STDIN,
-    FD_STDOUT,
+    utils::path_to_string, Completions, Context, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
 };
 
 /// Constructs a new initialized execution context containing some common environment variables such
@@ -17,9 +16,8 @@ pub fn initialized_context(
     args: Vec<String>,
     script_file: Option<PathBuf>,
 ) -> (Context, Arc<Mutex<Completions>>) {
-    let host = StdHost::default();
     let mut context = Context::with_scopes(vec![
-        environment_scope(host, script_file.clone()),
+        environment_scope(script_file.clone()),
         pjsh_scope(script_file),
         global_scope(args),
     ]);
@@ -35,16 +33,10 @@ pub fn initialized_context(
 
 /// Returns a scope containing all environment variables belonging to the
 /// current process.
-fn environment_scope<H: Host>(host: H, script_file: Option<PathBuf>) -> Scope {
-    let mut vars: HashMap<String, Option<pjsh_core::Value>> = host
-        .env_vars()
-        .iter()
-        .map(|(key, value)| {
-            (
-                key.to_string_lossy().to_string(),
-                Some(pjsh_core::Value::Word(value.to_string_lossy().to_string())),
-            )
-        })
+fn environment_scope(script_file: Option<PathBuf>) -> Scope {
+    let mut vars: HashMap<String, Option<pjsh_core::Value>> = std::env::vars()
+        .into_iter()
+        .map(|(key, value)| (key, Some(pjsh_core::Value::Word(value))))
         .collect();
 
     // Inject the initial (current) script path if known and not already present.

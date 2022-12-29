@@ -72,9 +72,6 @@ fn change_directory(opts: CdOpts, args: &mut Args) -> CommandResult {
             let new_path = path_to_string(&path);
             args.context
                 .set_var("PWD".to_string(), Value::Word(new_path.clone()));
-            if let Err(err) = std::env::set_current_dir(&path) {
-                return exit_with_error(status::GENERAL_ERROR, args.io, &err.to_string());
-            }
 
             // Using "-" as a directory should be equivalent to "cd - && pwd".
             if opts.directory.filter(|p| p == "-").is_some() {
@@ -139,7 +136,6 @@ mod tests {
                 Some(&Value::Word(path_to_string(dir.path())))
             );
             assert_eq!(ctx.get_var("OLDPWD"), Some(&Value::Word("old-pwd".into())));
-            assert_eq!(std::env::current_dir().unwrap(), dir.path());
         } else {
             unreachable!()
         }

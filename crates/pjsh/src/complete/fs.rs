@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use pjsh_core::{
-    utils::{path_to_string, resolve_path},
+    utils::{path_to_string, resolve_path, word_var},
     Context,
 };
 
@@ -23,7 +23,7 @@ where
             .collect();
     }
 
-    let Ok(Ok(files)) = std::env::current_dir().map(std::fs::read_dir) else {
+    let Some(Ok(files)) = word_var(context, "PWD").map(std::fs::read_dir) else {
         return Vec::default();
     };
 
