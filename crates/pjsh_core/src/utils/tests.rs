@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::*;
 use crate::{env::context::Value, Context};
 
 #[test]
@@ -15,42 +16,17 @@ fn path_to_string() {
 }
 
 #[test]
-fn resolve_path() {
+fn test_resolve_path_with_empty_context() {
     // If $PWD is not set, "/" should be used instead.
-    let empty_context = Context::default();
-    assert_eq!(
-        super::resolve_path(&empty_context, "relative"),
-        PathBuf::from("/relative")
-    );
-    assert_eq!(
-        super::resolve_path(&empty_context, "/absolute"),
-        PathBuf::from("/absolute")
-    );
+    let ctx = Context::default();
+    assert_eq!(resolve_path(&ctx, "relative"), PathBuf::from("/relative"));
+    assert_eq!(resolve_path(&ctx, "/absolute"), PathBuf::from("/absolute"));
+}
 
-    let mut linux_context = Context::default();
-    linux_context.set_var("PWD".into(), Value::Word("/home/user".into()));
-    assert_eq!(
-        super::resolve_path(&linux_context, "relative"),
-        PathBuf::from("/home/user/relative")
-    );
-    assert_eq!(
-        super::resolve_path(&linux_context, "/absolute"),
-        PathBuf::from("/absolute")
-    );
-
-    #[cfg(target_os = "windows")]
-    {
-        let windows_context = Context::default();
-        windows_context
-            .scope
-            .set_env("PWD".into(), r#"C:\\Dev"#.into());
-        assert_eq!(
-            super::resolve_path(&windows_context, "relative"),
-            PathBuf::from(r#"C:\\Dev\relative"#)
-        );
-        assert_eq!(
-            super::resolve_path(&windows_context, r#"D:\\absolute"#),
-            PathBuf::from(r#"D:\\absolute"#)
-        );
-    }
+#[test]
+fn test_resolve_path_with_linux_pwd_context() {
+    let mut ctx = Context::default();
+    ctx.set_var("PWD".into(), Value::Word("/base".into()));
+    assert_eq!(resolve_path(&ctx, "child"), PathBuf::from("/base/child"));
+    assert_eq!(resolve_path(&ctx, "/absolute"), PathBuf::from("/absolute"));
 }
