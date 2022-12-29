@@ -8,4 +8,4 @@ pub use action::{Action, CommandType};
 pub use args::Args;
 pub use command_trait::Command;
 pub use io::Io;
-pub use result::CommandResult;
+pub use result::{BuiltinCommandResult, CommandResult, ProcessCommandResult};
