@@ -152,7 +152,7 @@ pub(crate) fn run_shell(
                 continue;
             }
             shell::ShellInput::Logout => {
-                context.lock().host.lock().eprintln("pjsh: logout");
+                eprintln!("pjsh: logout");
                 break 'main;
             }
             shell::ShellInput::None => break,
@@ -179,7 +179,7 @@ pub(crate) fn run_shell(
                             continue 'main;
                         }
                         shell::ShellInput::Logout => {
-                            context.lock().host.lock().eprintln("pjsh: logout");
+                            eprintln!("pjsh: logout");
                             break 'main;
                         }
                         shell::ShellInput::None => break,
@@ -259,10 +259,10 @@ fn new_shell(
 
 /// Interrupts the currently running threads and processes in a context.
 fn interrupt(context: &mut Context) {
+    eprintln!("pjsh: interrupt");
     let mut host = context.host.lock();
     host.join_all_threads();
     host.kill_all_processes();
-    host.eprintln("pjsh: interrupt");
 }
 
 /// Prints process IDs (PIDs) to stderr for each child process that is managed by the shell, and
@@ -270,7 +270,7 @@ fn interrupt(context: &mut Context) {
 fn print_exited_child_processes(context: &mut Context) {
     let mut host = context.host.lock();
     for pid in host.take_exited_child_processes() {
-        host.eprintln(&format!("pjsh: PID {} exited", pid));
+        eprintln!("pjsh: PID {pid} exited");
     }
 }
 

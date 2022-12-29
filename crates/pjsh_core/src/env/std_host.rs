@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    process::{self, Child},
-    thread::JoinHandle,
-};
+use std::{collections::HashSet, process::Child, thread::JoinHandle};
 
 use super::host::Host;
 
@@ -11,22 +7,12 @@ use super::host::Host;
 pub struct StdHost {
     /// Child processes that the host has spawned.
     child_processes: Vec<Child>,
+
     /// Threads that the host has spawned.
     threads: Vec<JoinHandle<i32>>,
 }
 
 impl Host for StdHost {
-    /// Prints a text line to stdout.
-    fn println(&mut self, text: &str) {
-        println!("{}", text);
-    }
-
-    /// Prints a text line to stderr.
-    fn eprintln(&mut self, text: &str) {
-        eprintln!("{}", text);
-    }
-
-    /// Marks a child process as owned by the host.
     fn add_child_process(&mut self, child: std::process::Child) {
         self.child_processes.push(child);
     }
@@ -37,22 +23,16 @@ impl Host for StdHost {
 
     fn kill_all_processes(&mut self) {
         for mut child in std::mem::take(&mut self.child_processes) {
-            let _ = child.kill();
+            let _ = child.kill(); // Results are safe to ignore.
         }
-    }
-
-    fn process_id(&self) -> u32 {
-        process::id()
     }
 
     fn join_all_threads(&mut self) {
         for thread in std::mem::take(&mut self.threads) {
-            let _ = thread.join();
+            let _ = thread.join(); // Results are safe to ignore.
         }
     }
 
-    /// Return a list of all exited processes that have been spawned by the host, removing them from
-    /// the list of tracked child processes.
     fn take_exited_child_processes(&mut self) -> HashSet<u32> {
         let mut exited = HashSet::new();
         for child in &mut self.child_processes {
