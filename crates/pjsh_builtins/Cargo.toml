@@ -13,3 +13,5 @@ pjsh_core = { path = "../pjsh_core" }
 
 [dev-dependencies]
 tempfile = "3"
+
+pjsh_ast = { path = "../pjsh_ast" }

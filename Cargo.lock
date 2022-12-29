@@ -589,6 +589,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "parking_lot",
+ "pjsh_ast",
  "pjsh_core",
  "tempfile",
 ]

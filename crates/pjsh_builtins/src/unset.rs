@@ -62,3 +62,93 @@ fn unset_names(opts: UnsetOpts, ctx: &mut Context) -> CommandResult {
 
     CommandResult::code(status::SUCCESS)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use pjsh_ast::{Block, Function};
+    use pjsh_core::{Scope, Value};
+
+    use crate::utils::mock_io;
+
+    use super::*;
+
+    #[test]
+    fn it_prints_help() {
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            Some(vec!["unset".into(), "--help".into()]),
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+        )]);
+        let (mut io, _, _) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
+
+        let cmd = Unset {};
+        let CommandResult::Builtin(result) = cmd.run(&mut args) else {
+            unreachable!();
+        };
+
+        assert_eq!(result.code, 0);
+    }
+
+    #[test]
+    fn it_unsets_variables() {
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            Some(vec!["unset".into(), "var".into()]),
+            HashMap::from([("var".into(), Some(Value::Word("value".into())))]),
+            HashMap::default(),
+            HashSet::default(),
+        )]);
+        let (mut io, _, _) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
+
+        let cmd = Unset {};
+        let CommandResult::Builtin(result) = cmd.run(&mut args) else {
+            unreachable!();
+        };
+
+        assert_eq!(result.code, 0);
+        assert!(result.actions.is_empty());
+        assert_eq!(ctx.get_var("var"), None);
+    }
+
+    #[test]
+    fn it_unsets_functions() {
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            Some(vec![
+                "unset".into(),
+                "--type=function".into(),
+                "func".into(),
+            ]),
+            HashMap::default(),
+            HashMap::from([(
+                "func".into(),
+                Some(Function {
+                    name: "func".into(),
+                    args: Vec::default(),
+                    list_arg: None,
+                    body: Block {
+                        statements: Vec::default(),
+                    },
+                }),
+            )]),
+            HashSet::default(),
+        )]);
+        let (mut io, _, _) = mock_io();
+        let mut args = Args::new(&mut ctx, &mut io);
+
+        let cmd = Unset {};
+        let CommandResult::Builtin(result) = cmd.run(&mut args) else {
+            unreachable!();
+        };
+
+        assert_eq!(result.code, 0);
+        assert!(result.actions.is_empty());
+        assert_eq!(ctx.get_function("func"), None);
+    }
+}
