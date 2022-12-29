@@ -51,9 +51,61 @@ pub fn paths(context: &Context) -> Vec<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Value;
+    use std::fs::File;
+
+    use tempfile::tempdir;
+
+    use crate::{utils::path_to_string, Value};
 
     use super::*;
+
+    #[test]
+    fn it_finds_programs_in_path() -> std::io::Result<()> {
+        let dir = tempdir()?;
+        let non_program_path = dir.path().join("non-program");
+        let program_path = dir.path().join("program");
+        let mut context = Context::default();
+        context.set_var("PATH".into(), Value::Word(path_to_string(dir.path())));
+
+        File::create(program_path.clone())?;
+        File::create(non_program_path)?;
+
+        assert_eq!(find_in_path("program", &context), Some(program_path));
+        Ok(())
+    }
+
+    #[test]
+    fn it_finds_programs_in_path_with_pathext() -> std::io::Result<()> {
+        let dir = tempdir()?;
+        let non_program_path = dir.path().join("non-program");
+        let program_path = dir.path().join("program.exe");
+        let mut context = Context::default();
+        context.set_var("PATH".into(), Value::Word(path_to_string(dir.path())));
+        context.set_var("PATHEXT".into(), Value::Word(".exe".into()));
+
+        File::create(program_path.clone())?;
+        File::create(non_program_path)?;
+
+        // Match the program name without an extension.
+        assert_eq!(find_in_path("program", &context), Some(program_path));
+        Ok(())
+    }
+
+    #[test]
+    fn it_resolves_programs_in_path() -> std::io::Result<()> {
+        let dir = tempdir()?;
+        let program_path = dir.path().join("program");
+        let mut context = Context::default();
+        context.set_var("PATH".into(), Value::Word("".into())); // No reference to dir.
+
+        File::create(program_path.clone())?;
+
+        assert_eq!(
+            find_in_path(&path_to_string(&program_path), &context),
+            Some(program_path)
+        );
+        Ok(())
+    }
 
     #[test]
     fn it_splits_paths() {
