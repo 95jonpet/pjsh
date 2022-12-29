@@ -54,16 +54,16 @@ fn interpolate_words(words: &[Word], context: &Context) -> EvalResult<VecDeque<S
 /// Expands globs.
 fn expand_globs(mut word: String, context: &Context) -> VecDeque<String> {
     expand_tilde(&mut word, context);
-    expand_asterisk(word)
+    expand_asterisk(word, context)
 }
 
 /// Expands asterisks (`*`).
-fn expand_asterisk(word: String) -> VecDeque<String> {
+fn expand_asterisk(word: String, context: &Context) -> VecDeque<String> {
     let mut words = VecDeque::with_capacity(1);
 
     if let Some(index) = word.find('*') {
         let head = &word[0..index];
-        let mut path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+        let mut path = word_var(context, "PWD").map_or_else(|| PathBuf::from("/"), PathBuf::from);
         path.push(head);
 
         // Cannot expand glob, keep the asterisk.
@@ -216,10 +216,6 @@ fn interpolate_variable(variable_name: &str, context: &Context) -> EvalResult<St
         "?" => Ok(context.last_exit().to_string()),
         "HOME" => home_dir().map_or_else(
             || Err(EvalError::UndefinedVariable("HOME".to_owned())),
-            |path| Ok(path_to_string(path)),
-        ),
-        "PWD" => std::env::current_dir().map_or_else(
-            |err| Err(EvalError::IoError(err)),
             |path| Ok(path_to_string(path)),
         ),
         "SHELL" => std::env::current_exe().map_or_else(

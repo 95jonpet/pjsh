@@ -16,10 +16,6 @@ mock! {
         fn process_id(&self) -> u32;
         fn join_all_threads(&mut self);
         fn take_exited_child_processes(&mut self) -> std::collections::HashSet<u32>;
-        fn env_vars(&self) -> std::collections::HashMap<std::ffi::OsString, std::ffi::OsString>;
-        fn get_env(&self, key: &std::ffi::OsStr) -> Option<std::ffi::OsString>;
-        fn set_env(&mut self, key: std::ffi::OsString, value: std::ffi::OsString);
-        fn unset_env(&mut self, key: &std::ffi::OsStr);
     }
 }
 

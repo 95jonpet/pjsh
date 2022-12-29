@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     process::{self, Child},
     thread::JoinHandle,
 };
@@ -67,27 +67,5 @@ impl Host for StdHost {
             .retain(|child| !exited.contains(&child.id()));
 
         exited
-    }
-
-    /// Returns all environment variables known by the host.
-    fn env_vars(&self) -> HashMap<std::ffi::OsString, std::ffi::OsString> {
-        std::env::vars_os().collect::<HashMap<_, _>>()
-    }
-
-    /// Returns the value of an environment variable with a specific key.
-    /// Returns `None` if the host cannot find the environment variable.
-    fn get_env(&self, key: &std::ffi::OsStr) -> Option<std::ffi::OsString> {
-        std::env::var_os(key)
-    }
-
-    /// Sets the value for an environment variable with a specific key.
-    /// Replaces any previously existing variable with the same key.
-    fn set_env(&mut self, key: std::ffi::OsString, value: std::ffi::OsString) {
-        std::env::set_var(key, value);
-    }
-
-    /// Removes an environment variable from the host.
-    fn unset_env(&mut self, key: &std::ffi::OsStr) {
-        std::env::remove_var(key);
     }
 }
