@@ -600,6 +600,7 @@ dependencies = [
  "os_pipe",
  "parking_lot",
  "pjsh_ast",
+ "tempfile",
 ]
 
 [[package]]
