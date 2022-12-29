@@ -80,6 +80,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_prints_help() {
+        let mut ctx = Context::with_scopes(vec![Scope::new(
+            String::new(),
+            Some(vec!["export".into(), "--help".into()]),
+            HashMap::default(),
+            HashMap::default(),
+            HashSet::default(),
+        )]);
+        let mut io = empty_io();
+        let mut args = Args::new(&mut ctx, &mut io);
+
+        let cmd = Export {};
+        let CommandResult::Builtin(result) = cmd.run(&mut args) else {
+            unreachable!();
+        };
+
+        assert_eq!(result.code, 0);
+    }
+
+    #[test]
     fn it_exports_variables() {
         let export = Export {};
         let mut ctx = Context::with_scopes(vec![Scope::new(
