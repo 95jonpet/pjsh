@@ -2,8 +2,12 @@ use std::path::PathBuf;
 
 use pjsh_ast::{Condition, Word};
 use pjsh_core::{utils::resolve_path, Context};
+use regex::RegexBuilder;
 
-use crate::{error::EvalResult, interpolate_word};
+use crate::{error::EvalResult, interpolate_word, EvalError};
+
+/// Size limit, in bytes, for regular expressions.
+const REGEX_SIZE_LIMIT: usize = 4096; // TODO: Set the regex size limit to a sensible default value.
 
 /// Evaluates a condition within a context.
 ///
@@ -19,6 +23,24 @@ pub fn eval_condition(condition: &Condition, context: &Context) -> EvalResult<bo
         Condition::NotEmpty(word) => Ok(!interpolate_word(word, context)?.is_empty()),
         Condition::Eq(a, b) => if_compare(a, b, context, |a, b| a == b),
         Condition::Ne(a, b) => if_compare(a, b, context, |a, b| a != b),
+        Condition::Matches(word, pattern) => {
+            let word = interpolate_word(word, context)?;
+            let pattern = interpolate_word(pattern, context)?;
+
+            // Construct a regex from untrusted input.
+            // The regex is limited in size in order to prevent trivial denial-of-service
+            // attacks from badly formed regular expressions.
+            // TODO: Allow the regex size limit to be customized.
+            let regex = RegexBuilder::new(&pattern)
+                .size_limit(REGEX_SIZE_LIMIT)
+                .dfa_size_limit(REGEX_SIZE_LIMIT)
+                .build();
+
+            match regex {
+                Ok(regex) => Ok(regex.is_match(&word)),
+                Err(err) => Err(EvalError::InvalidRegex(format!("{err}"))),
+            }
+        }
         Condition::Invert(condition) => Ok(!(eval_condition(condition, context)?)),
     }
 }
@@ -124,6 +146,28 @@ mod tests {
         let context = Context::default();
         assert!(!eval_condition(&Condition::Ne(a.clone(), a.clone()), &context).unwrap());
         assert!(eval_condition(&Condition::Ne(a, b), &context).unwrap());
+    }
+
+    #[test]
+    fn test_matches() {
+        let a = Word::Literal("a".into());
+        let b = Word::Literal("b".into());
+        let pattern = Word::Literal("a+".into());
+
+        let context = Context::default();
+        assert!(eval_condition(&Condition::Matches(a, pattern.clone()), &context).unwrap());
+        assert!(!eval_condition(&Condition::Matches(b, pattern), &context).unwrap());
+    }
+
+    #[test]
+    fn test_matches_invalid_regex() {
+        let a = Word::Literal("a".into());
+        let pattern = Word::Literal("a{100}{100}{100}".into()); // Too large regex, prevent DoS.
+
+        let context = Context::default();
+        let result = eval_condition(&Condition::Matches(a, pattern.clone()), &context);
+
+        assert!(matches!(result, Err(EvalError::InvalidRegex(_))));
     }
 
     #[test]

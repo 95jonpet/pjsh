@@ -613,6 +613,7 @@ dependencies = [
  "pjsh_core",
  "pjsh_parse",
  "rand",
+ "regex",
  "tempfile",
 ]
 

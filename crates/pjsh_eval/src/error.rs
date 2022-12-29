@@ -12,6 +12,7 @@ pub enum EvalError {
     CreatePipeFailed(std::io::Error),
     InvalidIndex,
     InvalidListInterpolation(String),
+    InvalidRegex(String),         // Contains an error message.
     InvalidValuePipeline(String), // Contains an error message.
     IoError(std::io::Error),      // General IO catch-all error.
     PipelineFailed(Vec<std::io::Error>),
@@ -46,6 +47,7 @@ impl Display for EvalError {
             EvalError::InvalidListInterpolation(var) => {
                 write!(f, "invalid list interpolation: {var}")
             }
+            EvalError::InvalidRegex(msg) => write!(f, "invalid regex: {msg}"),
             EvalError::InvalidValuePipeline(msg) => write!(f, "invalid value pipeline: {msg}"),
             EvalError::IoError(err) => write!(f, "input/output error: {err}"),
             EvalError::PipelineFailed(errors) => write!(f, "pipeline failed: {:?}", errors),

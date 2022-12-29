@@ -10,6 +10,7 @@ dirs = "4"
 itertools = "0.10"
 os_pipe = "1"
 rand = "0.8"
+regex = "1"
 tempfile = "3"
 
 pjsh_ast = { path = "../pjsh_ast" }
