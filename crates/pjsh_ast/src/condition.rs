@@ -41,6 +41,11 @@ pub enum Condition {
     /// Typically `[[ a != b ]]`.
     Ne(Word, Word),
 
+    /// True if a word matches another word consisting of a regular expression.
+    ///
+    /// Typically `[[ value =~ regex ]]`.
+    Matches(Word, Word),
+
     // Misc.
     /// The inverse of another condition.
     ///

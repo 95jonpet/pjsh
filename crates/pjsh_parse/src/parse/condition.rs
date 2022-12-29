@@ -27,6 +27,7 @@ pub(crate) fn parse_condition(tokens: &mut TokenCursor) -> ParseResult<Condition
         .or_else(|_| one_word_condition(&mut lookahead, "is-path", Condition::IsPath))
         .or_else(|_| two_word_condition(&mut lookahead, "==", Condition::Eq))
         .or_else(|_| two_word_condition(&mut lookahead, "!=", Condition::Ne))
+        .or_else(|_| two_word_condition(&mut lookahead, "=~", Condition::Matches))
         .or_else(|_| Ok(Condition::NotEmpty(parse_word(&mut lookahead)?)))?;
 
     take_token(&mut lookahead, &TokenContents::DoubleCloseBracket)?;
@@ -187,6 +188,25 @@ mod tests {
                 TokenContents::DoubleCloseBracket,
             ]),
             Ok(Condition::Ne(
+                Word::Literal("a".into()),
+                Word::Literal("b".into())
+            ))
+        );
+    }
+
+    #[test]
+    fn it_parses_matches() {
+        assert_eq!(
+            parse(vec![
+                TokenContents::DoubleOpenBracket,
+                TokenContents::Literal("a".into()),
+                TokenContents::Whitespace,
+                TokenContents::Literal("=~".into()),
+                TokenContents::Whitespace,
+                TokenContents::Literal("b".into()),
+                TokenContents::DoubleCloseBracket,
+            ]),
+            Ok(Condition::Matches(
                 Word::Literal("a".into()),
                 Word::Literal("b".into())
             ))
