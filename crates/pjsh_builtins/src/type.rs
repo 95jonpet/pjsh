@@ -80,7 +80,7 @@ fn print_type(name: String, r#type: CommandType, mut io: Io) -> i32 {
             status::SUCCESS
         }
         CommandType::Program(path) => {
-            let _ = writeln!(io.stdout, "{name} is '{}'", path_to_string(&path));
+            let _ = writeln!(io.stdout, "{name} is '{}'", path_to_string(path));
             status::SUCCESS
         }
         CommandType::Unknown => {

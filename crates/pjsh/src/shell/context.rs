@@ -127,7 +127,7 @@ fn pjsh_scope(script_file: Option<PathBuf>) -> Scope {
 
 /// Returns an empty scope for use as the shell's global scope.
 fn global_scope(args: Vec<String>) -> Scope {
-    let name = current_exe().map_or_else(|_| String::from("pjsh"), |path| path_to_string(&path));
+    let name = current_exe().map_or_else(|_| String::from("pjsh"), path_to_string);
 
     Scope::new(
         name,
