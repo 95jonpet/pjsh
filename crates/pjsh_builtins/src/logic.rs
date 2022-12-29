@@ -1,16 +1,10 @@
-use clap::Parser;
 use pjsh_core::command::{Args, Command, CommandResult};
 
-use crate::{status, utils::exit_with_parse_error};
-
-/// Exit with a code status indicating success.
-///
-/// This is a built-in shell command.
-#[derive(Parser)]
-#[clap(name = "true", version)]
-struct TrueOpts;
+use crate::status;
 
 /// Implementation for the "true" built-in command.
+///
+/// Exits with a code status indicating success.
 #[derive(Clone)]
 pub struct True;
 impl Command for True {
@@ -18,22 +12,14 @@ impl Command for True {
         "true"
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
-        match TrueOpts::try_parse_from(args.context.args()) {
-            Ok(_) => CommandResult::code(status::SUCCESS),
-            Err(error) => exit_with_parse_error(args.io, error),
-        }
+    fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+        CommandResult::code(status::SUCCESS)
     }
 }
 
-/// Exit with a status code indicating failure.
-///
-/// This is a built-in shell command.
-#[derive(Parser)]
-#[clap(name = "false", version)]
-struct FalseOpts;
-
 /// Implementation for the "false" built-in command.
+///
+/// Exits with a status code indicating failure.
 #[derive(Clone)]
 pub struct False;
 impl Command for False {
@@ -41,11 +27,8 @@ impl Command for False {
         "false"
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
-        match TrueOpts::try_parse_from(args.context.args()) {
-            Ok(_) => CommandResult::code(1), // Any non-zero code is false.
-            Err(error) => exit_with_parse_error(args.io, error),
-        }
+    fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+        CommandResult::code(1) // Any non-zero code is false.
     }
 }
 
