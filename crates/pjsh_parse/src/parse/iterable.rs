@@ -86,4 +86,12 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn parse_numeric_range_with_invalid_values() {
+        assert!(matches!(
+            parse_iterable("0..9999999999999999999999999"), // End is out of bounds.
+            Err(ParseError::InvalidSyntax(_))
+        ));
+    }
 }
