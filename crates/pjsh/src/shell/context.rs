@@ -158,3 +158,69 @@ fn register_builtins(context: &mut Context, completions: Arc<Mutex<Completions>>
     context.register_builtin(Box::new(pjsh_builtins::Unset));
     context.register_builtin(Box::new(pjsh_builtins::Which));
 }
+
+#[cfg(test)]
+mod tests {
+    use pjsh_core::Value;
+
+    use super::*;
+
+    #[test]
+    fn it_registers_builtins() {
+        let expected_builtins = vec![
+            ".",
+            "alias",
+            "cd",
+            "complete",
+            "echo",
+            "exit",
+            "export",
+            "false",
+            "interpolate",
+            "pwd",
+            "sleep",
+            "source",
+            "true",
+            "type",
+            "unalias",
+            "unset",
+            "which",
+        ];
+
+        let (context, _) = initialized_context(Vec::new(), None);
+        let mut builtins: Vec<&str> = context
+            .builtins
+            .keys()
+            .map(|builtin| builtin.as_str())
+            .collect();
+        builtins.sort();
+
+        assert_eq!(builtins, expected_builtins);
+    }
+
+    #[test]
+    fn it_registers_script_path_variables() {
+        let script_file = PathBuf::from("/tmp/test_script.pjsh");
+        let (context, _) = initialized_context(Vec::new(), Some(script_file));
+
+        // Initial script paths should be set.
+        assert_eq!(
+            context.get_var("PJSH_INITIAL_SCRIPT_PATH"),
+            Some(&Value::Word("/tmp/test_script.pjsh".into()))
+        );
+        assert_eq!(
+            context.get_var("PJSH_INITIAL_SCRIPT_DIR"),
+            Some(&Value::Word("/tmp".into()))
+        );
+
+        // Current script paths should be set.
+        assert_eq!(
+            context.get_var("PJSH_CURRENT_SCRIPT_PATH"),
+            Some(&Value::Word("/tmp/test_script.pjsh".into()))
+        );
+        assert_eq!(
+            context.get_var("PJSH_CURRENT_SCRIPT_DIR"),
+            Some(&Value::Word("/tmp".into()))
+        );
+    }
+}
