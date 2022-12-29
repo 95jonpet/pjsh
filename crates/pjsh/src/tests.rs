@@ -1,4 +1,4 @@
-use mockall::{mock, predicate::eq};
+use mockall::mock;
 
 use crate::shell::{MockShell, ShellInput};
 use pjsh_core::Host;
@@ -8,12 +8,9 @@ use super::*;
 mock! {
     TestHost {}
     impl Host for TestHost {
-        fn println(&mut self, text: &str);
-        fn eprintln(&mut self, text: &str);
         fn add_child_process(&mut self, child: std::process::Child);
         fn add_thread(&mut self, thread: std::thread::JoinHandle<i32>);
         fn kill_all_processes(&mut self);
-        fn process_id(&self) -> u32;
         fn join_all_threads(&mut self);
         fn take_exited_child_processes(&mut self) -> std::collections::HashSet<u32>;
     }
@@ -27,14 +24,6 @@ fn shell_interrupt() {
     mock_host
         .expect_take_exited_child_processes()
         .returning(std::collections::HashSet::new);
-    mock_host
-        .expect_eprintln()
-        .with(eq("pjsh: interrupt"))
-        .return_const(());
-    mock_host
-        .expect_eprintln()
-        .with(eq("pjsh: logout"))
-        .return_const(());
 
     mock_host
         .expect_kill_all_processes()
