@@ -7,7 +7,7 @@ use std::{
 
 use parking_lot::Mutex;
 use pjsh_core::{
-    utils::path_to_string, Completions, Context, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
+    utils::path_to_string, Completions, Context, Filter, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
 };
 
 /// Constructs a new initialized execution context containing some common environment variables such
@@ -23,6 +23,7 @@ pub fn initialized_context(
     ]);
     let completions = Arc::new(Mutex::new(Completions::default()));
     register_builtins(&mut context, Arc::clone(&completions));
+    register_filters(&mut context);
 
     context.set_file_descriptor(FD_STDIN, pjsh_core::FileDescriptor::Stdin);
     context.set_file_descriptor(FD_STDOUT, pjsh_core::FileDescriptor::Stdout);
@@ -149,6 +150,30 @@ fn register_builtins(context: &mut Context, completions: Arc<Mutex<Completions>>
     context.register_builtin(Box::new(pjsh_builtins::Unalias));
     context.register_builtin(Box::new(pjsh_builtins::Unset));
     context.register_builtin(Box::new(pjsh_builtins::Which));
+}
+
+/// Registers built-in filters in a context.
+fn register_filters(context: &mut Context) {
+    let register = |context: &mut Context, filter: Box<dyn Filter>| {
+        let previous = context.filters.insert(filter.name().to_string(), filter);
+        assert!(previous.is_none(), "filters should not be registered twice");
+    };
+
+    register(context, Box::new(pjsh_filters::FirstFilter));
+    register(context, Box::new(pjsh_filters::JoinFilter));
+    register(context, Box::new(pjsh_filters::LastFilter));
+    register(context, Box::new(pjsh_filters::LenFilter));
+    register(context, Box::new(pjsh_filters::LinesFilter));
+    register(context, Box::new(pjsh_filters::LowercaseFilter));
+    register(context, Box::new(pjsh_filters::NthFilter));
+    register(context, Box::new(pjsh_filters::ReplaceFilter));
+    register(context, Box::new(pjsh_filters::ReverseFilter));
+    register(context, Box::new(pjsh_filters::SortFilter));
+    register(context, Box::new(pjsh_filters::SplitFilter));
+    register(context, Box::new(pjsh_filters::UcfirstFilter));
+    register(context, Box::new(pjsh_filters::UniqueFilter));
+    register(context, Box::new(pjsh_filters::UppercaseFilter));
+    register(context, Box::new(pjsh_filters::WordsFilter));
 }
 
 #[cfg(test)]

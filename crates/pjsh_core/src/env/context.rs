@@ -9,8 +9,8 @@ use std::{
 use pjsh_ast::Function;
 
 use crate::{
-    command::Command, file_descriptor::FileDescriptorError, utils::word_var, FileDescriptor, Host,
-    StdHost,
+    command::Command, file_descriptor::FileDescriptorError, utils::word_var, FileDescriptor,
+    Filter, Host, StdHost,
 };
 
 /// An execution context consisting of a number of execution scopes.
@@ -26,6 +26,9 @@ pub struct Context {
 
     /// Built-in commands in the context.
     pub builtins: HashMap<String, Box<dyn Command>>,
+
+    /// Built-in filters in the context.
+    pub filters: HashMap<String, Box<dyn Filter>>,
 }
 
 impl Context {
@@ -41,6 +44,7 @@ impl Context {
             host: Arc::clone(&self.host),
             scopes,
             builtins: self.builtins.clone(),
+            filters: self.filters.clone(),
         })
     }
 
@@ -60,6 +64,7 @@ impl Context {
             host: Arc::new(parking_lot::Mutex::new(StdHost::default())),
             scopes,
             builtins: HashMap::new(),
+            filters: HashMap::new(),
         }
     }
 
@@ -330,6 +335,7 @@ impl Default for Context {
                 HashSet::default(),
             )],
             builtins: Default::default(),
+            filters: Default::default(),
         }
     }
 }

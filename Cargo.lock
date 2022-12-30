@@ -573,6 +573,7 @@ dependencies = [
  "pjsh_builtins",
  "pjsh_core",
  "pjsh_eval",
+ "pjsh_filters",
  "pjsh_parse",
  "regex",
  "rustyline",
@@ -609,7 +610,6 @@ name = "pjsh_eval"
 version = "0.1.0"
 dependencies = [
  "dirs",
- "itertools",
  "os_pipe",
  "pjsh_ast",
  "pjsh_core",
@@ -617,6 +617,14 @@ dependencies = [
  "rand",
  "regex",
  "tempfile",
+]
+
+[[package]]
+name = "pjsh_filters"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "pjsh_core",
 ]
 
 [[package]]

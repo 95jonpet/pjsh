@@ -1,0 +1,11 @@
+[package]
+name = "pjsh_filters"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Built-in filters for PJSH."
+
+[dependencies]
+itertools = "0.10"
+
+pjsh_core = { path = "../pjsh_core" }
