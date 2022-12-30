@@ -302,7 +302,10 @@ mod tests {
             ])),
             Ok(Word::ValuePipeline(Box::new(ValuePipeline {
                 base: "base".into(),
-                filters: vec![Filter::Sort],
+                filters: vec![Filter {
+                    name: Word::Literal("sort".into()),
+                    args: vec![]
+                }],
             })))
         );
     }

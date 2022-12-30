@@ -1,60 +1,23 @@
-use pjsh_ast::{Filter, Word};
+use pjsh_ast::Filter;
 
-use crate::ParseError;
-
-use super::{cursor::TokenCursor, utils::take_literal, word::parse_word, ParseResult};
+use super::{cursor::TokenCursor, word::parse_word, ParseResult};
 
 /// Parses a condition.
 pub(crate) fn parse_filter(tokens: &mut TokenCursor) -> ParseResult<Filter> {
-    Result::Err(ParseError::InvalidSyntax("Unknown filter".into()))
-        .or_else(|_| argumentless_filter(tokens, "lower", Filter::Lower))
-        .or_else(|_| argumentless_filter(tokens, "upper", Filter::Upper))
-        .or_else(|_| argumentless_filter(tokens, "words", Filter::Words))
-        .or_else(|_| argumentless_filter(tokens, "unique", Filter::Unique))
-        .or_else(|_| argumentless_filter(tokens, "len", Filter::Len))
-        .or_else(|_| argumentless_filter(tokens, "reverse", Filter::Reverse))
-        .or_else(|_| argumentless_filter(tokens, "sort", Filter::Sort))
-        .or_else(|_| one_argument_filter(tokens, "index", Filter::Index))
-        .or_else(|_| one_argument_filter(tokens, "join", Filter::Join))
-        .or_else(|_| one_argument_filter(tokens, "split", Filter::Split))
-        .or_else(|_| two_argument_filter(tokens, "replace", Filter::Replace))
-}
+    let name = parse_word(tokens)?;
+    let mut args = Vec::new();
 
-/// Returns a filter from a single word.
-fn argumentless_filter(
-    tokens: &mut TokenCursor,
-    keyword: &str,
-    filter: Filter,
-) -> ParseResult<Filter> {
-    take_literal(tokens, keyword)?;
-    Ok(filter)
-}
+    while let Ok(arg) = parse_word(tokens) {
+        args.push(arg);
+    }
 
-/// Returns a filter from a single word with an argument.
-fn one_argument_filter<F: Fn(Word) -> Filter>(
-    tokens: &mut TokenCursor,
-    keyword: &str,
-    func: F,
-) -> ParseResult<Filter> {
-    take_literal(tokens, keyword)?;
-    let word = parse_word(tokens)?;
-    Ok(func(word))
-}
-
-/// Returns a filter from a single word with two arguments.
-fn two_argument_filter<F: Fn(Word, Word) -> Filter>(
-    tokens: &mut TokenCursor,
-    keyword: &str,
-    func: F,
-) -> ParseResult<Filter> {
-    take_literal(tokens, keyword)?;
-    let a = parse_word(tokens)?;
-    let b = parse_word(tokens)?;
-    Ok(func(a, b))
+    Ok(Filter { name, args })
 }
 
 #[cfg(test)]
 mod tests {
+    use pjsh_ast::Word;
+
     use crate::{
         token::{Token, TokenContents},
         Span,
@@ -62,6 +25,7 @@ mod tests {
 
     use super::*;
 
+    /// Parses tokens into a filter.
     fn parse(contents: Vec<TokenContents>) -> ParseResult<Filter> {
         let span = Span::new(0, 0); // Insignificant during these tests.
         let tokens: Vec<Token> = contents.into_iter().map(|c| Token::new(c, span)).collect();
@@ -70,98 +34,42 @@ mod tests {
     }
 
     #[test]
-    fn it_parses_sort() {
+    fn it_parses_argumentless_filter() {
         assert_eq!(
             parse(vec![TokenContents::Literal("sort".into())]),
-            Ok(Filter::Sort)
+            Ok(Filter {
+                name: Word::Literal("sort".into()),
+                args: vec![]
+            })
         );
     }
 
     #[test]
-    fn it_parses_reverse() {
-        assert_eq!(
-            parse(vec![TokenContents::Literal("reverse".into())]),
-            Ok(Filter::Reverse)
-        );
-    }
-
-    #[test]
-    fn it_parses_unique() {
-        assert_eq!(
-            parse(vec![TokenContents::Literal("unique".into())]),
-            Ok(Filter::Unique)
-        );
-    }
-
-    #[test]
-    fn it_parses_lowercase() {
-        assert_eq!(
-            parse(vec![TokenContents::Literal("lower".into())]),
-            Ok(Filter::Lower)
-        );
-    }
-
-    #[test]
-    fn it_parses_uppercase() {
-        assert_eq!(
-            parse(vec![TokenContents::Literal("upper".into())]),
-            Ok(Filter::Upper)
-        );
-    }
-
-    #[test]
-    fn it_parses_words() {
-        assert_eq!(
-            parse(vec![TokenContents::Literal("words".into())]),
-            Ok(Filter::Words)
-        );
-    }
-
-    #[test]
-    fn it_parses_index() {
+    fn it_parses_single_argument_filters() {
         assert_eq!(
             parse(vec![
-                TokenContents::Literal("index".into()),
-                TokenContents::Literal("1".into()),
+                TokenContents::Literal("nth".into()),
+                TokenContents::Literal("0".into()),
             ]),
-            Ok(Filter::Index(Word::Literal("1".into())))
+            Ok(Filter {
+                name: Word::Literal("nth".into()),
+                args: vec![Word::Literal("0".into())]
+            })
         );
     }
 
     #[test]
-    fn it_parses_join() {
-        assert_eq!(
-            parse(vec![
-                TokenContents::Literal("join".into()),
-                TokenContents::Literal(", ".into()),
-            ]),
-            Ok(Filter::Join(Word::Literal(", ".into())))
-        );
-    }
-
-    #[test]
-    fn it_parses_split() {
-        assert_eq!(
-            parse(vec![
-                TokenContents::Literal("split".into()),
-                TokenContents::Literal(",".into()),
-            ]),
-            Ok(Filter::Split(Word::Literal(",".into())))
-        );
-    }
-
-    #[test]
-    fn it_parses_replace() {
+    fn it_parses_two_argument_filters() {
         assert_eq!(
             parse(vec![
                 TokenContents::Literal("replace".into()),
                 TokenContents::Literal("a".into()),
                 TokenContents::Literal("b".into()),
             ]),
-            Ok(Filter::Replace(
-                Word::Literal("a".into()),
-                Word::Literal("b".into())
-            ))
+            Ok(Filter {
+                name: Word::Literal("replace".into()),
+                args: vec![Word::Literal("a".into()), Word::Literal("b".into())]
+            })
         );
     }
 }

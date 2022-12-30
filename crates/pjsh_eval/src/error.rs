@@ -1,12 +1,13 @@
 use std::fmt::Display;
 
-use pjsh_core::FileDescriptorError;
+use pjsh_core::{FileDescriptorError, FilterError};
 
 pub type EvalResult<T> = Result<T, EvalError>;
 
 #[derive(Debug)]
 pub enum EvalError {
     FileDescriptorError(usize, FileDescriptorError),
+    FilterError(String, FilterError),
     ChildSpawnFailed(std::io::Error),
     ContextCloneFailed(std::io::Error),
     CreatePipeFailed(std::io::Error),
@@ -21,6 +22,7 @@ pub enum EvalError {
     UndefinedFunctionArguments(Vec<String>),
     UndefinedVariable(String),
     UnknownCommand(String),
+    UnknownFilter(String),
 }
 
 impl Display for EvalError {
@@ -40,6 +42,7 @@ impl Display for EvalError {
                     write!(f, "file '{}' is not writable: {err}", path.display())
                 }
             },
+            EvalError::FilterError(filter, error) => write!(f, "{filter}: {error}"),
             EvalError::ChildSpawnFailed(err) => write!(f, "failed to spawn child process: {err}"),
             EvalError::ContextCloneFailed(err) => write!(f, "failed to clone context: {err}"),
             EvalError::CreatePipeFailed(err) => write!(f, "failed to create pipe: {err}"),
@@ -60,6 +63,7 @@ impl Display for EvalError {
             }
             EvalError::UndefinedVariable(variable) => write!(f, "undefined variable: {variable}"),
             EvalError::UnknownCommand(command) => write!(f, "unknown command: {command}"),
+            EvalError::UnknownFilter(filter) => write!(f, "unknown filter: {filter}"),
         }
     }
 }
