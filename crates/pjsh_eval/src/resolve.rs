@@ -20,17 +20,17 @@ pub(crate) enum ResolvedCommand {
 
 /// Resolves a command.
 pub(crate) fn resolve_command(name: &str, context: &Context) -> ResolvedCommand {
-    if let Some(builtin) = context.get_builtin(&name).map(|cmd| cmd.clone_box()) {
+    if let Some(builtin) = context.get_builtin(name).map(|cmd| cmd.clone_box()) {
         return ResolvedCommand::Builtin(builtin);
     }
 
-    if let Some(function) = context.get_function(&name).cloned() {
+    if let Some(function) = context.get_function(name).cloned() {
         return ResolvedCommand::Function(function);
     }
 
-    if let Some(program) = find_in_path(&name, context) {
+    if let Some(program) = find_in_path(name, context) {
         return ResolvedCommand::Program(program);
     }
 
-    return ResolvedCommand::Unknown;
+    ResolvedCommand::Unknown
 }

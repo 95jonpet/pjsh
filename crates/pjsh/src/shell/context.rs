@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::source_file;
 use parking_lot::Mutex;
 use pjsh_core::{
     utils::path_to_string, Completions, Context, Filter, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
@@ -143,8 +144,8 @@ fn register_builtins(context: &mut Context, completions: Arc<Mutex<Completions>>
     context.register_builtin(Box::new(pjsh_builtins::Interpolate));
     context.register_builtin(Box::new(pjsh_builtins::Pwd));
     context.register_builtin(Box::new(pjsh_builtins::Sleep));
-    context.register_builtin(Box::new(pjsh_builtins::Source));
-    context.register_builtin(Box::new(pjsh_builtins::SourceShorthand));
+    context.register_builtin(Box::new(pjsh_builtins::Source::new(source_file)));
+    context.register_builtin(Box::new(pjsh_builtins::SourceShorthand::new(source_file)));
     context.register_builtin(Box::new(pjsh_builtins::True));
     context.register_builtin(Box::new(pjsh_builtins::Type));
     context.register_builtin(Box::new(pjsh_builtins::Unalias));

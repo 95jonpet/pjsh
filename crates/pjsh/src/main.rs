@@ -5,7 +5,7 @@ mod shell;
 #[cfg(test)]
 mod tests;
 
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::process::ExitCode;
 use std::{env::current_exe, path::PathBuf, sync::Arc};
 
@@ -16,7 +16,7 @@ use parking_lot::Mutex;
 use pjsh_core::utils::word_var;
 use pjsh_core::Completions;
 use pjsh_core::{utils::path_to_string, Context};
-use pjsh_eval::interpolate_word;
+use pjsh_eval::{execute_statement, interpolate_word};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
 use shell::input_shell::InputShell;
 use shell::interactive::RustylineShell;
@@ -85,7 +85,7 @@ pub fn main() -> ExitCode {
     let (context, completions) = initialized_context(args, script_file);
     let context = Arc::new(Mutex::new(context));
 
-    source_init_scripts(interactive, executor.as_ref(), Arc::clone(&context));
+    source_init_scripts(interactive, &mut context.lock());
     let shell = new_shell(&opts, Arc::clone(&context), completions);
 
     // Not guaranteed to exit.
@@ -275,7 +275,7 @@ fn print_exited_child_processes(context: &mut Context) {
 }
 
 /// Sources all init scripts for the shell.
-fn source_init_scripts(interactive: bool, executor: &dyn Execute, context: Arc<Mutex<Context>>) {
+fn source_init_scripts(interactive: bool, context: &mut Context) {
     let mut script_names = vec![INIT_ALWAYS_SCRIPT_NAME];
 
     if interactive {
@@ -288,10 +288,32 @@ fn source_init_scripts(interactive: bool, executor: &dyn Execute, context: Arc<M
             path
         }) {
             if init_script.exists() {
-                let file = File::open(init_script).expect("script file should be readable");
-                let init_shell = Box::new(InputShell::new(file));
-                run_shell(init_shell, executor, Arc::clone(&context));
+                source_file(init_script, context);
             }
+        }
+    }
+}
+
+/// Sources a file.
+pub(crate) fn source_file(file: PathBuf, context: &mut Context) {
+    let mut io = context.io();
+    let Ok(file_contents) = read_to_string(&file) else {
+        let _ = writeln!(io.stderr, "pjsh: file is not readable: {}", path_to_string(&file));
+        return;
+    };
+    match parse(&file_contents, &context.aliases) {
+        Ok(program) => {
+            for statement in program.statements {
+                let Err(error) = execute_statement(&statement, context) else {
+                    continue;
+                };
+
+                let _ = writeln!(io.stderr, "pjsh: {error}");
+                break;
+            }
+        }
+        Err(error) => {
+            let _ = writeln!(io.stderr, "pjsh: {error}");
         }
     }
 }
