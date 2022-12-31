@@ -175,7 +175,7 @@ pub fn interpolate_function_call(
     context: &Context,
 ) -> EvalResult<String> {
     interpolate(context, |mut context| {
-        call_function(function, args, &mut context)
+        call_function(function, args, &mut context).map(|_| ())
     })
 }
 
