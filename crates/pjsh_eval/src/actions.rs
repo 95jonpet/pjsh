@@ -43,6 +43,5 @@ pub(crate) fn handle_action(action: &Action, context: &mut Context) -> EvalResul
             callback(name.clone(), context.io(), path.as_ref());
             Ok(())
         }
-        Action::SourceFile(_script_file, _args) => todo!(),
     }
 }

@@ -30,10 +30,6 @@ pub enum Action {
     /// Resolve the path to a command and call a function with it as an
     /// argument.
     ResolveCommandPath(String, Box<ResolveCommandPathCallback>),
-
-    /// Source a file within a context with some additional arguments. The first
-    /// argument should correspond with the name of the sourced file.
-    SourceFile(PathBuf, Vec<String>),
 }
 
 /// Command types.
