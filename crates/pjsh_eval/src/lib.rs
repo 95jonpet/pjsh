@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use actions::handle_action;
 use call::{call_builtin_command, call_external_program, call_function};
 use condition::eval_condition;
 pub use error::{EvalError, EvalResult};
@@ -8,16 +9,17 @@ use pjsh_ast::{
     ForOfIterableLoop, Iterable, IterationRule, Pipeline, Program, Redirect, Statement, Switch,
     Value, Word,
 };
-use pjsh_core::{
-    command::CommandResult, find_in_path, utils::resolve_path, Context, FileDescriptor, Scope,
-};
+use pjsh_core::{command::CommandResult, utils::resolve_path, Context, FileDescriptor, Scope};
+use resolve::resolve_command;
 use words::{expand_words, interpolate_list};
 pub use words::{interpolate_function_call, interpolate_word};
 
+mod actions;
 mod call;
 mod condition;
 mod error;
 mod filter;
+mod resolve;
 mod words;
 
 /// Executes a [`Vec<Statement>`].
@@ -238,7 +240,12 @@ fn execute_pipeline(pipeline: &Pipeline, context: &mut Context) -> EvalResult<i3
     let mut io_errors = Vec::new();
     for command in commands {
         match command {
-            CommandResult::Builtin(builtin) => exit_code = builtin.code,
+            CommandResult::Builtin(builtin) => {
+                exit_code = builtin.code;
+                for action in &builtin.actions {
+                    handle_action(action, context)?;
+                }
+            }
             CommandResult::Process(mut process) => match process.command.spawn() {
                 Ok(process) => processes.push(process),
                 Err(error) => {
@@ -282,20 +289,16 @@ fn execute_command(command: &Command, context: &mut Context) -> EvalResult<Comma
     redirect_file_descriptors(&command.redirects, context)?;
     let args = expand_words(&command.arguments, context)?;
 
-    if let Some(builtin) = context.get_builtin(&args[0]).map(|b| b.clone_box()) {
-        return call_builtin_command(builtin.as_ref(), &args, context);
+    match resolve_command(&args[0], context) {
+        resolve::ResolvedCommand::Builtin(builtin) => {
+            call_builtin_command(builtin.as_ref(), &args, context)
+        }
+        resolve::ResolvedCommand::Function(func) => call_function(&func, &args, context),
+        resolve::ResolvedCommand::Program(program) => {
+            call_external_program(&program, &args[1..], context).map(CommandResult::from)
+        }
+        resolve::ResolvedCommand::Unknown => Err(EvalError::UnknownCommand(args[0].to_owned())),
     }
-
-    if let Some(function) = context.get_function(&args[0]).cloned() {
-        call_function(&function, &args, context)?;
-        return Ok(CommandResult::code(0));
-    }
-
-    if let Some(program) = find_in_path(&args[0], context) {
-        return call_external_program(&program, &args[1..], context).map(CommandResult::from);
-    }
-
-    Err(EvalError::UnknownCommand(args[0].to_owned()))
 }
 
 /// Redirects file descriptors.

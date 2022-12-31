@@ -9,8 +9,10 @@ use std::{
 use pjsh_ast::Function;
 
 use crate::{
-    command::Command, file_descriptor::FileDescriptorError, utils::word_var, FileDescriptor,
-    Filter, Host, StdHost,
+    command::{Command, Io},
+    file_descriptor::FileDescriptorError,
+    utils::word_var,
+    FileDescriptor, Filter, Host, StdHost, FD_STDERR, FD_STDIN, FD_STDOUT,
 };
 
 /// An execution context consisting of a number of execution scopes.
@@ -319,6 +321,25 @@ impl Context {
             }
         }
         None
+    }
+
+    /// Returns an I/O wrapper for the context.
+    pub fn io(&mut self) -> Io {
+        let mut stdin: Box<dyn Read + Send> = Box::new(std::io::empty());
+        let mut stdout: Box<dyn Write + Send> = Box::new(std::io::sink());
+        let mut stderr: Box<dyn Write + Send> = Box::new(std::io::sink());
+
+        if let Some(Ok(fd)) = self.reader(FD_STDIN) {
+            stdin = fd;
+        }
+        if let Some(Ok(fd)) = self.writer(FD_STDOUT) {
+            stdout = fd;
+        }
+        if let Some(Ok(fd)) = self.writer(FD_STDERR) {
+            stderr = fd;
+        }
+
+        Io::new(stdin, stdout, stderr)
     }
 }
 

@@ -4,9 +4,9 @@ use crate::command::Io;
 
 type ExitCode = i32;
 
-type InterpolateCallback = dyn FnOnce(Io, Result<&str, &str>) -> ExitCode;
+type InterpolateCallback = dyn Fn(Io, Result<String, String>) -> ExitCode;
 
-type ResolveCommandPathCallback = dyn FnOnce(String, Io, Option<&PathBuf>) -> ExitCode;
+type ResolveCommandPathCallback = dyn Fn(String, Io, Option<&PathBuf>) -> ExitCode;
 
 /// Represents an action that should be performed by the shell.
 ///
@@ -25,7 +25,7 @@ pub enum Action {
 
     /// Resolve the type of a command and call a function with it as an
     /// argument.
-    ResolveCommandType(String, Box<dyn FnOnce(Io, CommandType) -> ExitCode>),
+    ResolveCommandType(String, Box<dyn Fn(Io, String, CommandType) -> ExitCode>),
 
     /// Resolve the path to a command and call a function with it as an
     /// argument.
@@ -40,12 +40,16 @@ pub enum Action {
 pub enum CommandType {
     /// User-defined alias.
     Alias(String),
+
     /// Shell built-in.
     Builtin,
+
     /// User-defined function.
     Function,
+
     /// A local program.
     Program(PathBuf),
+
     /// Unknown command - the command cannot be resolved.
     Unknown,
 }

@@ -1,14 +1,12 @@
 use std::{
     collections::{HashMap, HashSet},
-    io::Read,
-    io::Write,
     path::Path,
     process,
 };
 
 use pjsh_ast::Function;
 use pjsh_core::{
-    command::{Args, Command, CommandResult, Io},
+    command::{Args, Command, CommandResult},
     utils::word_var,
     Context, Scope, Value, FD_STDERR, FD_STDIN, FD_STDOUT,
 };
@@ -24,21 +22,7 @@ pub fn call_builtin_command(
     args: &[String],
     context: &mut Context,
 ) -> EvalResult<CommandResult> {
-    let mut stdin: Box<dyn Read + Send> = Box::new(std::io::empty());
-    let mut stdout: Box<dyn Write + Send> = Box::new(std::io::sink());
-    let mut stderr: Box<dyn Write + Send> = Box::new(std::io::sink());
-
-    if let Some(Ok(fd)) = context.reader(FD_STDIN) {
-        stdin = fd;
-    }
-    if let Some(Ok(fd)) = context.writer(FD_STDOUT) {
-        stdout = fd;
-    }
-    if let Some(Ok(fd)) = context.writer(FD_STDERR) {
-        stderr = fd;
-    }
-
-    let mut io = Io::new(stdin, stdout, stderr);
+    let mut io = context.io();
     let original_args = context.replace_args(Some(args.to_vec()));
     let mut args = Args::new(context, &mut io);
     let result = command.run(&mut args);
@@ -81,7 +65,7 @@ pub fn call_function(
     function: &Function,
     args: &[String],
     context: &mut Context,
-) -> EvalResult<()> {
+) -> EvalResult<CommandResult> {
     let function_args = &args[1..]; // The first argument is the function name.
 
     // Ensure that values are provided for all named arguments.
@@ -126,7 +110,7 @@ pub fn call_function(
 
     context.pop_scope();
 
-    result
+    result.map(|_| CommandResult::code(0))
 }
 
 #[cfg(test)]

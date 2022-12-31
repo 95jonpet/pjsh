@@ -54,7 +54,7 @@ fn resolve_command_types(args: TypeOpts) -> CommandResult {
     for name in args.name {
         let action = Action::ResolveCommandType(
             name.clone(),
-            Box::new(|io, r#type| print_type(name, r#type, io)),
+            Box::new(|io, name, r#type| print_type(name, r#type, io)),
         );
         actions.push(action);
     }
