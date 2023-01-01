@@ -36,10 +36,18 @@ mkdir -p "${RELEASE_PATH}" "${PACKAGE_PATH}"
 package() {
   local PACKAGE_TYPE="${1?'Missing required package type'}"
   local DOCKER_IMAGE="${2?'Missing required docker image'}"
+  local version="${VERSION}"
+
+  # Normalize package version.
+  if [[ "${PACKAGE_TYPE}" == "rpm" ]]; then
+    version="${version//-/_}"
+  fi
 
   # Output path (inside the container) for the final package file.
   # The "/out" directory is itself mounted under ${PACKAGE_PATH} on the host.
-  local PACKAGE_FILE="/out/pjsh_${VERSION}-${RELEASE}_all.${PACKAGE_TYPE}"
+  local PACKAGE_FILE="/out/pjsh_${version}-${RELEASE}_all.${PACKAGE_TYPE}"
+
+  echo "Creating package file: ${PACKAGE_FILE}"
 
   docker run \
     --rm \
@@ -48,11 +56,12 @@ package() {
     -v "${PACKAGE_PATH}:/out" \
     "${DOCKER_IMAGE}" \
     fpm \
+    --deb-no-default-config-files \
     -s dir \
     --output-type "${PACKAGE_TYPE}" \
     --package "${PACKAGE_FILE}" \
     --name pjsh \
-    --version "${VERSION}" \
+    --version "${version}" \
     --iteration "${RELEASE}" \
     --architecture all \
     --license mit \
