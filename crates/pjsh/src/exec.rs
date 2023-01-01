@@ -33,6 +33,11 @@ impl Execute for ProgramExecutor {
 
             eprintln!("pjsh: {error}");
 
+            // Ensure that a non-0 exit code is set.
+            if context.lock().last_exit() == 0 {
+                context.lock().register_exit(1);
+            }
+
             if self.exit_on_error {
                 break;
             }
