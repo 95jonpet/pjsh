@@ -4,16 +4,16 @@ use itertools::Itertools;
 use pjsh_core::{Completion, Completions, Context};
 use pjsh_eval::interpolate_function_call;
 
-use super::fs::complete_paths;
+use super::{fs::complete_paths, Replacement};
 
 /// Completes a word based on a prefix.
-pub fn complete(
+pub fn complete_in_context(
     prefix: &str,
     words: &[&str],
     word_index: usize,
     context: &Context,
     completions: &Completions,
-) -> Option<Vec<String>> {
+) -> Option<Vec<Replacement>> {
     if word_index == 0 {
         return None;
     }
@@ -40,19 +40,20 @@ pub fn complete(
             output
                 .split_whitespace()
                 .sorted()
-                .map(|word| word.to_string())
+                .map(|word| Replacement::new(word.to_string()))
                 .collect()
         }
     })
 }
 
 /// Completes a word based on pre-defined words.
-fn complete_words(prefix: &str, words: &[String]) -> Vec<String> {
-    let mut completions: Vec<String> = words
+fn complete_words(prefix: &str, words: &[String]) -> Vec<Replacement> {
+    let mut completions: Vec<Replacement> = words
         .iter()
         .filter(|word| word.starts_with(prefix))
         .cloned()
+        .map(Replacement::new)
         .collect();
-    completions.sort();
+    completions.sort_by(|a, b| a.content.cmp(&b.content));
     completions
 }
