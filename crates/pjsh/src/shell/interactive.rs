@@ -13,7 +13,10 @@ use rustyline::{
 };
 use rustyline_derive::Helper;
 
-use crate::shell::{Shell, ShellInput};
+use crate::{
+    complete::Replacement,
+    shell::{Shell, ShellInput},
+};
 
 use super::{super::complete::complete, utils::input_words};
 
@@ -172,10 +175,7 @@ impl Completer for ShellHelper {
             &self.completions.lock(),
         )
         .into_iter()
-        .map(|word| Pair {
-            display: word.clone(),
-            replacement: word,
-        })
+        .map(Pair::from)
         .collect();
         Ok((word.1.start, pairs))
     }
@@ -224,5 +224,17 @@ impl Validator for ShellHelper {
 
     fn validate_while_typing(&self) -> bool {
         false
+    }
+}
+
+impl From<Replacement> for Pair {
+    fn from(replacement: Replacement) -> Self {
+        let display = replacement
+            .display
+            .unwrap_or_else(|| replacement.content.clone());
+        Self {
+            display,
+            replacement: replacement.content,
+        }
     }
 }
