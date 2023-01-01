@@ -23,24 +23,7 @@ pub fn eval_condition(condition: &Condition, context: &Context) -> EvalResult<bo
         Condition::NotEmpty(word) => Ok(!interpolate_word(word, context)?.is_empty()),
         Condition::Eq(a, b) => if_compare(a, b, context, |a, b| a == b),
         Condition::Ne(a, b) => if_compare(a, b, context, |a, b| a != b),
-        Condition::Matches(word, pattern) => {
-            let word = interpolate_word(word, context)?;
-            let pattern = interpolate_word(pattern, context)?;
-
-            // Construct a regex from untrusted input.
-            // The regex is limited in size in order to prevent trivial denial-of-service
-            // attacks from badly formed regular expressions.
-            // TODO: Allow the regex size limit to be customized.
-            let regex = RegexBuilder::new(&pattern)
-                .size_limit(REGEX_SIZE_LIMIT)
-                .dfa_size_limit(REGEX_SIZE_LIMIT)
-                .build();
-
-            match regex {
-                Ok(regex) => Ok(regex.is_match(&word)),
-                Err(err) => Err(EvalError::InvalidRegex(format!("{err}"))),
-            }
-        }
+        Condition::Matches(word, pattern) => matches_regex(word, pattern, context),
         Condition::Invert(condition) => Ok(!(eval_condition(condition, context)?)),
     }
 }
@@ -71,6 +54,34 @@ fn if_compare<F: Fn(String, String) -> bool>(
 fn if_path<F: Fn(PathBuf) -> bool>(path: &Word, context: &Context, func: F) -> EvalResult<bool> {
     let path = resolve_path(context, interpolate_word(path, context)?);
     Ok(func(path))
+}
+
+/// Returns `true` if a word matches a regex pattern.
+///
+/// # Errors
+///
+/// This function will return an error if the word, or pattern, cannot be
+/// interpolated or if the given pattern is not a valid regex.
+///
+/// This function will also return an error if the compiled regex exceeds
+/// the maximum allowed regex size imposed by the shell. This prevents trivial
+/// denial-of-service attacks.
+fn matches_regex(word: &Word, pattern: &Word, context: &Context) -> EvalResult<bool> {
+    let word = interpolate_word(word, context)?;
+    let pattern = interpolate_word(pattern, context)?;
+
+    // Construct a regex from untrusted input.
+    // The regex is limited in size in order to prevent trivial denial-of-service
+    // attacks from badly formed regular expressions.
+    // TODO: Allow the regex size limit to be customized.
+    let regex = RegexBuilder::new(&pattern)
+        .size_limit(REGEX_SIZE_LIMIT)
+        .dfa_size_limit(REGEX_SIZE_LIMIT)
+        .build();
+
+    regex
+        .map(|regex| regex.is_match(&word))
+        .map_err(|err| EvalError::InvalidRegex(format!("{err}")))
 }
 
 #[cfg(test)]
