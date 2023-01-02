@@ -9,6 +9,7 @@
 </div>
 
 ## About The Project
+
 ![PJSH smart pipeline](doc/smart-pipeline.svg)
 
 _PJSH_ is a shell that aims to make the shell easier and more predictable to use. The syntax is mostly kept from the [POSIX Shell Specification](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html), but legacy implementation details are removed in order to increase the readability and usability of shell scripts.
@@ -24,17 +25,22 @@ PJSH is designed to satisfy the following requirements:
 - The shell is not locked to a specific operating system.
 
 ## Built With
+
 PJSH is built using the following software:
+
 - [Rust](https://www.rust-lang.org/)
+- [FPM](https://github.com/jordansissel/fpm)
+- [Docker](https://www.docker.com)
+- [Jenkins](https://www.jenkins.io)
 
 ## Getting Started
+
 PJSH can be run locally using [cargo](https://doc.rust-lang.org/stable/cargo).
 
-1. Clone the repo.
-    ```bash
-    git clone https://github.com/95jonpet/pjsh.git
-    ```
-2. Compile and run the code.
-    ```bash
-    cargo run
-    ```
+```bash
+# Clone the repository.
+git clone https://github.com/95jonpet/pjsh.git
+
+# Compile and run PJSH from the source code.
+cargo run
+```
