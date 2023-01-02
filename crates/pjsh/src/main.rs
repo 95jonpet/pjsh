@@ -35,17 +35,21 @@ const USER_HISTORY_FILE_NAME: &str = ".pjsh/history.txt";
 /// Command line options for the application's CLI.
 #[derive(Parser)]
 #[clap(
-    about("A small shell for command interpretation."),
-    version(crate_version!())
+    about = "A small shell for command interpretation.",
+    version = crate_version!()
 )]
 struct Opts {
     /// Execute a command rather than a script file.
-    #[clap(short('c'), long("command"), requires("script_file"))]
+    #[clap(short = 'c', long = "command", requires = "script_file")]
     is_command: bool,
 
     /// Print the AST without executing it.
-    #[clap(long("parse"), requires("script_file"))]
+    #[clap(long = "parse", requires = "script_file")]
     is_parse_only: bool,
+
+    /// Force an interactive shell.
+    #[clap(short = 'i', long = "interactive")]
+    force_interactive: bool,
 
     /// Script file.
     script_file: Option<String>,
@@ -57,7 +61,7 @@ struct Opts {
 /// Entrypoint for the application.
 pub fn main() -> ExitCode {
     let mut opts = Opts::parse();
-    let interactive = !opts.is_command && opts.script_file.is_none();
+    let interactive = opts.force_interactive || !opts.is_command && opts.script_file.is_none();
     let executor: Box<dyn Execute> = match opts.is_parse_only {
         true => Box::new(AstPrinter),
         false => Box::new(ProgramExecutor::new(!interactive)),
@@ -276,22 +280,22 @@ fn print_exited_child_processes(context: &mut Context) {
 
 /// Sources all init scripts for the shell.
 fn source_init_scripts(interactive: bool, context: &mut Context) {
-    let mut script_names = vec![INIT_ALWAYS_SCRIPT_NAME];
+    let mut script_names = Vec::with_capacity(2);
+    script_names.push(INIT_ALWAYS_SCRIPT_NAME);
 
     if interactive {
         script_names.push(INIT_INTERACTIVE_SCRIPT_NAME);
     }
 
-    for script_name in script_names {
-        if let Some(init_script) = dirs::home_dir().map(|mut path| {
-            path.push(script_name);
-            path
-        }) {
-            if init_script.exists() {
-                source_file(init_script, context);
-            }
-        }
-    }
+    let Some(home) = dirs::home_dir() else {
+        return;
+    };
+
+    script_names
+        .into_iter()
+        .map(|script| home.join(script))
+        .filter(|path| path.is_file())
+        .for_each(|script| source_file(script, context));
 }
 
 /// Sources a file.
