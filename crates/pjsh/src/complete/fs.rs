@@ -12,6 +12,16 @@ pub fn complete_paths<F>(prefix: &str, context: &Context, filter: F) -> Vec<Repl
 where
     F: Fn(&Path) -> bool,
 {
+    let original_prefix = prefix;
+    let mut prefix = prefix.to_string();
+    let mut home = None;
+    if original_prefix.starts_with("~/") {
+        home = word_var(context, "HOME");
+        if let Some(home) = home {
+            prefix = original_prefix.replacen("~/", &format!("{home}/"), 1)
+        }
+    }
+
     if let Some((dir, file_prefix)) = prefix.rsplit_once('/') {
         let Ok(files) = std::fs::read_dir(resolve_path(context, dir)) else {
             return Vec::default();
@@ -23,7 +33,13 @@ where
             .filter(|path| filter(path))
             .filter_map(|path| {
                 let file_name = filtered_file_name(path, file_prefix)?;
-                let content = format!("{dir}/{}", file_name);
+                let mut content = format!("{dir}/{}", file_name);
+
+                if original_prefix.starts_with("~/") {
+                    let home = home.expect("home should be defined");
+                    content = content.replacen(home, "~", 1);
+                }
+
                 Some(Replacement::customized(content, file_name))
             })
             .collect();
@@ -37,7 +53,7 @@ where
         .into_iter()
         .filter_map(|file| file.ok().map(|f| f.path()))
         .filter(|path| filter(path))
-        .filter_map(|path| filtered_file_name(path, prefix))
+        .filter_map(|path| filtered_file_name(path, &prefix))
         .map(Replacement::new)
         .collect()
 }
