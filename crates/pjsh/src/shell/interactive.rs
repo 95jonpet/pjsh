@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
-use pjsh_core::{utils::word_var, Completions, Context};
-use pjsh_parse::Span;
+use pjsh_complete::Completer;
+use pjsh_core::{utils::word_var, Context};
 use rustyline::{
-    completion::{Completer, Pair},
+    completion::Pair,
     error::ReadlineError,
     highlight::{Highlighter, MatchingBracketHighlighter},
     hint::{Hinter, HistoryHinter},
@@ -13,12 +13,7 @@ use rustyline::{
 };
 use rustyline_derive::Helper;
 
-use crate::{
-    complete::Replacement,
-    shell::{Shell, ShellInput},
-};
-
-use super::{super::complete::complete, utils::input_words};
+use crate::shell::{Shell, ShellInput};
 
 /// An interactive shell backed by [`rustyline`].
 pub struct RustylineShell {
@@ -33,7 +28,7 @@ impl RustylineShell {
     pub fn new(
         history_file: &std::path::Path,
         context: Arc<Mutex<Context>>,
-        completions: Arc<Mutex<Completions>>,
+        completer: Arc<Mutex<Completer>>,
     ) -> Self {
         let completion_type = match word_var(&context.lock(), "PJSH_COMPLETION_TYPE") {
             Some("circular") => CompletionType::Circular,
@@ -48,7 +43,7 @@ impl RustylineShell {
             context,
             highlighter: MatchingBracketHighlighter::new(),
             hinter: HistoryHinter {},
-            completions,
+            completer,
             colored_prompt: "$ ".to_owned(),
         };
 
@@ -128,14 +123,14 @@ struct ShellHelper {
     /// Suggestion hinter.
     hinter: HistoryHinter,
 
-    /// Shell completions.
-    completions: Arc<Mutex<Completions>>,
+    /// Line completion provider.
+    completer: Arc<Mutex<Completer>>,
 
     /// Colored shell prompt optionally containing ANSI control sequences.
     colored_prompt: String,
 }
 
-impl Completer for ShellHelper {
+impl rustyline::completion::Completer for ShellHelper {
     type Candidate = Pair;
 
     fn complete(
@@ -144,40 +139,16 @@ impl Completer for ShellHelper {
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        let mut words = input_words(line);
-
-        // The current position may be inside whitespace following the final word.
-        // If this is the case, completions should be provided for a new word with an
-        // empty prefix. They should, however, not be provided for the first word.
-        if pos > words.last().map_or(usize::MAX, |(_, pos)| pos.end) {
-            words.push(("", Span::new(pos, pos)));
-        }
-
-        let Some(word_index) = words
-            .iter()
-            .position(|(_, span)| pos >= span.start && pos <= span.end) else {
-                return Ok((pos, Vec::default())); // No input to complete.
-            };
-
-        let word = words[word_index];
-        let prefix = &word.0[..(pos - word.1.start)];
-
-        let words: Vec<&str> = input_words(line)
+        let completion = (self.completer.lock()).complete_line(line, pos, &self.context.lock());
+        let pairs = completion
+            .replacements
             .into_iter()
-            .map(|(word, _)| word)
+            .map(|replacement| Pair {
+                display: replacement.display,
+                replacement: replacement.content,
+            })
             .collect();
-
-        let pairs = complete(
-            prefix,
-            &words,
-            word_index,
-            &self.context.lock(),
-            &self.completions.lock(),
-        )
-        .into_iter()
-        .map(Pair::from)
-        .collect();
-        Ok((word.1.start, pairs))
+        Ok((completion.line_pos, pairs))
     }
 }
 
@@ -224,17 +195,5 @@ impl Validator for ShellHelper {
 
     fn validate_while_typing(&self) -> bool {
         false
-    }
-}
-
-impl From<Replacement> for Pair {
-    fn from(replacement: Replacement) -> Self {
-        let display = replacement
-            .display
-            .unwrap_or_else(|| replacement.content.clone());
-        Self {
-            display,
-            replacement: replacement.content,
-        }
     }
 }
