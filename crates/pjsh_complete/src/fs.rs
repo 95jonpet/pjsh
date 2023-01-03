@@ -5,7 +5,7 @@ use pjsh_core::{
     Context,
 };
 
-use super::Replacement;
+use crate::Replacement;
 
 /// Completes a path matching a filter.
 pub fn complete_paths<F>(prefix: &str, context: &Context, filter: F) -> Vec<Replacement>
@@ -40,7 +40,7 @@ where
                     content = content.replacen(home, "~", 1);
                 }
 
-                Some(Replacement::customized(content, file_name))
+                Some(Replacement::new(content, file_name))
             })
             .collect();
     }
@@ -54,7 +54,7 @@ where
         .filter_map(|file| file.ok().map(|f| f.path()))
         .filter(|path| filter(path))
         .filter_map(|path| filtered_file_name(path, &prefix))
-        .map(Replacement::new)
+        .map(Replacement::from)
         .collect()
 }
 

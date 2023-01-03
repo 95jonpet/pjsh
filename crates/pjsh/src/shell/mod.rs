@@ -2,7 +2,6 @@ pub(crate) mod context;
 pub(crate) mod input_shell;
 pub(crate) mod interactive;
 pub(crate) mod single_command_shell;
-pub(crate) mod utils;
 
 #[cfg(test)]
 use mockall::automock;

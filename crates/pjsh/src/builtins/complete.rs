@@ -2,16 +2,21 @@ use std::sync::Arc;
 
 use clap::Parser;
 use parking_lot::Mutex;
+use pjsh_builtins::exit_with_parse_error;
+use pjsh_complete::{Completer, Completion};
 use pjsh_core::{
     command::Args,
     command::{Command, CommandResult},
-    Completion, Completions,
 };
-
-use crate::{status, utils};
 
 /// Command name.
 const NAME: &str = "complete";
+
+/// Status code indicating successful command execution.
+const SUCCESS: i32 = 0;
+
+/// Status code indicating a general error during command execution.
+const GENERAL_ERROR: i32 = 1;
 
 /// Define shell completions.
 ///
@@ -39,13 +44,13 @@ struct CompleteOpts {
 #[derive(Clone)]
 pub struct Complete {
     /// Shell completions.
-    completions: Arc<Mutex<Completions>>,
+    completer: Arc<Mutex<Completer>>,
 }
 
 impl Complete {
     /// Constructs a new completion command.
-    pub fn new(completions: Arc<Mutex<Completions>>) -> Self {
-        Self { completions }
+    pub fn new(completer: Arc<Mutex<Completer>>) -> Self {
+        Self { completer }
     }
 }
 
@@ -57,39 +62,38 @@ impl Command for Complete {
     fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
         match CompleteOpts::try_parse_from(args.context.args()) {
             Ok(opts) => {
+                let mut completer = self.completer.lock();
+
                 if let Some(action) = opts.action {
                     let completion = match action.as_str() {
                         "directory" => Completion::Directory,
                         "file" => Completion::File,
                         _ => {
                             let _ = writeln!(args.io.stderr, "Unknown action: {action}");
-                            return CommandResult::code(status::GENERAL_ERROR);
+                            return CommandResult::code(GENERAL_ERROR);
                         }
                     };
-                    self.completions.lock().insert(opts.name, completion);
-                    return CommandResult::code(status::SUCCESS);
+                    completer.register_completion(opts.name, completion);
+                    return CommandResult::code(SUCCESS);
                 }
 
                 if let Some(function) = opts.function {
-                    self.completions
-                        .lock()
-                        .insert(opts.name, Completion::Function(function));
-                    return CommandResult::code(status::SUCCESS);
+                    completer.register_completion(opts.name, Completion::Function(function));
+                    return CommandResult::code(SUCCESS);
                 }
 
                 if let Some(wordlist) = opts.wordlist {
-                    self.completions
-                        .lock()
-                        .insert(opts.name, Completion::Constant(words(wordlist)));
+                    completer.register_completion(opts.name, Completion::Constant(words(wordlist)));
                 }
 
-                CommandResult::code(status::SUCCESS)
+                CommandResult::code(SUCCESS)
             }
-            Err(error) => utils::exit_with_parse_error(args.io, error),
+            Err(error) => exit_with_parse_error(args.io, error),
         }
     }
 }
 
+/// Returns a `Vec<String>` of all whitespace-separated words in a string.
 fn words(wordlist: String) -> Vec<String> {
     wordlist
         .split_whitespace()

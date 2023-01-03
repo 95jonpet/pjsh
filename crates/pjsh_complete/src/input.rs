@@ -1,7 +1,5 @@
-use pjsh_parse::{is_whitespace, Span};
-
 /// Return all word spans in a text input.
-pub fn input_words(text: &str) -> Vec<(&str, Span)> {
+pub(crate) fn separate_input(text: &str) -> Vec<(&str, usize, usize)> {
     let mut words = Vec::new();
     let mut quotes = Vec::with_capacity(16);
     let mut start = None;
@@ -11,7 +9,7 @@ pub fn input_words(text: &str) -> Vec<(&str, Span)> {
         end += ch.len_utf8();
 
         // Skip unquoted whitespace.
-        if is_whitespace(ch) && quotes.is_empty() && start.is_none() {
+        if ch.is_whitespace() && quotes.is_empty() && start.is_none() {
             continue;
         }
 
@@ -19,8 +17,8 @@ pub fn input_words(text: &str) -> Vec<(&str, Span)> {
         if &ch == quotes.last().unwrap_or(&char::REPLACEMENT_CHARACTER) {
             quotes.pop();
             if quotes.is_empty() {
-                let span = Span::new(start.take().unwrap_or(0), end); // Include end quote.
-                words.push((&text[span.start..span.end], span));
+                let span = (start.take().unwrap_or(0), end); // Include end quote.
+                words.push((&text[span.0..span.1], span.0, span.1));
             }
             continue;
         }
@@ -38,9 +36,9 @@ pub fn input_words(text: &str) -> Vec<(&str, Span)> {
         }
 
         // End words when encountering whitesapces and not in quotes.
-        if is_whitespace(ch) && quotes.is_empty() {
-            let span = Span::new(start.take().unwrap_or(0), pos); // Exclude whitespace.
-            words.push((&text[span.start..span.end], span));
+        if ch.is_whitespace() && quotes.is_empty() {
+            let span = (start.take().unwrap_or(0), pos); // Exclude whitespace.
+            words.push((&text[span.0..span.1], span.0, span.1));
             continue;
         }
     }
@@ -48,8 +46,8 @@ pub fn input_words(text: &str) -> Vec<(&str, Span)> {
     // Push the final incomplete word.
     if let Some(start) = start {
         if start != end {
-            let span = Span::new(start, end);
-            words.push((&text[span.start..span.end], span));
+            let span = (start, end);
+            words.push((&text[span.0..span.1], span.0, span.1));
         }
     }
 
@@ -61,7 +59,7 @@ mod tests {
     use super::*;
 
     fn words(text: &str) -> Vec<&str> {
-        input_words(text).iter().map(|(word, _)| *word).collect()
+        separate_input(text).iter().map(|part| part.0).collect()
     }
 
     #[test]

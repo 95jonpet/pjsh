@@ -1,0 +1,13 @@
+[package]
+name = "pjsh_complete"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Completion engine for PJSH."
+
+[dependencies]
+is_executable = "1"
+itertools = "0.10"
+
+pjsh_core = { path = "../pjsh_core"}
+pjsh_eval = { path = "../pjsh_eval"}

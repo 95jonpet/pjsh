@@ -10,7 +10,6 @@ ansi_term = "0.12"
 atty = "0.2"
 clap = { version = "4", features = ["cargo", "derive"] }
 dirs = "4"
-is_executable = "1"
 itertools = "0.10"
 parking_lot = {version = "0.12", features = ["deadlock_detection"] }
 regex = "1"
@@ -19,9 +18,10 @@ rustyline-derive = "0.7"
 
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_builtins = { path = "../pjsh_builtins" }
-pjsh_filters = { path = "../pjsh_filters" }
+pjsh_complete = { path = "../pjsh_complete" }
 pjsh_core = { path = "../pjsh_core" }
 pjsh_eval = { path = "../pjsh_eval" }
+pjsh_filters = { path = "../pjsh_filters" }
 pjsh_parse = { path = "../pjsh_parse" }
 
 [dev-dependencies]

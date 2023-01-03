@@ -5,32 +5,32 @@ use std::{
     sync::Arc,
 };
 
-use crate::source_file;
+use crate::{builtins::complete::Complete, source_file};
 use parking_lot::Mutex;
-use pjsh_core::{
-    utils::path_to_string, Completions, Context, Filter, Scope, FD_STDERR, FD_STDIN, FD_STDOUT,
-};
+use pjsh_complete::Completer;
+use pjsh_core::{utils::path_to_string, Context, Filter, Scope, FD_STDERR, FD_STDIN, FD_STDOUT};
 
 /// Constructs a new initialized execution context containing some common environment variables such
 /// as `$PS1` and `$PS2`.
 pub fn initialized_context(
     args: Vec<String>,
     script_file: Option<PathBuf>,
-) -> (Context, Arc<Mutex<Completions>>) {
+) -> (Context, Arc<Mutex<Completer>>) {
+    let completer = Arc::new(Mutex::new(Completer::default()));
+
     let mut context = Context::with_scopes(vec![
         environment_scope(script_file.clone()),
         pjsh_scope(script_file),
         global_scope(args),
     ]);
-    let completions = Arc::new(Mutex::new(Completions::default()));
-    register_builtins(&mut context, Arc::clone(&completions));
+    register_builtins(&mut context, Arc::clone(&completer));
     register_filters(&mut context);
 
     context.set_file_descriptor(FD_STDIN, pjsh_core::FileDescriptor::Stdin);
     context.set_file_descriptor(FD_STDOUT, pjsh_core::FileDescriptor::Stdout);
     context.set_file_descriptor(FD_STDERR, pjsh_core::FileDescriptor::Stderr);
 
-    (context, completions)
+    (context, completer)
 }
 
 /// Returns a scope containing all environment variables belonging to the
@@ -133,10 +133,10 @@ fn global_scope(args: Vec<String>) -> Scope {
 }
 
 /// Registers built-in commands in a context.
-fn register_builtins(context: &mut Context, completions: Arc<Mutex<Completions>>) {
+fn register_builtins(context: &mut Context, completer: Arc<Mutex<Completer>>) {
     context.register_builtin(Box::new(pjsh_builtins::Alias));
     context.register_builtin(Box::new(pjsh_builtins::Cd));
-    context.register_builtin(Box::new(pjsh_builtins::Complete::new(completions)));
+    context.register_builtin(Box::new(Complete::new(completer)));
     context.register_builtin(Box::new(pjsh_builtins::Echo));
     context.register_builtin(Box::new(pjsh_builtins::Exit));
     context.register_builtin(Box::new(pjsh_builtins::Export));

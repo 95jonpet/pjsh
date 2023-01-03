@@ -1,4 +1,4 @@
-mod complete;
+mod builtins;
 mod exec;
 mod shell;
 
@@ -13,8 +13,8 @@ use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
 use exec::{AstPrinter, Execute, ProgramExecutor};
 use parking_lot::Mutex;
+use pjsh_complete::Completer;
 use pjsh_core::utils::word_var;
-use pjsh_core::Completions;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::{execute_statement, interpolate_word};
 use pjsh_parse::{parse, parse_interpolation, ParseError};
@@ -86,11 +86,11 @@ pub fn main() -> ExitCode {
         false => opts.script_file.as_ref().map(PathBuf::from),
     };
 
-    let (context, completions) = initialized_context(args, script_file);
+    let (context, completer) = initialized_context(args, script_file);
     let context = Arc::new(Mutex::new(context));
 
     source_init_scripts(interactive, &mut context.lock());
-    let shell = new_shell(&opts, Arc::clone(&context), completions);
+    let shell = new_shell(&opts, Arc::clone(&context), completer);
 
     // Not guaranteed to exit.
     let code = run_shell(shell, executor.as_ref(), Arc::clone(&context));
@@ -235,7 +235,7 @@ fn print_parse_error_details(line: &str, error: &ParseError) {
 fn new_shell(
     opts: &Opts,
     context: Arc<Mutex<Context>>,
-    completions: Arc<Mutex<Completions>>,
+    completer: Arc<Mutex<Completer>>,
 ) -> Box<dyn Shell> {
     if opts.is_command {
         // The script_file argument is a command rather than a file path.
@@ -257,7 +257,7 @@ fn new_shell(
     Box::new(RustylineShell::new(
         history_file().as_path(),
         context,
-        completions,
+        completer,
     ))
 }
 

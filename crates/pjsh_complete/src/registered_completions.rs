@@ -1,18 +1,21 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use itertools::Itertools;
-use pjsh_core::{Completion, Completions, Context};
+use pjsh_core::Context;
 use pjsh_eval::interpolate_function_call;
+
+use crate::completions::Completion;
 
 use super::{fs::complete_paths, Replacement};
 
 /// Completes a word based on a prefix.
-pub fn complete_in_context(
+pub fn complete_registered(
     prefix: &str,
     words: &[&str],
     word_index: usize,
     context: &Context,
-    completions: &Completions,
+    completions: &HashMap<String, Completion>,
 ) -> Option<Vec<Replacement>> {
     if word_index == 0 {
         return None;
@@ -40,7 +43,7 @@ pub fn complete_in_context(
             output
                 .split_whitespace()
                 .sorted()
-                .map(|word| Replacement::new(word.to_string()))
+                .map(|word| Replacement::from(word.to_string()))
                 .collect()
         }
     })
@@ -52,7 +55,7 @@ fn complete_words(prefix: &str, words: &[String]) -> Vec<Replacement> {
         .iter()
         .filter(|word| word.starts_with(prefix))
         .cloned()
-        .map(Replacement::new)
+        .map(Replacement::from)
         .collect();
     completions.sort_by(|a, b| a.content.cmp(&b.content));
     completions

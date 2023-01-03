@@ -55,7 +55,7 @@ fn complete_aliases<'a>(
 ) -> impl Iterator<Item = Replacement> + 'a {
     context.aliases.iter().filter_map(move |(name, _)| {
         if name.starts_with(prefix) {
-            Some(Replacement::new(name.to_string()))
+            Some(Replacement::from(name.to_string()))
         } else {
             None
         }
@@ -69,7 +69,7 @@ fn complete_builtins<'a>(
 ) -> impl Iterator<Item = Replacement> + 'a {
     context.builtins.iter().filter_map(move |(name, _)| {
         if name.starts_with(prefix) {
-            Some(Replacement::new(name.to_string()))
+            Some(Replacement::from(name.to_string()))
         } else {
             None
         }
@@ -85,7 +85,7 @@ fn complete_functions<'a>(
         .get_function_names()
         .into_iter()
         .filter(move |name| name.starts_with(prefix))
-        .map(Replacement::new)
+        .map(Replacement::from)
 }
 
 /// Completes a program name.
@@ -109,7 +109,7 @@ fn complete_programs(prefix: &str, context: &Context) -> Vec<Replacement> {
             programs.insert(name);
         }
     }
-    programs.into_iter().map(Replacement::new).collect()
+    programs.into_iter().map(Replacement::from).collect()
 }
 
 /// Completes a variable.
@@ -122,14 +122,6 @@ fn complete_variables(prefix: &str, context: &Context) -> Vec<Replacement> {
         .get_var_names()
         .iter()
         .filter(|name| name.starts_with(prefix))
-        .map(|name| Replacement::new(format!("${name}")))
+        .map(|name| Replacement::from(format!("${name}")))
         .collect()
-}
-
-/// Complete well-known prefixes.
-pub(crate) fn complete_known_prefix(prefix: &str) -> Option<Vec<Replacement>> {
-    match prefix {
-        ".." => Some(vec![Replacement::from("../")]),
-        _ => None,
-    }
 }
