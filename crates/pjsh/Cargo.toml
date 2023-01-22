@@ -23,6 +23,3 @@ pjsh_core = { path = "../pjsh_core" }
 pjsh_eval = { path = "../pjsh_eval" }
 pjsh_filters = { path = "../pjsh_filters" }
 pjsh_parse = { path = "../pjsh_parse" }
-
-[dev-dependencies]
-mockall = "0.11"

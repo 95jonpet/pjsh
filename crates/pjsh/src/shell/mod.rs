@@ -1,41 +1,50 @@
+use std::{io, sync::Arc};
+
+use parking_lot::Mutex;
+use pjsh_core::Context;
+use pjsh_eval::EvalError;
+use pjsh_parse::ParseError;
+
+mod command_shell;
 pub(crate) mod context;
-pub(crate) mod input_shell;
-pub(crate) mod interactive;
-pub(crate) mod single_command_shell;
+mod file_shell;
+mod interactive_shell;
+mod stdin_shell;
+pub(crate) mod utils;
 
-#[cfg(test)]
-use mockall::automock;
+pub(crate) use command_shell::CommandShell;
+pub(crate) use file_shell::{FileParseShell, FileShell};
+pub(crate) use interactive_shell::InteractiveShell;
+pub(crate) use stdin_shell::StdinShell;
 
-pub(crate) enum ShellInput {
-    /// A line of input.
-    Line(String),
-    /// Interrupt the current process.
-    Interrupt,
-    /// Exit the shell.
-    Logout,
-    /// No input.
-    None,
+/// Shell-related error types.
+pub enum ShellError {
+    /// A generic error with a message.
+    Error(String),
+
+    /// A parse error with an optional string of input resulting in the error.
+    ParseError(ParseError, Option<String>),
+
+    /// An evaluation error.
+    EvalError(EvalError),
+
+    /// A generic I/O-related error.
+    IoError(io::Error),
 }
 
-#[cfg_attr(test, automock)]
-pub(crate) trait Shell {
-    /// Prompts the user for a line of input using a `prompt` text that may contain ANSI control
-    /// sequences.
-    fn prompt_line(&mut self, prompt: &str) -> ShellInput;
+/// Result type for shell operations.
+pub type ShellResult<T> = Result<T, ShellError>;
 
-    /// Returns `true` if the prompt is run interactively, i.e. the user can be prompted for
-    /// additional input.
-    fn is_interactive(&self) -> bool;
+/// A shell responsible for reading input, parsing, and evaluating it.
+pub trait Shell {
+    /// Initializes the shell.
+    fn init(&mut self) -> ShellResult<()>;
 
-    /// Appends a line entry to the shell's history.
+    /// Runs the shell.
     ///
-    /// Previous entries may be removed if the history is limited in size.
-    ///
-    /// This feature is optional to implement, and may be a no-op.
-    fn add_history_entry(&mut self, line: &str);
+    /// This should read input, parse, and evaluate it.
+    fn run(&mut self, context: Arc<Mutex<Context>>) -> ShellResult<()>;
 
-    /// Saves the shell's history to a file.
-    ///
-    /// This feature is optional to implement, and may be a no-op.
-    fn save_history(&mut self, history_file: &std::path::Path);
+    /// Exits the shell.
+    fn exit(self) -> ShellResult<()>;
 }
