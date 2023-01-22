@@ -23,8 +23,10 @@ impl Shell for StdinShell {
 
         loop {
             let mut line = String::new();
-            if stdin().read_line(&mut line).is_err() {
-                break; // No more input to read.
+            match stdin().read_line(&mut line) {
+                Ok(0) => break, // No more input to read.
+                Ok(_) => (),
+                Err(_) => break, // No more input to read.
             }
 
             // Repeatedly ask for lines of input until a valid program can be executed.
@@ -39,8 +41,15 @@ impl Shell for StdinShell {
                     // If more input is required, prompt for more input and loop again.
                     // The next line of input will be appended to the buffer and parsed.
                     Err(ParseError::IncompleteSequence | ParseError::UnexpectedEof) => {
-                        if let Err(error) = stdin().read_line(&mut line) {
-                            return Err(ShellError::IoError(error));
+                        match stdin().read_line(&mut line) {
+                            Ok(0) => {
+                                return Err(ShellError::ParseError(
+                                    ParseError::UnexpectedEof,
+                                    Some(line),
+                                ))
+                            }
+                            Ok(_) => continue,
+                            Err(error) => return Err(ShellError::IoError(error)),
                         }
                     }
 
