@@ -566,7 +566,7 @@ mod tests {
                 "inner".into(),
                 None,
                 HashMap::default(),
-                HashMap::from([("inner".to_string(), Some(inner_fn.clone()))]),
+                HashMap::from([("inner".to_string(), Some(inner_fn))]),
                 HashSet::default(),
             ),
         ]);

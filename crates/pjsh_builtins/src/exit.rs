@@ -23,7 +23,7 @@ impl Command for Exit {
         "exit"
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match ExitOpts::try_parse_from(args.context.args()) {
             Ok(opts) => {
                 let code = opts.status.unwrap_or_else(|| args.context.last_exit());

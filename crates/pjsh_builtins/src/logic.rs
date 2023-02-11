@@ -12,7 +12,7 @@ impl Command for True {
         "true"
     }
 
-    fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+    fn run(&self, _args: &mut Args) -> CommandResult {
         CommandResult::code(status::SUCCESS)
     }
 }
@@ -27,7 +27,7 @@ impl Command for False {
         "false"
     }
 
-    fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+    fn run(&self, _args: &mut Args) -> CommandResult {
         CommandResult::code(1) // Any non-zero code is false.
     }
 }

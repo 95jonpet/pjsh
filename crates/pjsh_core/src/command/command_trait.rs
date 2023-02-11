@@ -6,7 +6,7 @@ pub trait Command: CommandClone + Send + Sync {
     fn name(&self) -> &str;
 
     /// Runs the command.
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult;
+    fn run(&self, args: &mut Args) -> CommandResult;
 }
 
 /// Helper trait for making it easier to clone `Box<Command>`.

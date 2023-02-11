@@ -11,7 +11,7 @@ impl pjsh_core::command::Command for TrueCommand {
         "true"
     }
 
-    fn run<'a>(&self, _: &'a mut pjsh_core::command::Args) -> pjsh_core::command::CommandResult {
+    fn run(&self, _: &mut pjsh_core::command::Args) -> pjsh_core::command::CommandResult {
         pjsh_core::command::CommandResult::code(0)
     }
 }

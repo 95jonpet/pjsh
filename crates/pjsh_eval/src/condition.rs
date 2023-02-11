@@ -176,7 +176,7 @@ mod tests {
         let pattern = Word::Literal("a{100}{100}{100}".into()); // Too large regex, prevent DoS.
 
         let context = Context::default();
-        let result = eval_condition(&Condition::Matches(a, pattern.clone()), &context);
+        let result = eval_condition(&Condition::Matches(a, pattern), &context);
 
         assert!(matches!(result, Err(EvalError::InvalidRegex(_))));
     }

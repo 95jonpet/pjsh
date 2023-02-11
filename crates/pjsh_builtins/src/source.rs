@@ -53,7 +53,7 @@ where
         NAME
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match SourceOpts::try_parse_from(args.context.args()) {
             Ok(opts) => {
                 let old_args = args.context.replace_args(Some(opts.args));
@@ -94,7 +94,7 @@ where
         NAME_SHORTHAND
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match SourceOpts::try_parse_from(args.context.args()) {
             Ok(opts) => {
                 let old_args = args.context.replace_args(Some(opts.args));

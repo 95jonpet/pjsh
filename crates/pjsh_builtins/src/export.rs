@@ -28,7 +28,7 @@ impl Command for Export {
         NAME
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match ExportOpts::try_parse_from(args.context.args()) {
             Ok(opts) => export_variables(opts, args),
             Err(error) => utils::exit_with_parse_error(args.io, error),
