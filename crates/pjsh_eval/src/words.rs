@@ -190,7 +190,7 @@ fn interpolate(context: &Context, func: impl Fn(Context) -> EvalResult<()>) -> E
     func(inner_context)?;
 
     let read_file = |mut file: std::fs::File| {
-        let _ = file.seek(std::io::SeekFrom::Start(0));
+        let _ = file.rewind();
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
         let _ = buf_reader.read_to_string(&mut contents);

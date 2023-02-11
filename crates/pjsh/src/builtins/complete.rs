@@ -59,7 +59,7 @@ impl Command for Complete {
         "complete"
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match CompleteOpts::try_parse_from(args.context.args()) {
             Ok(opts) => {
                 let mut completer = self.completer.lock();

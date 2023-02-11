@@ -36,7 +36,7 @@ impl Command for Cd {
         NAME
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match CdOpts::try_parse_from(args.context.args()) {
             Ok(opts) => change_directory(opts, args),
             Err(err) => utils::exit_with_parse_error(args.io, err),
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn it_cannot_change_working_directory_to_missing_directories() {
         let dir = PathBuf::from("/path/to/missing/dir");
-        let mut ctx = cd_context(&dir);
+        let mut ctx = cd_context(dir);
         let (mut io, _stdout, _stderr) = mock_io();
         let cd = Cd {};
 

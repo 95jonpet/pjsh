@@ -126,7 +126,7 @@ mod tests {
             "mybuiltin"
         }
 
-        fn run<'a>(&self, _args: &'a mut Args) -> CommandResult {
+        fn run(&self, _args: &mut Args) -> CommandResult {
             CommandResult::code(0)
         }
     }

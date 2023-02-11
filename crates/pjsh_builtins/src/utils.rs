@@ -57,7 +57,7 @@ pub(crate) fn file_contents(file: &mut std::fs::File) -> String {
     use std::io::{Read, Seek};
 
     let mut string = String::new();
-    let _ = file.seek(std::io::SeekFrom::Start(0));
+    let _ = file.rewind();
     let _ = file.read_to_string(&mut string);
     string
 }

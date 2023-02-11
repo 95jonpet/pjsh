@@ -27,7 +27,7 @@ impl Command for Unalias {
         NAME
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match UnaliasOpts::try_parse_from(args.context.args()) {
             Ok(opts) => remove_aliases(args.context, &opts.names),
             Err(error) => utils::exit_with_parse_error(args.io, error),

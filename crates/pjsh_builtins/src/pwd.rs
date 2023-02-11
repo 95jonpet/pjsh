@@ -26,7 +26,7 @@ impl Command for Pwd {
         NAME
     }
 
-    fn run<'a>(&self, args: &'a mut Args) -> CommandResult {
+    fn run(&self, args: &mut Args) -> CommandResult {
         match PwdOpts::try_parse_from(args.context.args()) {
             Ok(opts) => print_working_directory(opts, args),
             Err(error) => utils::exit_with_parse_error(args.io, error),
