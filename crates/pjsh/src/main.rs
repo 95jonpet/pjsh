@@ -1,21 +1,22 @@
 mod builtins;
 
+mod error;
 mod shell;
 
 use std::fs::{read_to_string, File};
 use std::process::ExitCode;
 use std::{env::current_exe, path::PathBuf, sync::Arc};
 
-use ansi_term::{Color, Style};
 use clap::{crate_version, Parser};
+use error::{ErrorHandler, GuidingErrorHandler, SimpleErrorHandler};
 use parking_lot::Mutex;
 use pjsh_complete::Completer;
 use pjsh_core::{utils::path_to_string, Context};
 use pjsh_eval::{execute_statement, interpolate_word};
-use pjsh_parse::{parse, parse_interpolation, ParseError};
+use pjsh_parse::{parse, parse_interpolation};
 use shell::context::initialized_context;
 pub use shell::Shell;
-use shell::{CommandShell, FileParseShell, FileShell, InteractiveShell, ShellError, StdinShell};
+use shell::{CommandShell, FileParseShell, FileShell, InteractiveShell, StdinShell};
 
 /// Init script to always source when starting a new shell.
 const INIT_ALWAYS_SCRIPT_NAME: &str = ".pjsh/init-always.pjsh";
@@ -115,53 +116,27 @@ fn interpolate(src: &str, context: Arc<Mutex<Context>>) -> String {
 /// Runs the main loop of a [`Shell`].
 ///
 /// This method is not guaranteed to exit.
-pub(crate) fn run_shell<S: Shell>(mut shell: S, context: Arc<Mutex<Context>>) -> ExitCode {
+pub(crate) fn run_shell<S: Shell, E: ErrorHandler>(
+    mut shell: S,
+    error_handler: &E,
+    context: Arc<Mutex<Context>>,
+) -> ExitCode {
     if let Err(error) = shell.init() {
-        print_error(&error);
+        error_handler.display_error(error);
         return ExitCode::FAILURE;
     }
 
     if let Err(error) = shell.run(Arc::clone(&context)) {
-        print_error(&error);
+        error_handler.display_error(error);
         return ExitCode::FAILURE;
     }
 
     if let Err(error) = shell.exit() {
-        print_error(&error);
+        error_handler.display_error(error);
         return ExitCode::FAILURE;
     }
 
     ExitCode::from(context.lock().last_exit().abs().min(u8::MAX.into()) as u8)
-}
-
-/// Prints an error message.
-fn print_error(error: &ShellError) {
-    match error {
-        ShellError::Error(error) => eprintln!("pjsh: {error}"),
-        ShellError::ParseError(error, line) => {
-            eprintln!("pjsh: {error}");
-            if let Some(line) = line {
-                print_parse_error_details(line, error);
-            }
-        }
-        ShellError::EvalError(error) => eprintln!("pjsh: {error}"),
-        ShellError::IoError(error) => eprintln!("pjsh: {error}"),
-    }
-}
-
-/// Prints details related to a parse error.
-fn print_parse_error_details(line: &str, error: &ParseError) {
-    if let Some(span) = error.span() {
-        let marked_line_start = line[..span.start].rfind('\n').unwrap_or(0);
-        let marked_start = span.start - marked_line_start;
-
-        let marker_indent = " ".repeat(marked_start);
-        let mut marker = marker_indent + &("^".repeat(span.end - span.start));
-        marker.push_str(" help: ");
-        marker.push_str(error.help());
-
-        eprintln!("{line}{}", Style::new().fg(Color::Red).paint(&marker));
-    }
 }
 
 /// Runs the shell.
@@ -171,26 +146,27 @@ fn run(opts: &Opts, context: Arc<Mutex<Context>>, completer: Arc<Mutex<Completer
     if opts.is_command {
         // The script_file argument is a command rather than a file path.
         let cmd = opts.script_file.to_owned().expect("cmd should be defined");
-        return run_shell(CommandShell::new(cmd), context);
+        return run_shell(CommandShell::new(cmd), &GuidingErrorHandler, context);
     }
 
     if let Some(script_file) = &opts.script_file {
         let file = File::open(script_file).expect("script file should be readable");
         return if opts.is_parse_only {
-            run_shell(FileParseShell::new(file), context)
+            run_shell(FileParseShell::new(file), &GuidingErrorHandler, context)
         } else {
-            run_shell(FileShell::new(file), context)
+            run_shell(FileShell::new(file), &GuidingErrorHandler, context)
         };
     }
 
     // Read input from stdin if stdin is not considered interactive.
     if !atty::is(atty::Stream::Stdin) {
-        return run_shell(StdinShell, context);
+        return run_shell(StdinShell, &GuidingErrorHandler, context);
     }
 
     // Construct a new interactive shell if stdin is considered interactive.
     run_shell(
         InteractiveShell::new(Arc::clone(&context), completer),
+        &SimpleErrorHandler,
         context,
     )
 }

@@ -8,5 +8,6 @@ description = "Parser for PJSH."
 [dependencies]
 lazy_static = "1"
 regex = "1"
+thiserror = "1"
 
 pjsh_ast = { path = "../pjsh_ast" }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::fmt::Display;
+
+use thiserror::Error;
 
 use crate::lex::input::{is_newline, is_whitespace, Span};
 use crate::token::{InterpolationUnit, Token, TokenContents, TokenContents::*};
@@ -10,21 +11,16 @@ use super::input::{is_literal, Input};
 const EOF: char = '\0';
 type LexResult<'a> = Result<Token, LexError>;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum LexError {
+    #[error("unexpected character `{0}`")]
     UnexpectedChar(char),
-    UnexpectedEof,
-    UnknownToken(String),
-}
 
-impl Display for LexError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LexError::UnexpectedChar(c) => write!(f, "unexpected character '{}'", c),
-            LexError::UnexpectedEof => write!(f, "unexpected end of file"),
-            LexError::UnknownToken(token) => write!(f, "unknown token '{}'", token),
-        }
-    }
+    #[error("unexpected end of file")]
+    UnexpectedEof,
+
+    #[error("unknown token `{0}`")]
+    UnknownToken(String),
 }
 
 /// Lexes some input `str` and returns all tokens within the input.

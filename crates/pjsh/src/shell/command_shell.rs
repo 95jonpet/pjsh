@@ -33,8 +33,8 @@ impl Shell for CommandShell {
         // Non-interactive shells should not use aliases.
         let aliases = &HashMap::new();
 
-        let program =
-            parse(&self.command, aliases).map_err(|error| ShellError::ParseError(error, None))?;
+        let program = parse(&self.command, aliases)
+            .map_err(|error| ShellError::ParseError(error, self.command.clone()))?;
         eval_program(&program, &mut context.lock(), exit_on_error)
     }
 

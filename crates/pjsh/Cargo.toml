@@ -6,6 +6,7 @@ license = "MIT"
 description = "Main executable for PJSH."
 
 [dependencies]
+annotate-snippets = { version = "0.9", features = ["color"] }
 ansi_term = "0.12"
 atty = "0.2"
 clap = { version = "4", features = ["cargo", "derive"] }
