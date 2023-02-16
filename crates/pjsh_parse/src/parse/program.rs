@@ -2,7 +2,7 @@ use pjsh_ast::{AndOr, AndOrOp, Program, Statement, Word};
 
 use crate::{
     token::{Token, TokenContents},
-    ParseError,
+    ParseError, Span,
 };
 
 use super::{
@@ -75,16 +75,19 @@ pub(crate) fn parse_subshell_program(tokens: &mut TokenCursor) -> ParseResult<Pr
 /// Note that tokens are consumed as long as the subshell is opened - even if the subshell is
 /// empty.
 pub(crate) fn parse_subshell(tokens: &mut TokenCursor) -> ParseResult<Statement> {
-    take_token(tokens, &TokenContents::OpenParen)?;
+    let open = take_token(tokens, &TokenContents::OpenParen)?;
 
     let subshell_program = parse_subshell_program(tokens)?;
 
     // A subshell must be terminated by a closing parenthesis.
-    take_token(tokens, &TokenContents::CloseParen)?;
+    let close = take_token(tokens, &TokenContents::CloseParen)?;
 
     // A subshell must not be empty.
     if subshell_program.statements.is_empty() {
-        return Err(ParseError::EmptySubshell);
+        return Err(ParseError::EmptySubshell(Span {
+            start: open.span.start,
+            end: close.span.end,
+        }));
     }
 
     Ok(Statement::Subshell(subshell_program))
@@ -95,16 +98,19 @@ pub(crate) fn parse_subshell(tokens: &mut TokenCursor) -> ParseResult<Statement>
 /// Note that tokens are consumed as long as the subshell is opened - even if the subshell is
 /// empty.
 pub(crate) fn parse_subshell_word(tokens: &mut TokenCursor) -> ParseResult<Word> {
-    take_token(tokens, &TokenContents::DollarOpenParen)?;
+    let open = take_token(tokens, &TokenContents::DollarOpenParen)?;
 
     let subshell_program = parse_subshell_program(tokens)?;
 
     // A subshell must be terminated by a closing parenthesis.
-    take_token(tokens, &TokenContents::CloseParen)?;
+    let close = take_token(tokens, &TokenContents::CloseParen)?;
 
     // A subshell must not be empty.
     if subshell_program.statements.is_empty() {
-        return Err(ParseError::EmptySubshell);
+        return Err(ParseError::EmptySubshell(Span {
+            start: open.span.start,
+            end: close.span.end,
+        }));
     }
 
     Ok(Word::Subshell(subshell_program))

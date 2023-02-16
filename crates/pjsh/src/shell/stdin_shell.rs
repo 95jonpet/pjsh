@@ -43,10 +43,7 @@ impl Shell for StdinShell {
                     Err(ParseError::IncompleteSequence | ParseError::UnexpectedEof) => {
                         match stdin().read_line(&mut line) {
                             Ok(0) => {
-                                return Err(ShellError::ParseError(
-                                    ParseError::UnexpectedEof,
-                                    Some(line),
-                                ))
+                                return Err(ShellError::ParseError(ParseError::UnexpectedEof, line))
                             }
                             Ok(_) => continue,
                             Err(error) => return Err(ShellError::IoError(error)),
@@ -55,7 +52,7 @@ impl Shell for StdinShell {
 
                     // Unrecoverable error.
                     Err(error) => {
-                        return Err(ShellError::ParseError(error, Some(line)));
+                        return Err(ShellError::ParseError(error, line));
                     }
                 }
             }

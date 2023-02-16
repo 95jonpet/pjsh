@@ -38,7 +38,7 @@ impl Shell for FileShell {
             .read_to_string(&mut src)
             .map_err(ShellError::IoError)?;
 
-        let program = parse(&src, aliases).map_err(|error| ShellError::ParseError(error, None))?;
+        let program = parse(&src, aliases).map_err(|error| ShellError::ParseError(error, src))?;
         eval_program(&program, &mut context.lock(), exit_on_error)
     }
 
@@ -74,7 +74,7 @@ impl Shell for FileParseShell {
             .read_to_string(&mut src)
             .map_err(ShellError::IoError)?;
 
-        let program = parse(&src, aliases).map_err(|error| ShellError::ParseError(error, None))?;
+        let program = parse(&src, aliases).map_err(|error| ShellError::ParseError(error, src))?;
         println!("{:#?}", program);
 
         Ok(())

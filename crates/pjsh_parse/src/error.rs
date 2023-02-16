@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use thiserror::Error;
 
 use crate::{
     token::{Token, TokenContents},
@@ -9,20 +9,23 @@ use crate::{
 ///
 /// Note that some parse errors are recoverable, and that some errors may expected withing certain
 /// contexts.
-#[derive(Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ParseError {
     /// Error indicating that a parsed subshell contains no statements.
-    EmptySubshell,
+    #[error("empty subshell")]
+    EmptySubshell(Span),
 
     /// Error indicating that an expected token was not found in the input.
     /// The current sequence of tokens cannot be parsed in this context.
     ///
     /// Note that the token may still be valid in a different context.
+    #[error("invalid token (expected `{0:?}`), found {:?}", .1.contents)]
     ExpectedToken(TokenContents, Token), // (expected, found).
 
     /// Error indicating that there is no more input to parse while parsing a started sequence.
     ///
     /// This error is recoverable, and interactive shells should prompt the user for more input.
+    #[error("incomplete sequence")]
     IncompleteSequence,
 
     /// Error indicating that the syntax is invalid.
@@ -30,6 +33,7 @@ pub enum ParseError {
     /// Contains an error message.
     ///
     /// This error is not recoverable.
+    #[error("invalid syntax: {0}")]
     InvalidSyntax(String),
 
     /// Error indicating that there is no more input to parse.
@@ -38,12 +42,14 @@ pub enum ParseError {
     /// [`ParseError::IncompleteSequence`] should instead be returned when within a sequence.
     ///
     /// This error could also mean that the input has been fully parsed.
+    #[error("unexpected end of file")]
     UnexpectedEof,
 
     /// Error indicating that an unexpected token was found in the input.
     /// The current sequence of tokens cannot be parsed in this context.
     ///
     /// Note that the token may still be valid in a different context.
+    #[error("unexpected token {:?}", .0.contents)]
     UnexpectedToken(Token),
 }
 
@@ -51,7 +57,7 @@ impl ParseError {
     /// Returns a help text associated with the error.
     pub fn help(&self) -> &str {
         match self {
-            ParseError::EmptySubshell => "this subshell is empty",
+            ParseError::EmptySubshell(_) => "this subshell is empty",
             ParseError::ExpectedToken(_, _) => "another token is expected here",
             ParseError::IncompleteSequence => "this sequence is incomplete",
             ParseError::InvalidSyntax(_) => "this syntax is invalid",
@@ -63,28 +69,10 @@ impl ParseError {
     /// Returns the positional span in which the error resides.
     pub fn span(&self) -> Option<Span> {
         match self {
+            ParseError::EmptySubshell(span) => Some(*span),
             ParseError::ExpectedToken(_, found) => Some(found.span),
             ParseError::UnexpectedToken(token) => Some(token.span),
             _ => None,
-        }
-    }
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::EmptySubshell => write!(f, "empty subshell"),
-            ParseError::ExpectedToken(expected, actual) => write!(
-                f,
-                "expected token: {:?}, found: {:?}",
-                expected, actual.contents
-            ),
-            ParseError::IncompleteSequence => write!(f, "incomplete sequence"),
-            ParseError::InvalidSyntax(message) => write!(f, "invalid syntax: {message}"),
-            ParseError::UnexpectedEof => write!(f, "unexpected end of file"),
-            ParseError::UnexpectedToken(token) => {
-                write!(f, "unexpected token: {:?}", token.contents)
-            }
         }
     }
 }

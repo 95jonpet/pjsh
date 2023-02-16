@@ -22,8 +22,8 @@ pub enum ShellError {
     /// A generic error with a message.
     Error(String),
 
-    /// A parse error with an optional string of input resulting in the error.
-    ParseError(ParseError, Option<String>),
+    /// A parse error and the input resulting in the error.
+    ParseError(ParseError, String),
 
     /// An evaluation error.
     EvalError(EvalError),
