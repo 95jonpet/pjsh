@@ -3,6 +3,8 @@ pipeline {
   environment {
     BASE_VERSION ="0.1.0"
     VERSION = "${env.BASE_VERSION}${env.BRANCH_NAME == "main" ? "-SNAPSHOT" : "~${env.BRANCH_NAME}"}"
+    PROFILE = "${env.BRANCH_NAME == "main" ? "release" : "debug"}"
+    PROFILE_FLAGS = "${PROFILE == "release" ? "--release" : " "}" // Jenkins does not allow empty values.
     CARGO_HOME = "/.cargo"
     CARGO_TARGET_DIR = "/.cargo-target"
   }
@@ -37,15 +39,15 @@ pipeline {
             }
           }
           steps {
-            sh label: "Build release binary", script: "cargo build --bins --release"
+            sh label: "Build ${PROFILE} binary", script: "cargo build --bins ${PROFILE_FLAGS}"
           }
           post {
             success {
               sh label: "Copy built binary", script: """
-                mkdir -p target/release
-                cp '${CARGO_TARGET_DIR}/release/pjsh' target/release
+                mkdir -p target/${PROFILE}
+                cp '${CARGO_TARGET_DIR}/${PROFILE}/pjsh' target/${PROFILE}
               """
-              stash(name: "linux-binary", includes: "target/release/pjsh")
+              stash(name: "linux-binary", includes: "target/${PROFILE}/pjsh")
             }
             cleanup {
               cleanWs()
@@ -65,7 +67,7 @@ pipeline {
             '${VERSION}' \
             '${BUILD_NUMBER}' \
             build/package \
-            target/release \
+            'target/${PROFILE}' \
             target/package
         """
         sh label: "Verify Linux packages", script: "build/verify-linux-packages.sh target/package examples"
