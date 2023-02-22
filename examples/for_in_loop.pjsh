@@ -5,6 +5,12 @@ for word in [a b c] {
   echo $word
 }
 
+# Iterate over a pre-defined list of variable items.
+items := [a b c]
+for item in $items {
+  echo $item
+}
+
 # Iterate over a range of numeric values.
 for i in 1..=10 {
   echo `i=$i`

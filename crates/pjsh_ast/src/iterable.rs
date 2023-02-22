@@ -7,6 +7,8 @@ pub enum Iterable {
     Items(ItemIterable),
     /// Iterate over a range of numeric values.
     Range(NumericRange),
+    /// Iterate over items in a variable list.
+    Variable(String),
 }
 
 impl Iterator for Iterable {
@@ -16,6 +18,9 @@ impl Iterator for Iterable {
         match self {
             Iterable::Items(items) => items.next(),
             Iterable::Range(numeric_range) => numeric_range.next(),
+            Iterable::Variable(_) => {
+                unreachable!("Variable iterables should be resolved")
+            }
         }
     }
 }
