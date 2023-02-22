@@ -231,6 +231,7 @@ pub(crate) fn parse_for_loop(tokens: &mut TokenCursor) -> Result<Statement, Pars
     } else {
         match parse_word(tokens) {
             Ok(Word::Literal(literal)) => parse_iterable(&literal)?,
+            Ok(Word::Variable(var)) => Iterable::Variable(var),
             Ok(_) => return Err(ParseError::InvalidSyntax("expected iterable".to_owned())),
             Err(ParseError::UnexpectedEof) => return Err(ParseError::IncompleteSequence),
             Err(error) => return Err(error),
@@ -681,6 +682,47 @@ mod tests {
                     Word::Literal("b".into()),
                     Word::Literal("c".into()),
                 ])),
+                body: Block {
+                    statements: vec![Statement::AndOr(AndOr {
+                        operators: Vec::new(),
+                        pipelines: vec![Pipeline {
+                            is_async: false,
+                            segments: vec![PipelineSegment::Command(Command {
+                                arguments: vec![
+                                    Word::Literal("echo".into()),
+                                    Word::Variable("i".into())
+                                ],
+                                redirects: Vec::new(),
+                            })]
+                        }]
+                    })]
+                }
+            }))
+        );
+    }
+
+    #[test]
+    fn parse_for_in_variable_loop() {
+        let span = Span::new(0, 0); // Does not matter during this test.
+        assert_eq!(
+            parse_for_loop(&mut TokenCursor::from(vec![
+                Token::new(TokenContents::Literal("for".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("item".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Literal("in".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Variable("items".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::OpenBrace, span),
+                Token::new(TokenContents::Literal("echo".into()), span),
+                Token::new(TokenContents::Whitespace, span),
+                Token::new(TokenContents::Variable("i".into()), span),
+                Token::new(TokenContents::CloseBrace, span),
+            ])),
+            Ok(Statement::ForIn(ForIterableLoop {
+                variable: "item".into(),
+                iterable: pjsh_ast::Iterable::Variable("items".into()),
                 body: Block {
                     statements: vec![Statement::AndOr(AndOr {
                         operators: Vec::new(),

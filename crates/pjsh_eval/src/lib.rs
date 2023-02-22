@@ -142,9 +142,27 @@ fn execute_conditional_loop(
 
 /// Executes a for-in iterable loop, consuming the iterable in the process.
 fn execute_for_iterable_loop(
-    for_iterable: ForIterableLoop,
+    mut for_iterable: ForIterableLoop,
     context: &mut Context,
 ) -> EvalResult<()> {
+    if let Iterable::Variable(var) = for_iterable.iterable {
+        // Resolve variable iterables.
+        match context.get_var(&var) {
+            Some(pjsh_core::Value::List(items)) => {
+                let words: Vec<Word> = items.iter().cloned().map(Word::Literal).collect();
+                for_iterable.iterable = Iterable::from(words);
+            }
+            Some(pjsh_core::Value::Word(_)) => {
+                return Err(EvalError::InvalidVariableType {
+                    variable: var,
+                    expected_type: "list".to_string(),
+                    actual_type: "word".to_string(),
+                })
+            }
+            None => return Err(EvalError::UndefinedVariable(var)),
+        }
+    }
+
     context.push_scope(Scope::new(
         format!("{} for-in", context.name()),
         None,

@@ -15,7 +15,12 @@ pub enum EvalError {
     InvalidListInterpolation(String),
     InvalidRegex(String),         // Contains an error message.
     InvalidValuePipeline(String), // Contains an error message.
-    IoError(std::io::Error),      // General IO catch-all error.
+    InvalidVariableType {
+        variable: String,
+        expected_type: String,
+        actual_type: String,
+    },
+    IoError(std::io::Error), // General IO catch-all error.
     PipelineFailed(Vec<std::io::Error>),
     UnboundFunctionArguments(Vec<String>),
     UndefinedFileDescriptor(usize),
@@ -52,6 +57,14 @@ impl Display for EvalError {
             }
             EvalError::InvalidRegex(msg) => write!(f, "invalid regex: {msg}"),
             EvalError::InvalidValuePipeline(msg) => write!(f, "invalid value pipeline: {msg}"),
+            EvalError::InvalidVariableType {
+                variable,
+                expected_type,
+                actual_type,
+            } => write!(
+                f,
+                "{variable}: invalid type (expected {expected_type}), found {actual_type}"
+            ),
             EvalError::IoError(err) => write!(f, "input/output error: {err}"),
             EvalError::PipelineFailed(errors) => write!(f, "pipeline failed: {:?}", errors),
             EvalError::UnboundFunctionArguments(args) => {
