@@ -1,11 +1,22 @@
-use std::{
-    ffi::OsStr,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use crate::Context;
 
 use super::word_var;
+
+/// Returns a canonical path.
+macro_rules! canonical_path {
+    ( $base:expr $(, $part:expr)* ) => {
+        {
+            #[allow(unused_mut)]
+            let mut temp_path = PathBuf::from($base);
+            $(
+                temp_path.push($part);
+            )*
+            temp_path.canonicalize().unwrap_or(temp_path)
+        }
+    };
+}
 
 /// Converts a path to a string.
 ///
@@ -19,14 +30,24 @@ pub fn path_to_string<P: AsRef<Path>>(path: P) -> String {
 
 /// Resolves a path given a [`Context`].
 ///
-/// Relative paths are resolved from the current working directory as determined by `$PWD`. Path
-/// resolution is not guaranteed when `$PWD` is not set.
+/// Relative paths are resolved from the current working directory as determined by `$PWD`.
+/// Path resolution is not guaranteed when `$PWD` and/or `$HOME` are not set within the context.
 ///
 /// Returns a canonicalized (absolute) path.
-pub fn resolve_path<P: AsRef<OsStr>>(context: &Context, path: P) -> PathBuf {
-    let mut resolved = word_var(context, "PWD").map_or_else(|| PathBuf::from("/"), PathBuf::from);
-    resolved.push(path.as_ref());
+pub fn resolve_path<P: AsRef<Path>>(context: &Context, path: P) -> PathBuf {
+    let path = path.as_ref();
 
-    // Attempt to canonicalize the path into an absolute path.
-    resolved.canonicalize().unwrap_or(resolved)
+    if path.is_absolute() {
+        return canonical_path!(path);
+    }
+
+    if path == Path::new("~") {
+        return canonical_path!(word_var(context, "HOME").unwrap_or("~"));
+    }
+
+    if let Ok(path) = path.strip_prefix("~/") {
+        return canonical_path!(word_var(context, "HOME").unwrap_or("~/"), path);
+    }
+
+    canonical_path!(word_var(context, "PWD").unwrap_or("/"), path)
 }
