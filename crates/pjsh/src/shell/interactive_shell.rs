@@ -9,6 +9,7 @@ use rustyline::{
     error::ReadlineError,
     highlight::{Highlighter, MatchingBracketHighlighter},
     hint::{Hinter, HistoryHinter},
+    history::FileHistory,
     validate::{self, ValidationResult, Validator},
     CompletionType, Config, Editor,
 };
@@ -40,7 +41,7 @@ pub(crate) enum ShellInput {
 /// Reads input from stdin.
 pub struct InteractiveShell {
     /// Rustyline editor.
-    editor: Editor<ShellHelper>,
+    editor: Editor<ShellHelper, FileHistory>,
 }
 
 impl InteractiveShell {
@@ -127,7 +128,7 @@ impl Shell for InteractiveShell {
                 match parse(&line, &aliases) {
                     // If a valid program can be parsed from the buffer, execute it.
                     Ok(program) => {
-                        self.editor.add_history_entry(line.trim());
+                        let _ = self.editor.add_history_entry(line.trim());
                         eval_program(&program, &mut context.lock(), print_error)?;
                         break;
                     }
