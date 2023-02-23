@@ -12,10 +12,10 @@ atty = "0.2"
 clap = { version = "4", features = ["cargo", "derive"] }
 dirs = "4"
 itertools = "0.10"
-parking_lot = {version = "0.12", features = ["deadlock_detection"] }
+parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 regex = "1"
-rustyline = "10"
-rustyline-derive = "0.7"
+rustyline = { version = "11", features = ["with-file-history"] }
+rustyline-derive = "0.8"
 
 pjsh_ast = { path = "../pjsh_ast" }
 pjsh_builtins = { path = "../pjsh_builtins" }
